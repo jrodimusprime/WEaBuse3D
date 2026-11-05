@@ -22,8 +22,9 @@ teleport beam, the teleport pod (TP_DOOR), lava, breakable walls, save terminals
 and the weapon in the player's hands (all seven).
 
 Still on the placeholder, roughly in the order a player meets them:
-FORCE_FIELD, BOLDER, rockets and grenades in flight, and the cop himself (only seen in Watch and model
-review). (Done since: the alien ant, articulated and posed in every state; turrets as hemispheres; ant cracks.)
+FORCE_FIELD, rockets and grenades in flight, and the cop himself (only seen in Watch and model
+review). (Done since, for level 2: the jugger, the tracking gun, the cleaner ROB1, the pusher, the step, blocks,
+indicator lamps and the boulder; docs/level2-models.png.) (Done since: the alien ant, articulated and posed in every state; turrets as hemispheres; ant cracks.)
 (Done since: explosions and smoke, the exit teleporter machine, the guns redesigned from the game's art.)
 
 ## M2: Depth mode, 3D gameplay (done; human sign-off pending)

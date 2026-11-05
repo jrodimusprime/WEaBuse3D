@@ -116,6 +116,25 @@ test('on every level, nothing used on the back wall is shut off from it by a doo
   assert.deepEqual(blocked, []);
 });
 
+test("a jugger shoves the player back only from its own depth, and one standing guard stays put", async () => {
+  await g.start(levelFile(2));
+  g.freshRun();
+  const d = new Depth(g, LANE); d.install();
+  g.god = true;
+  const jug = g.entities.find((e) => e.type === 'JUGGER' && !e.links.length);
+  const jd = d.depthOf(jug);
+  const shoved = (pd) => {
+    put(jug.x - 22, jug.y); d.pd = pd;
+    const x0 = g.player.x;
+    steps(8);
+    return Math.abs(g.player.x - x0);
+  };
+  assert.ok(shoved(jd > 0 ? jd - 150 : jd + 150) < 2, 'not from across the hall');
+  assert.ok(shoved(jd) > 4, 'shoved at its depth');
+  assert.equal(d.depthOf(jug), jd, 'standing guard, it did not slide across the hall');
+  g.god = false;
+});
+
 // an ant running at the player on level 1's floor (it starts in its cocoon; this puts it down running)
 const runningAnt = async () => {
   await g.start(levelFile(1));

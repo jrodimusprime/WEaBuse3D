@@ -8,6 +8,7 @@
 // drawn by the voxel placeholder (BACKLOG.md, "Models awaiting design").
 import { Mesh, rotation, spriteColours, shade } from '../engine/mesh.js';
 import { antModel } from './ant.js';
+import { MACHINES } from './machines.js';
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const meshes = new Map(); // type -> built meshes
@@ -808,6 +809,7 @@ const BY_AI = {
   weapon_icon_ai: crate, spring_ai: springPad, next_level_ai: exitPad, tele_beam_ai: teleBeam, tpd_ai: pod, lava_ai: lava,
   hwall_ai: blockWall, big_wall_ai: blockWall, restart_ai: saveTerminal,
   ant_ai: antModel, spray_gun_ai: turret, crack_ai: crack,
+  ...MACHINES, // level 2's machines and the jugger (client/machines.js)
 };
 const BY_TYPE = {
   WHO: drone, POINTER: pointer, SWITCH_BALL: switchBall, NEXT_LEVEL_TOP: exitMachine,

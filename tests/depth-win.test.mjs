@@ -1,4 +1,4 @@
-// Level 0 can be finished under the 3D rules: the recorded 2D run, replayed
+// Levels 0, 1 and 2 can be finished under the 3D rules: the recorded 2D run, replayed
 // with the depth layer on and an autopilot that walks across the hall to
 // whatever the run is about to use (a switch on the wall, a pad, an item) and
 // lines up with each doorway and lift shaft it passes, still reaches the exit.
@@ -14,15 +14,15 @@ import { LANE } from '../content/compile.mjs';
 const ppo = await import('../sim/web/src/ppo.js');
 const demo = JSON.parse(await readFile(new URL('../sim/web/data/ppo-demo.json', import.meta.url), 'utf8'));
 
-test('level 0 is finished under the 3D rules', async () => {
+for (const L of [0, 1, 2]) test(`level ${L} is finished under the 3D rules`, async () => {
   const g = await createGame();
   g.audio.muted = true;
   let exit = null;
   g.nextLevel = (n) => { exit = n; g.transitioning = true; };
   const d = new Depth(g, LANE);
-  for (const piece of demo.pieces.filter((p) => p.levelIdx === 0)) {
+  for (const piece of demo.pieces.filter((p) => p.levelIdx === L)) {
     d.uninstall();
-    await ppo.startRun(g, levelFile(0), piece.seed || null); // (checkpoints were recorded under the 2D rules)
+    await ppo.startRun(g, levelFile(L), piece.seed || null); // (checkpoints were recorded under the 2D rules)
     d.install();
     exit = null;
     const acts = ppo.decodeActs(piece.acts), n = Math.min(piece.steps, acts.length * 4);
@@ -48,5 +48,5 @@ test('level 0 is finished under the 3D rules', async () => {
     }
     assert.equal(g.player.dead, false, `died at ${Math.round(g.player.x)},${Math.round(g.player.y)}`);
   }
-  assert.equal(exit, 1, 'took the exit to level 1');
+  assert.equal(exit, L + 1, `took the exit to level ${L + 1}`);
 });

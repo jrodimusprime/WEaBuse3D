@@ -339,3 +339,22 @@ Fix (client/depth.js zones): a doorway or shaft beside something used on the bac
 opens flush against the back wall, and a group of touching zones takes that opening. New tests: walking in to the
 level 2 switch and using it, and on all 22 levels no switch or terminal is shut off from the back wall by a zone (both
 fail without the fix). 63/63. Checked by screenshot from in front of the switch.
+
+## Level 2 in 3D
+Jared: "OK so do level 002 now" (and, during it, "add a godmode button").
+- Inventory: every object level 2 draws now has a design. New in client/machines.js, from their frames: the jugger
+  (articulated walker, IK legs, cannon and grenade-drum arms, walk / throw / burst apart), the tracking gun (hung
+  from the ceiling; shells part, gun pod rides a ring at its angle, aimed at the player), ROB1 the cleaner (a sweeper
+  as wide as the hall with a spinning claw drum), the pusher (a chevron force field between two emitters, over a pit),
+  the step (slides out of the back wall when on), blocks (burst and tumble), indicator lamps, the boulder (a spiked
+  roller as wide as the hall, since it hits anywhere across it). Hall-wide where the simulation's collision is.
+- 3D rules (client/depth.js): juggers are enemies (34 units deep; one standing guard, or not yet switched on, stays
+  put); the tracking gun hangs in the middle of the hall (kind 'hang', depth 0); indicators are on the back wall; a
+  shove (pushChar) reaches the player only from the shover's depth, like contact damage. Lights: indicators, the
+  jugger's glows, the tracking gun's flash.
+- Colours: the lit indicator first came out grey: the Quake palette has no saturated green (its greens are the
+  grey-greens 177-184), so the lamp uses its palest.
+- God mode button in the panel (WEaBuse's setGod, the same as G; the label follows either).
+- Tests: levels 0, 1 and 2 are finished under the 3D rules (the recorded runs with the autopilot); level 2's objects
+  all designed and closed in every state; a jugger shoves only from its depth (fails without the gate) and one
+  standing guard stays put. 67/67. Screenshots solo (docs/level2-models.png) and in the level.

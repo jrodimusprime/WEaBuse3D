@@ -161,3 +161,33 @@ test('level 1: the alien ant in every state, turrets and cracks, all closed part
     }
   }
 });
+
+test('level 2: everything the player sees has a design, in every state, of closed parts', async () => {
+  const { isHiddenInPlay } = await import('../sim/web/src/behaviors.js');
+  await g.start(levelFile(2));
+  g.freshRun();
+  const d2 = new Depth(g, LANE); d2.install();
+  const c2 = { ...ctx, depthOf: (e) => d2.depthOf(e) ?? 0, zoneOf: (e) => d2.zoneOf(e), padOf: (e) => d2.padOf(e), pd: 0 };
+  const seen = new Set();
+  for (const e of g.entities) {
+    if (isHiddenInPlay(e.def) || seen.has(e.type) || e.ai === 'ant_ai') continue; // (the ant has its own test)
+    seen.add(e.type);
+    assert.ok(designed(e), `${e.type} (${e.ai}) has a design`);
+    const keep = { state: e.state, frame: e.frame, hp: e.hp };
+    for (const state of e.def.states.keys()) {
+      e.setState(state);
+      for (const frame of [0, 3]) {
+        e.frame = frame; e.stateTime = 9;
+        const img = g.spriteOf(e);
+        if (!img) continue;
+        const parts = design({ e, img, x: e.x - img.xcfg, y: e.y - img.h + 1, flip: e.dir < 0 }, c2);
+        for (const q of parts) {
+          assert.ok(q.offset.every(Number.isFinite) && [...q.basis].every(Number.isFinite), `${e.type} ${state}: finite pose`);
+          assert.ok(volume(q.mesh) > 0, `${e.type} ${state}: closed parts`);
+        }
+      }
+    }
+    e.setState(keep.state); e.frame = keep.frame;
+  }
+  for (const t of ['JUGGER', 'TRACK_GUN', 'ROB1', 'PUSHER', 'STEP', 'BLOCK', 'INDICATOR', 'BOLDER']) assert.ok(seen.has(t), `${t} checked`);
+});

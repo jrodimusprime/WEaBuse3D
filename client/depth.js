@@ -9,7 +9,8 @@
 //          Reached by walking up to the wall.
 //   floor  on the floor at a spot, as deep as they are wide: teleporters, springs, exits, pods, the beam.
 //   item   at a spot: health, ammo, power-ups.
-//   enemy  moves across the hall toward the player: flyers, ants.
+//   enemy  moves across the hall toward the player: flyers, ants, juggers (a standing jugger stays put).
+//   hang   hung from the ceiling in the middle of the hall: the tracking gun.
 //   fx     an effect or anything spawned, at the depth of whatever made it.
 //   door   a door its own size, in a doorway: frame walls close the rest of
 //          the hall there (3D conversion rule 3).
@@ -48,13 +49,13 @@ const KIND_BY_TYPE = {
   NEXT_LEVEL: 'floor', NEXT_LEVEL_TOP: 'floor', TELE_BEAM: 'floor', TP_DOOR: 'floor', // at a spot: exits, the beam, the pod
 };
 const KIND_BY_AI = {
-  flyer_ai: 'enemy', ant_ai: 'enemy',
+  flyer_ai: 'enemy', ant_ai: 'enemy', jug_ai: 'enemy', track_ai: 'hang', indicator_ai: 'wall',
   sdoor_ai: 'door', platform_ai: 'lift', strap_door_ai: 'hatch',
   hp_up: 'item', weapon_icon_ai: 'item', fast_ai: 'item', fly_power_ai: 'item', sneaky_power_ai: 'item', health_power_ai: 'item',
   switcher_ai: 'wall', switch_once_ai: 'wall', spray_gun_ai: 'wall', crack_ai: 'wall',
   tp2_ai: 'floor', spring_ai: 'floor',
 };
-const STEER = { flyer_ai: 8, ant_ai: 4 }; // how fast enemies cross the hall, units per tick (15 a second)
+const STEER = { flyer_ai: 8, ant_ai: 4, jug_ai: 3 }; // how fast enemies cross the hall, units per tick (15 a second)
 // the ants' wall run, in ticks (15 a second) and pixels: the leap onto the wall, the longest cling, the
 // least time between runs, the highest it climbs, how far off the wall its body is (units), its spring
 const FLANK = 90, FLANK_NEAR = 110, SPACING = 44; // units, pixels, units (see afterTick)
@@ -117,6 +118,7 @@ export class Depth {
     if (k === 'full') return null;
     if (FITTED.has(k)) return this.zoneOf(e)?.c ?? 0;
     if (k === 'wall') return this.lane - 10;
+    if (k === 'hang') return 0;
     // the exit machine hangs over its pad: it takes the pad's place (its first link, level file)
     if (e.type === 'NEXT_LEVEL_TOP' && e.links?.[0] && e.links[0] !== e) return this.depthOf(e.links[0]);
     // an exit's beam stands on its pad (the level puts it a few pixels from the pad)
@@ -137,6 +139,8 @@ export class Depth {
     if (FITTED.has(k)) return this.zoneOf(e)?.h ?? DOOR_HALF;
     if (k === 'floor') return 2 * ((this.g.spriteOf(e)?.w || 20) / 2);
     if (k === 'item') return 14;
+    if (k === 'hang') return 30;
+    if (e.ai === 'jug_ai') return 34; // a bulky walker
     return 18;
   }
 
@@ -320,6 +324,7 @@ export class Depth {
       const d = this.depthOf(e);
       if (Math.abs(e.x - p.x) > 320 || Math.abs(e.y - p.y) > 220) continue;
       if (e.ai === 'ant_ai' && (e.state === 'hanging' || e.state === 'hiding')) continue; // a cocoon stays where it hangs
+      if (e.ai === 'jug_ai' && (e.lv?.stationary || (e.links.length && e.links[0].aistate === 0))) continue; // a jugger standing guard, or not yet on
       if (e.wSpring && e.a?.st !== 'jump') e.wSpring = false;
       const s = e.wSpring ? SPRING_STEER : STEER[e.ai] || 4;
       const ax = Math.abs(e.x - p.x), flank = e.wSpring ? 0 : spread(e.id ?? 0, 17) * FLANK * (ax >= FLANK_NEAR ? 1 : ax / FLANK_NEAR);
@@ -458,6 +463,12 @@ export class Depth {
       if (c && self.kind(c) !== 'full' && Math.abs(self.depthOf(c) - self.pd) > self.halfDepth(c) + PLAYER_HALF + 8) return;
       return proto.hurtPlayer.call(this, amount);
     };
+    // a shove (a jugger's, the cleaner's) reaches the player only from its depth
+    g.pushPlayer = function (dx) {
+      const c = self.cur;
+      if (c && self.kind(c) !== 'full' && Math.abs(self.depthOf(c) - self.pd) > self.halfDepth(c) + PLAYER_HALF + 8) return;
+      return proto.pushPlayer.call(this, dx);
+    };
     g.updatePlayer = function (dt) { const n = this.projs.length; proto.updatePlayer.call(this, dt); self.adopt(n, 'player'); self.enforce(); };
     g.tick = function () { proto.tick.call(this); self.afterTick(); self.enforce(); };
     g.spawn = function (type, x, y) {
@@ -477,7 +488,7 @@ export class Depth {
     if (!this.on) return;
     this.on = false;
     const g = this.g;
-    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'updatePlayer', 'tick', 'spawn']) delete g[k];
+    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'updatePlayer', 'tick', 'spawn']) delete g[k];
     g.depth = null;
   }
 }

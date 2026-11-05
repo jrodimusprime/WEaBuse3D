@@ -117,7 +117,7 @@ if (params.has('look')) {
     lookTarget = e;
     if (params.has('pose')) { // review only; A>B: state A, then B a second later (an ant's cocoon, then its husk)
       const [first, then] = params.get('pose').split('>');
-      e.setState(first); e.frame = Number(params.get('frame') || 0);
+      e.setState(first); e.frame = Number(params.get('frame') || 0); e.stateTime = 99; // (long settled into it)
       if (then) setTimeout(() => { e.setState(then); e.frame = 0; }, 1000);
     }
     if (params.has('onwall')) { // review only: an ant clinging to a side wall (1 the back, -1 the front), as the depth layer's wall run has it
@@ -256,6 +256,10 @@ let startMuted = false;
 try { startMuted = localStorage.getItem(MUTE_KEY) === '1'; } catch { /* private mode */ }
 setMuted(startMuted);
 muteBtn.addEventListener('click', (e) => { stop(e); setMuted(!g.audio.userMuted); });
+// god mode (the G key does the same): WEaBuse's setGod, and the button shows which it is
+const godBtn = document.getElementById('god');
+g.onGod = (on) => { godBtn.textContent = on ? 'God mode: on' : 'God mode: off'; };
+godBtn.addEventListener('click', (e) => { stop(e); g.setGod(!g.god); });
 document.getElementById('watch').addEventListener('click', (e) => { stop(e); finished = null; setMsg(''); startWatch(); });
 document.getElementById('restart').addEventListener('click', async (e) => {
   stop(e);
