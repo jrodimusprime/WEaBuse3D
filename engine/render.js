@@ -17,7 +17,7 @@
 // face is drawn every frame, which is cheap at this size.
 import { lightRange } from '../sim/web/src/lighting.js';
 import { cachedModel } from './voxel.js';
-import { metalSkin, organicSkin, DETAIL_SIZE } from './detail.js';
+import { metalSkin, organicSkin, muscleSkin, DETAIL_SIZE } from './detail.js';
 
 const BLOCK = 1024; // lightmap atlas size, in luxels
 const MAX_LIGHTS = 256;
@@ -110,13 +110,15 @@ const MODEL_FS = `#version 300 es
 precision highp float;
 in vec3 vPos; in vec3 vRgb; in float vShade; in vec3 vLocal; in vec3 vLocalN;
 uniform float brightness; uniform int mode; uniform float bright; uniform float red; uniform int glow; uniform float glowAmt;
-uniform sampler2D skin; uniform sampler2D skin2; uniform int skinKind; uniform float skinAmt; uniform float skinScale;
+uniform sampler2D skin; uniform sampler2D skin2; uniform sampler2D skin3; uniform int skinKind; uniform float skinAmt; uniform float skinScale;
 // the metal skin (engine/detail.js), projected along the model's own axes
 float skinAt() {
   vec3 w = pow(abs(vLocalN), vec3(4.0));
   w /= (w.x + w.y + w.z + 1e-5);
   vec3 p = vLocal * skinScale;
-  float t = skinKind == 1
+  float t = skinKind == 2
+    ? texture(skin3, p.yz).r * w.x + texture(skin3, p.xz).r * w.y + texture(skin3, p.xy).r * w.z
+    : skinKind == 1
     ? texture(skin2, p.yz).r * w.x + texture(skin2, p.xz).r * w.y + texture(skin2, p.xy).r * w.z
     : texture(skin, p.yz).r * w.x + texture(skin, p.xz).r * w.y + texture(skin, p.xy).r * w.z;
   return mix(1.0, t * 1.28, skinAmt);
@@ -196,7 +198,7 @@ export class Renderer {
     this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient']);
     const atmo = ['dynPos', 'dynCol', 'nDyn', 'eyePos', 'haze'];
     this.world.u = { ...this.world.u, ...uniforms(gl, this.world.prog, atmo) };
-    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient', 'glow', 'glowAmt', 'skin', 'skin2', 'skinKind', 'skinAmt', 'skinScale', ...atmo]);
+    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient', 'glow', 'glowAmt', 'skin', 'skin2', 'skin3', 'skinKind', 'skinAmt', 'skinScale', ...atmo]);
     this.skinTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.skinTex);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -208,6 +210,13 @@ export class Renderer {
     gl.bindTexture(gl.TEXTURE_2D, this.skinTex2);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, DETAIL_SIZE, DETAIL_SIZE, 0, gl.RED, gl.UNSIGNED_BYTE, organicSkin());
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    this.skinTex3 = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.skinTex3);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, DETAIL_SIZE, DETAIL_SIZE, 0, gl.RED, gl.UNSIGNED_BYTE, muscleSkin());
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -469,9 +478,10 @@ export class Renderer {
       }
       if (p.u.glow) {
         gl.uniform1i(p.u.glow, 0); gl.uniform1f(p.u.glowAmt, 1);
-        gl.uniform1i(p.u.skin, 3); gl.uniform1i(p.u.skin2, 4); gl.uniform1f(p.u.skinAmt, 0); gl.uniform1i(p.u.skinKind, 0);
+        gl.uniform1i(p.u.skin, 3); gl.uniform1i(p.u.skin2, 4); gl.uniform1i(p.u.skin3, 5); gl.uniform1f(p.u.skinAmt, 0); gl.uniform1i(p.u.skinKind, 0);
         gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.skinTex);
-        gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, this.skinTex2); gl.activeTexture(gl.TEXTURE0);
+        gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, this.skinTex2);
+        gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, this.skinTex3); gl.activeTexture(gl.TEXTURE0);
       }
       gl.uniformMatrix4fv(p.u.mvp, false, mvp);
       gl.uniform1f(p.u.brightness, this.brightness);
@@ -524,7 +534,7 @@ export class Renderer {
         }
         gl.uniformMatrix3fv(this.model.u.basis, false, s.basis || IDENTITY3);
         gl.uniform1f(this.model.u.skinAmt, s.skin || 0); // a skinned model: its skin at this strength
-        gl.uniform1i(this.model.u.skinKind, s.skinKind || 0); // 0 metal, 1 organic
+        gl.uniform1i(this.model.u.skinKind, s.skinKind || 0); // 0 metal, 1 organic, 2 muscle
         gl.uniform1f(this.model.u.skinScale, s.skinScale || 1 / 24);
         if (s.offset) gl.uniform3fv(this.model.u.offset, s.offset);
         else gl.uniform3f(this.model.u.offset, 2 * s.x, 0, -2 * s.y);

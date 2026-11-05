@@ -82,3 +82,21 @@ export function organicSkin() {
   }
   return out;
 }
+
+// Muscle: sinew for the box-art creature (Jared's reference: Abuse's cover). Long fibres running along X
+// (dark grooves between them, wavering), bundles, and a mottled sheen. Laid on unit bone meshes, the
+// fibres run along each limb.
+export function muscleSkin() {
+  const N = DETAIL_SIZE, out = new Uint8Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const wy = y + 6 * noise(x, y, 64, 51) + 2 * noise(x, y, 16, 52); // fibres waver
+      const fibre = 0.5 + 0.5 * Math.cos(wy * 0.85); // thin fibres
+      const bundle = 0.5 + 0.5 * Math.cos(wy * 0.12 + noise(x, y, 64, 53) * 3); // bundles of them
+      let v = 0.55 + 0.22 * fibre + 0.23 * bundle;
+      v *= 0.85 + 0.2 * noise(x, y, 32, 54) + 0.05 * noise(x, y, 4, 55);
+      out[y * N + x] = Math.max(0, Math.min(255, Math.round(v * 220)));
+    }
+  }
+  return out;
+}

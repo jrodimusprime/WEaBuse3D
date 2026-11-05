@@ -34,8 +34,9 @@ const ballMesh = (rgb) => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 5, 8, rgb).
 const bladeMesh = (rgb) => new Mesh().hexa([[0, -0.15, -0.5], [1, -0.05, -0.1], [1, 0.05, -0.1], [0, 0.15, -0.5], [0, -0.15, 0.5], [1, -0.05, 0.1], [1, 0.05, 0.1], [0, 0.15, 0.5]], rgb).done();
 
 // one kit per tint (ant_draw tints ants by aitype), coloured from that tint of its standing frame
-const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08]];
-export const DEFAULT_ANT = 7; // Jared: "can you combine 1 and 2" (Xeno and Mandible)
+const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08], [0.66, 0.15, 0.13]];
+// Jared: "that image on the left hand side is your best bet" (the creature on Abuse's box art): design 8
+export const DEFAULT_ANT = 8;
 // horn: the skin's colour lightened toward bone, so claws, pincers and teeth belong to the same creature
 const horn = (body, k) => body.map((v, i) => Math.min(1, v * 1.35 + k * [0.62, 0.52, 0.42][i]));
 function kit(e, g, palette, variant = 0) {
@@ -54,7 +55,11 @@ function kit(e, g, palette, variant = 0) {
       claw: boneMesh(bone, 0.15), blade: bladeMesh(bone), teeth: boneMesh(bone, 0.3),
       glow: new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 4, 8, [0.55, 1, 0.35]).done(), // acid
       silver: boneMesh(variant === 7 ? horn(body, 0.62) : [0.82, 0.84, 0.86], 0.12), white: boneMesh(variant === 7 ? horn(body, 0.45) : [0.86, 0.82, 0.72], 0.6), whiteBall: ballMesh([0.86, 0.82, 0.72]),
-      hornClaw: boneMesh(horn(body, 0.5), 0.15), mouth: ballMesh([0.06, 0.01, 0.01]), slit: ballMesh([0.35, 0.05, 0.03]), slitGlow: ballMesh([0.9, 0.25, 0.08]),
+      hornClaw: boneMesh(horn(body, 0.5), 0.15),
+      // the box-art creature: flesh, pink highlights, dark creases, ivory teeth, dark gums, a tapering cranium
+      flesh: boneMesh(body, 0.7), fleshBall: ballMesh(body), pink: ballMesh(body.map((v, i) => Math.min(1, v * 1.25 + [0.12, 0.1, 0.09][i]))),
+      crease: boneMesh(body.map((v) => v * 0.35), 0.6), cranium: boneMesh(body, 0.45), ivory: boneMesh([0.86, 0.8, 0.68], 0.1),
+      gums: ballMesh([0.3, 0.04, 0.04]), ember: ballMesh([1, 0.55, 0.15]), sinew: boneMesh(body.map((v) => v * 0.8), 0.5), mouth: ballMesh([0.06, 0.01, 0.01]), slit: ballMesh([0.35, 0.05, 0.03]), slitGlow: ballMesh([0.9, 0.25, 0.08]),
       socket: ballMesh([0.03, 0.02, 0.02]), redEye: ballMesh([1, 0.12, 0.06]), orangeEye: ballMesh([1, 0.55, 0.1]), yellowEye: ballMesh([1, 0.85, 0.2]),
       petal: bladeMesh(shade(body, 0.8)), crest: bladeMesh(bone), throat: ballMesh([1, 0.2, 0.08]), acid: ballMesh([0.5, 1, 0.3]),
     };
@@ -159,6 +164,103 @@ export function antModel(s, ctx) {
     out.push({ mesh, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(c), bright, skin: 0.75, skinKind: 1, skinScale: 1 / 7, ...extra });
   };
 
+  const glowBall = (mesh, c, r, amt) => out.push({ mesh, basis: new Float32Array(toWorld([r, 0, 0]).concat(toWorld([0, r, 0]), toWorld([0, 0, r]))), offset: W(c), additive: true, glowAmt: amt });
+  const lit = (mesh, c, r, b = 2.2) => out.push({ mesh, basis: new Float32Array(toWorld([r[0], 0, 0]).concat(toWorld([0, r[1], 0]), toWorld([0, 0, r[2]]))), offset: W(c), bright: b });
+  if (V === 8) return boxArt();
+  // THE BOX-ART CREATURE (design 8, Jared's pick: the creature on Abuse's cover). Lean, sinewy, flesh red with
+  // pink highlights and dark creases; a long bulbous cranium sweeping up and back from the face with an ember
+  // at its tip; no eyes; a lipless grin of two rows of sharp ivory teeth on a jaw that opens and closes; long
+  // gaunt limbs held high in a spider's crouch, elbows and knees above the body, long-fingered claws; ribs
+  // under the skin, a ridge of vertebrae; a long beaded tail of vertebrae arching up and back.
+  function boxArt() {
+    const M = { skin: 0.55, skinKind: 2, skinScale: 0.9 }, Mb = { skin: 0.5, skinKind: 2, skinScale: 0.55 };
+    const fb = (a, b, r, mesh = K.flesh) => bone(mesh, a, b, r, M);
+    const fball = (c, r, mesh = K.fleshBall) => ball(mesh, c, r, Mb);
+    const bob = P.stride ? Math.abs(Math.sin(P.phase)) * 2 : 0;
+    const low = -P.crouch * 0.8 + bob + (P.stretch ? 6 : 0);
+    const hip = [-10 - P.stretch * 4, 0, 18 + low], chest = [12 + P.stretch * 6, 0, 22 + low + (P.curl ? -5 : 0)];
+    // the torso: pelvis, a lean ribcage, ribs under the skin, a ridge of vertebrae, bony shoulders
+    fball(hip, [9, 7, 6]);
+    fb(hip, chest, 6.5, K.sinew);
+    fball(add(chest, [-3, 0, 0]), [11, 8.5, 7.5]);
+    for (let i = 0; i < 5; i++) for (const sy of [-1, 1]) {
+      const top = add(chest, [-10 + i * 3.6, sy * 2, 6.5]), bottom = add(chest, [-8 + i * 3.4, sy * 7.5, -4]);
+      bone(K.crease, top, add(top, mul(sub(bottom, top), 0.55)).map((v, k) => v + (k === 1 ? sy * 2.5 : 0)), 0.9, M);
+      bone(K.crease, add(top, mul(sub(bottom, top), 0.55)).map((v, k) => v + (k === 1 ? sy * 2.5 : 0)), bottom, 0.8, M);
+    }
+    for (let i = 0; i < 7; i++) ball(K.pink, add(hip, [2 + i * 3.6, 0, 6.5 + Math.sin(i / 6 * Math.PI) * 3]), [1.8, 1.8, 1.6], Mb); // vertebrae
+    // the neck and the head: a long cranium sweeping up and back, the ember at its tip, the face and the grin
+    const neckBase = add(chest, [6, 0, 3]), face = add(neckBase, [13 + P.stretch * 2, 0, 1 + P.rear * 6]);
+    fb(neckBase, face, 4.5, K.sinew);
+    const back = norm([-0.62, 0, 0.78]);
+    const crTop = add(face, [-1, 0, 5]);
+    // the cranium: three overlapping ellipsoids stretched along the sweep, swelling then rounding off
+    const along = (c, long, short) => {
+      const [dx, p1, p2] = boneBasis([0, 0, 0], back, short);
+      const X = toWorld(mul(dx, long)), Y = toWorld(p1), Z = toWorld(p2);
+      out.push({ mesh: K.fleshBall, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(c), bright, ...Mb });
+    };
+    along(add(crTop, mul(back, 7)), 12, 8.8);
+    along(add(crTop, mul(back, 19)), 12.5, 7.4);
+    along(add(crTop, mul(back, 29)), 7.5, 5.2);
+    glowBall(K.ember, add(crTop, mul(back, 33.5)), 2.2, 0.8 + 0.3 * Math.sin(t * 4));
+    lit(K.ember, add(crTop, mul(back, 33.5)), [1.4, 1.4, 1.4], 2.2);
+    fball(add(face, [3, 0, -1]), [7, 7.5, 5.6]); // the face
+    const snarl = Math.max(0, Math.sin(t * 1.7 + (e.id || 0) * 1.3));
+    const open = P.jaw > 0.2 ? 0.55 + 0.4 * P.jaw : 0.08 + 0.6 * snarl * snarl;
+    ball(K.gums, add(face, [6, 0, -3.5 - open * 2]), [5, 6.2, 2 + open * 3.5]); // the dark behind the teeth
+    for (let i = 0; i < 9; i++) { // the upper row: a wide grin across the face
+      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 6.6, x = 8 + Math.cos(a) * 3;
+      bone(K.ivory, add(face, [x, y, -2.2]), add(face, [x + 0.6, y * 0.96, -6.2 - (i % 2) * 0.8]), 0.95);
+    }
+    const hinge = add(face, [-2, 0, -3]), jd = norm([1, 0, -0.25 - open * 1.4]);
+    const jawTip = add(hinge, mul(jd, 12));
+    fb(hinge, jawTip, 3.2);
+    fball(jawTip, [3.5, 6, 2.4]);
+    for (let i = 0; i < 9; i++) { // the lower row on the jaw
+      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 6, base = add(add(hinge, mul(jd, 7 + Math.cos(a) * 4)), [0, y, 0.8]);
+      bone(K.ivory, base, add(base, [0.4, -y * 0.04, 3.4 + (i % 2) * 0.6]), 0.85);
+    }
+    // the tail: sixteen vertebrae, beaded, arching up and back, swaying
+    let tp = add(hip, [-8, 0, 2]), ang = Math.PI - 0.55 - P.tailUp * 0.15;
+    for (let i = 0; i < 16; i++) {
+      ang += (i < 6 ? -0.05 : i < 11 ? 0.06 : 0.12) + Math.sin(t * 2.4 + i * 0.5) * 0.035 * (P.curl ? 0 : 1) * (1 + P.sway);
+      const step = 6.2 - i * 0.18, r = 2.9 - i * 0.13;
+      const next = add(tp, [Math.cos(ang) * step, Math.sin(t * 1.9 + i * 0.4) * i * 0.18 * P.sway, Math.sin(ang) * step]);
+      bone(K.sinew, tp, next, r * 0.55, M);
+      ball(K.pink, next, [r, r, r], Mb);
+      tp = next;
+    }
+    // the limbs: long and gaunt, elbows and knees held high like a spider's, long-fingered claws
+    for (const side of [1, -1]) {
+      const ph = P.phase + (side > 0 ? 0 : Math.PI);
+      const hipJ = add(hip, [0, side * 6, 0]);
+      let foot;
+      if (P.splay) foot = add(hipJ, [-12, side * 22, -10]);
+      else if (P.stretch) foot = add(hipJ, [-34, side * 6, -12]);
+      else if (P.curl) foot = add(hipJ, [8, side * 6, -6]);
+      else foot = [hipJ[0] - 8 + Math.sin(ph) * P.stride * 1.2, side * 17, Math.max(0, Math.cos(ph)) * P.stride * 0.45];
+      const leg = solve(hipJ, foot, 21, 26, [-0.2, side * 0.45, 1]);
+      fb(hipJ, leg.knee, 4.2); fball(leg.knee, [3.2, 3, 3.2]); fb(leg.knee, leg.foot, 3);
+      for (const k of [-1, 0, 1]) bone(K.hornClaw, leg.foot, add(leg.foot, [7, side * 0.8 + k * 1.8, -0.6]), 1.1, M);
+      const sh = add(chest, [3, side * 8, 2]);
+      fball(sh, [4, 3.6, 3.6]); // the bony shoulder
+      let hand;
+      if (P.splay) hand = add(sh, [8, side * 24, 12]);
+      else if (P.stretch) hand = add(sh, [34, side * 5, -10]);
+      else if (P.curl) hand = add(sh, [10, side * 4, -8]);
+      else hand = [sh[0] + 22 + Math.sin(ph + Math.PI) * P.stride, side * 16, Math.max(0, Math.cos(ph + Math.PI)) * P.stride * 0.4];
+      const arm = solve(sh, hand, 19, 23, [-0.3, side * 0.6, 1]);
+      fb(sh, arm.knee, 3.4); fball(arm.knee, [2.6, 2.5, 2.6]); fb(arm.knee, arm.foot, 2.5);
+      for (const k of [-1.5, -0.5, 0.5, 1.5]) { // four long fingers
+        const knuckle = add(arm.foot, [3, side * 0.5 + k * 1.6, 0]);
+        fb(arm.foot, knuckle, 1.1);
+        bone(K.hornClaw, knuckle, add(knuckle, [7, side * 0.4 + k * 1.2, -1.6 - Math.abs(k) * 0.4]), 0.9, M);
+      }
+    }
+    return out;
+  }
+
   // the body: lowered when crouching, bobbing as it runs, stretched when leaping, curled when hanging
   const bob = P.stride ? Math.abs(Math.sin(P.phase)) * 2.5 : 0;
   const low = -P.crouch + bob + (P.stretch ? 4 : 0);
@@ -172,8 +274,6 @@ export function antModel(s, ctx) {
   // the head: long and domed, jutting forward; the jaw drops to spit (design 0), or one of six scarier designs
   const neck = add(chest, [7, 0, 3]);
   const hd = norm(P.headDir), headTip = add(neck, mul(hd, 26));
-  const glowBall = (mesh, c, r, amt) => out.push({ mesh, basis: new Float32Array(toWorld([r, 0, 0]).concat(toWorld([0, r, 0]), toWorld([0, 0, r]))), offset: W(c), additive: true, glowAmt: amt });
-  const lit = (mesh, c, r, b = 2.2) => out.push({ mesh, basis: new Float32Array(toWorld([r[0], 0, 0]).concat(toWorld([0, r[1], 0]), toWorld([0, 0, r[2]]))), offset: W(c), bright: b });
   const side = (v, y) => [v[0], y, v[2]];
   const at = (k, y = 0, z = 0) => add(add(neck, mul(hd, k)), [0, y, z]);
   const jawOpen = Math.max(P.jaw, 0.15 + 0.1 * Math.sin(t * 2.3));

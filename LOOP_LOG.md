@@ -280,3 +280,13 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   and bottom, and the inner jaw shooting out as it opens; the pincers spread with the mouth. Claws, pincers and
   teeth are horn tinted from the skin (`horn`). organicSkin rewritten: armour plates with dark seams, fine pores,
   ribbed striations; finer and stronger on the ant. Renders closed and open, front and three-quarter.
+
+## 2026-11-05 · the ant is the creature from Abuse's box art (design 8)
+- Jared, with the cover art: "that image on the left hand side is your best bet for the design of the creature".
+- Design 8 (now `DEFAULT_ANT`) has its own path through the model: lean flesh-red body with pink highlights and
+  dark creases, ribs under the skin, a vertebra ridge, bony shoulders; a long bulbous cranium sweeping up and back
+  (three stretched ellipsoids) with an ember at its tip; no eyes; a lipless grin of two rows of ivory teeth on a
+  hinged jaw (snarl cycle, gapes to spit); long gaunt limbs held high in a spider crouch with four-fingered claws;
+  a sixteen-vertebra beaded tail arching up and back. New `muscleSkin` (fibres along each limb, skinKind 2).
+- Found on the way: the ant's skins were scaled for world units but laid on unit bone meshes, so they barely
+  showed; the muscle skin is scaled per unit mesh. Renders in `docs/ant-boxart.png`. Tests cover designs 0-8.
