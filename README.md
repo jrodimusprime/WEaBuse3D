@@ -9,10 +9,9 @@ tick, in every browser and in Node.
 
 **Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D; F3 changes the camera) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
 
-> **Status: M0 (first walk) is done; M1 (level 0 complete, 3D models) is in progress.** Level 0 compiles to a Quake BSP2, and you can walk through
-> it in first person. There are no objects yet: lifts, doors, switches and enemies arrive in M6. The rest of this README is the
-> plan. The AI build loop works from it (see [The AI loop](#the-ai-loop)), with tasks in
-> `BACKLOG.md` and progress in `LOOP_LOG.md`.
+> **Status: M1 is built and waiting for a human to finish level 0.** WEaBuse's simulation runs the
+> game, the Quake-style engine draws it, and every object (the cop, the WHO flyers, lifts, doors,
+> pickups) is a 3D voxel model made from Abuse's own sprites.
 
 ## Run it
 

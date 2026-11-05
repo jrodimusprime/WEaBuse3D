@@ -76,3 +76,12 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   mirrored and deterministic. `npm test` 18/18.
 - T7: screenshots checked: the cop on the ledge (angled), the WHO flyers and pickups, the lift with its
   training message (side), the first-person corridor, and the Watch mode running. No console errors.
+
+## 2026-11-05 · M1 layout: no splash, Abuse's status bar below the view
+- Jared asked to drop the splash screen and to put the instructions below the WebGL view, and to
+  give the health and weapons bar a 3D look or keep it if that makes sense. I kept Abuse's own
+  pixel-art status bar (art/statbar.spe, ported from WEaBuse main.js as `client/statbar.js`): it is
+  a flat HUD, so a 3D version would add nothing. It is scaled by whole device pixels, so it stays sharp.
+- The game starts at once. The panel below holds the status bar, the status line, the controls, and
+  the Watch, Restart and Walk mode buttons (which drop focus, so Space does not press them).
+- Screenshots checked at 1280×720 and 820×640. `npm test` 18/18.

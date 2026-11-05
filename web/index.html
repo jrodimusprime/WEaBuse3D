@@ -5,34 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WEaBuse3D</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #000; color: #cfc6b8; font: 13px/1.45 ui-monospace, Menlo, monospace; overflow: hidden; }
-  #view { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
-  #hud { position: fixed; left: 12px; top: 10px; right: 12px; text-shadow: 0 1px 2px #000; pointer-events: none; white-space: pre; overflow: hidden; }
-  #help { position: fixed; left: 50%; top: 44px; transform: translateX(-50%); max-width: min(720px, 92vw); background: rgba(0,0,0,.72); border-top: 1px solid #8a7a5c; border-bottom: 1px solid #8a7a5c; padding: 8px 14px; color: #e8dcc0; pointer-events: none; }
-  #msg { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,.82); border: 1px solid #5a4e3c; padding: 16px 22px; text-align: center; }
-  #msg a, #start button { color: #f0c060; }
-  #start { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); cursor: pointer; }
-  #start div { background: rgba(0,0,0,.85); border: 1px solid #5a4e3c; padding: 18px 24px; max-width: 520px; }
-  #start b { color: #f0c060; }
-  #start button { background: none; border: 1px solid #8a7a5c; font: inherit; padding: 4px 10px; cursor: pointer; margin-top: 10px; }
-  #keys { position: fixed; right: 12px; bottom: 10px; color: #8d8270; text-shadow: 0 1px 2px #000; text-align: right; }
+  html, body { margin: 0; height: 100%; background: #000; color: #cfc6b8; font: 12px/1.5 ui-monospace, Menlo, monospace; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  #stage { position: relative; flex: 1; min-height: 0; }
+  #view { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #help { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: min(720px, 92%); background: rgba(0,0,0,.72); border-top: 1px solid #8a7a5c; border-bottom: 1px solid #8a7a5c; padding: 8px 14px; color: #e8dcc0; pointer-events: none; }
+  #msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,.82); border: 1px solid #5a4e3c; padding: 16px 22px; text-align: center; font-size: 13px; }
+  #msg a { color: #f0c060; }
+  #panel { flex: none; display: flex; align-items: center; gap: 18px; padding: 8px 12px; background: #0b0a08; border-top: 1px solid #2c261d; }
+  #statbar { image-rendering: pixelated; flex: none; cursor: pointer; }
+  #info { flex: 1; min-width: 0; color: #9d927f; }
+  #info b { color: #e0d2b4; font-weight: normal; }
+  #status { color: #cfc6b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #controls { margin-top: 2px; }
+  #panel button, #panel a { color: #f0c060; background: none; border: 1px solid #5a4e3c; font: inherit; padding: 2px 8px; cursor: pointer; text-decoration: none; margin-right: 6px; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<canvas id="view"></canvas>
-<div id="hud"></div>
-<div id="help" hidden></div>
-<div id="msg" hidden></div>
-<div id="start"><div>
-  <b>WEaBuse3D · Abuse in 3D</b><br><br>
-  Click to start. Reach the exit.<br><br>
-  A D or arrows: move · W, Up or Space: jump · S, Down or E: use (switches, lifts, doors)<br>
-  Mouse: aim · left button, F or Ctrl: fire · 1-7 or wheel: weapon · right button: special power<br>
-  L: lights · G: god mode · F3: camera (angled, side, first person) · F2: brightness<br>
-  <button id="watch">Watch the recorded run</button>
-</div></div>
-<div id="keys">F3 camera · F2 brightness · <a href="walk.html" style="color:#8d8270">walk mode</a></div>
+<div id="stage">
+  <canvas id="view"></canvas>
+  <div id="help" hidden></div>
+  <div id="msg" hidden></div>
+</div>
+<div id="panel">
+  <canvas id="statbar" title="Click a weapon to take it"></canvas>
+  <div id="info">
+    <div id="status"></div>
+    <div id="controls">
+      <b>A D</b> move · <b>W / Space</b> jump · <b>S / E</b> use (switches, lifts, doors) · <b>mouse</b> aim, fire ·
+      <b>1-7 / wheel</b> weapon · <b>right button</b> power · <b>L</b> lights · <b>G</b> god ·
+      <b>F3</b> camera · <b>F2</b> brightness
+    </div>
+    <div style="margin-top:5px"><button id="watch">Watch the recorded run</button><button id="restart">Restart</button><a href="walk.html">Walk mode</a></div>
+  </div>
+</div>
 <script type="module" src="../client/play.js"></script>
 </body>
 </html>

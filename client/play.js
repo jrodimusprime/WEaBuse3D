@@ -11,14 +11,14 @@ import { loadBSP } from '../engine/bsp.js';
 import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
 import { collectScene } from './scene.js';
+import { createStatbar } from './statbar.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
 const canvas = document.getElementById('view');
-const hudEl = document.getElementById('hud');
+const hudEl = document.getElementById('status');
 const helpEl = document.getElementById('help');
 const msgEl = document.getElementById('msg');
-const startEl = document.getElementById('start');
 const setMsg = (html) => { msgEl.innerHTML = html; msgEl.hidden = !html; };
 
 const gl = canvas.getContext('webgl2', { antialias: true });
@@ -40,6 +40,7 @@ g.nextLevel = (n) => { finished = n; g.transitioning = true; };
 g.onEndGame = () => { finished = 'end'; };
 await g.start(levelFile(level));
 g.freshRun();
+const statbar = await createStatbar(g, document.getElementById('statbar'));
 if (params.has('at')) { const [x, y] = params.get('at').split(',').map(Number); g.teleportPlayer(x, y); g.cam.x = x - 160; g.cam.y = y - 115; }
 setMsg('');
 
@@ -134,11 +135,16 @@ function watchStep() {
 
 // ---- the loop: fixed simulation steps, drawing every frame ----
 let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;
-let started = params.has('still') || params.has('watch');
-startEl.hidden = started;
-startEl.addEventListener('click', () => { started = true; startEl.hidden = true; });
+const started = true;
 if (params.has('watch')) startWatch();
-document.getElementById('watch').addEventListener('click', (e) => { e.stopPropagation(); started = true; startEl.hidden = true; finished = null; setMsg(''); startWatch(); });
+// (buttons drop focus at once, or Space, Abuse's jump, would press them again)
+document.getElementById('watch').addEventListener('click', (e) => { e.currentTarget.blur(); finished = null; setMsg(''); startWatch(); });
+document.getElementById('restart').addEventListener('click', async (e) => {
+  e.currentTarget.blur();
+  watch = null; g.demo = false; finished = null; setMsg('');
+  await g.start(levelFile(level));
+  g.freshRun();
+});
 
 function frame(now) {
   const w = Math.floor(canvas.clientWidth * devicePixelRatio), h = Math.floor(canvas.clientHeight * devicePixelRatio);
@@ -165,6 +171,8 @@ function frame(now) {
   g.player.justFired = false; // game.js render clears it after drawing the flash
   renderer.frame(vw.v, w, h, { mode: 'abuse', front: vw.front, caps: vw.caps, fovY: vw.fovY, sprites: cam === 'first' ? scene.sprites.filter((sp) => !sp.player) : scene.sprites, boxes: scene.boxes, red: g.redRamp || 0 });
   g.updateHud();
+  statbar.draw();
+  statbar.fit(innerWidth * 0.5 + 1, innerHeight * 0.14);
   helpEl.textContent = g.helpText || '';
   helpEl.hidden = !g.helpText;
   requestAnimationFrame(frame);
