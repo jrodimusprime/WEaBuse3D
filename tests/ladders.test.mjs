@@ -89,3 +89,27 @@ for (const dir of ['up', 'down']) test(`every ladder can be climbed ${dir} from 
   assert.ok(total > 20, `${total} ladders`);
   assert.deepEqual(fails, []);
 });
+
+// Jared: "when you jump off you can get caught in a loop jumping". Holding forward and looking up climbs; on the
+// top Abuse lets go of the climber and Up is a jump, so it hopped again and again (controls.js climbIntent).
+test('holding forward and looking up on top of a ladder stands, it does not hop', async () => {
+  const { climbIntent } = await import('../client/controls.js');
+  const { d, p } = await onLevel2Ladder();
+  g.god = true;
+  for (const e of g.entities) if (d.kind(e) === 'enemy' || e.ai === 'spray_gun_ai' || e.ai === 'track_ai') e.dead = true;
+  let top = -1, hops = 0, wasUp = false;
+  for (let i = 0; i < 360; i++) {
+    g.keys.clear();
+    const c = climbIntent(g, 1, -45, d.offLadder > 0);
+    if (c > 0) g.keys.add('ArrowUp'); else if (c < 0) g.keys.add('ArrowDown');
+    d.movePlayer(0, STEP); g.update(STEP);
+    if (top < 0 && !p.climbing && p.y < 930) top = i;
+    const up = p.vy < 0;
+    if (top >= 0 && i > top + 20 && up && !wasUp) hops++;
+    wasUp = up;
+  }
+  d.uninstall();
+  g.god = false;
+  assert.ok(top >= 0, 'climbed to the top');
+  assert.equal(hops, 0, `${hops} hops on the top`);
+});

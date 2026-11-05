@@ -36,3 +36,22 @@ export class JumpAssist {
     }
   }
 }
+
+// On a ladder, like a 3D shooter: walking forward (fwd 1, backward -1) looking up (pitch below -20 degrees)
+// climbs, looking down descends; returns 1 up, -1 down, 0 neither (forward then walks along the hall).
+// Up climbs only below a ladder's top: on top Abuse has let go, and Up there is a jump, so holding it hopped
+// again and again (Jared: "you can get caught in a loop jumping"). It still hops where another ladder goes on
+// up above, to catch it (game.js updatePlayer: "that hop is how one ladder leads to the next"). Just after a
+// jump off a ladder (`justOff`) it does not catch the player again.
+export function climbIntent(g, fwd, pitch, justOff = false) {
+  const p = g.player;
+  const over = (l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5;
+  const onLadder = g.ladders.some((l) => over(l) && p.y >= l.y0 && p.y <= l.y1 + 3); // (3 px of grace at the foot, as game.js inLadder)
+  if (!onLadder || justOff || fwd === 0 || Math.abs(pitch) <= 20) return 0;
+  const climb = pitch < 0 ? fwd : -fwd;
+  if (climb < 0) return -1;
+  // (p.ladderExit: Abuse has just let go of the player off this ladder's top, and Up is a jump until they step away)
+  const below = p.climbing || (!p.ladderExit && g.ladders.some((l) => over(l) && p.y > l.y0 + 2 && p.y <= l.y1 + 3));
+  const above = g.ladders.some((l) => over(l) && l.y1 < p.y && l.y1 > p.y - 60);
+  return below || above ? 1 : 0;
+}

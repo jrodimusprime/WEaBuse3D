@@ -38,7 +38,7 @@ import { viewModel, VIEW_SCALE, VIEW_HOLD } from './viewmodel.js';
 import { atmosphere } from './atmosphere.js';
 import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
-import { JumpAssist } from './controls.js';
+import { JumpAssist, climbIntent } from './controls.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -190,12 +190,9 @@ function feedInput() {
   const across = Math.sin(rad(yaw)) * fwd - Math.cos(rad(yaw)) * side; // forward.y * fwd + right.y * side
   depth.movePlayer(Math.max(-1, Math.min(1, across)), STEP);
   const p = g.player;
-  const onLadder = g.ladders.some((l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5 && p.y >= l.y0 && p.y <= l.y1);
+  const onLadder = g.ladders.some((l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5 && p.y >= l.y0 && p.y <= l.y1 + 3);
   g.keys.clear();
-  // On a ladder, like a 3D shooter: walking forward looking up climbs, looking down descends
-  // (backward reverses). While climbing that way the walk along the hall is left out.
-  // (just after a jump off a ladder it does not catch the player again: depth.offLadder)
-  const climb = onLadder && !(depth.offLadder > 0) && fwd !== 0 && Math.abs(pitch) > 20 ? (pitch < 0 ? fwd : -fwd) : 0;
+  const climb = climbIntent(g, fwd, pitch, depth.offLadder > 0); // controls.js
   if (climb > 0) g.keys.add('ArrowUp');
   if (climb < 0) g.keys.add('ArrowDown');
   if (!climb && along > 0.25) g.keys.add('ArrowRight');

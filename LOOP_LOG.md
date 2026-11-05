@@ -471,3 +471,12 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   disc flickered up to 4.4x bright and a solid white column strobed on and off every 80 ms, under a strong blue
   room light. Now the disc is a solid pale blue that brightens with a slow soft pulse (1.15-1.35), the column
   is a faint steady haze, and the room light is a soft 0.4 within 130 units. Screenshot before and after.
+
+## The ladder hop loop (2026-11-06)
+- Jared: "when you jump off you can get caught in a loop jumping between them it looks totally weird".
+- Holding forward and looking up sends Up, and the 3D input counted the top of a ladder as on it; but Abuse
+  lets go of a climber at the top (p.ladderExit) and Up there is a jump: the player hopped, landed, hopped. Now
+  controls.js climbIntent: Up climbs only below the top and not while Abuse has let go; it still hops where
+  another ladder goes on up above (level 2's stacked pairs climb straight through, 91-94 frames); on the top,
+  forward walks on. Also the ladder's foot has Abuse's 3 px of grace (level 2's ladder at 539 could not be
+  started from the floor, 3 px below its bottom). Test: on top, holding, no hops. 91/91 tests.
