@@ -7,8 +7,10 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-> **Status: M0 (first walk) is built and waiting for a human to walk it.** Level 0 compiles to
-> a Quake BSP2, and you can walk through it in first person. The rest of this README is the
+**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (walk level 0 in first person)
+
+> **Status: M0 (first walk) is done.** Level 0 compiles to a Quake BSP2, and you can walk through
+> it in first person. There are no objects yet: lifts, doors, switches and enemies arrive in M5. The rest of this README is the
 > plan. The AI build loop works from it (see [The AI loop](#the-ai-loop)), with tasks in
 > `BACKLOG.md` and progress in `LOOP_LOG.md`.
 

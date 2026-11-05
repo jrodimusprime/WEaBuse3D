@@ -2,7 +2,7 @@
 
 The loop takes the first unchecked task of the current milestone. See README.md › Milestones.
 
-## M0: First walk (current)
+## M0: First walk (done)
 
 - [x] T1 Scaffolding: `sim/` submodule (WEaBuse), `package.json`, `tools/fetch-ref.sh`, BACKLOG and LOOP_LOG.
 - [x] T2 `content/level-input.mjs`: load a level in Node through WEaBuse's parser and return the tile outlines (convex polygons in Quake units), tile numbers, lights, ambient areas and the player start.
@@ -15,7 +15,7 @@ The loop takes the first unchecked task of the current milestone. See README.md 
 - [x] T9 `engine/trace.js` (SV_HullPointContents, SV_RecursiveHullCheck) + `engine/move.js` (Quake walk physics, fixed tick) + deterministic angle tables. Test: a scripted walk never enters solid and its hash repeats.
 - [x] T10 `engine/render.js` (WebGL2 world: textures, lightmap atlas) + `client/` (pointer lock, WASD, jump, 15 Hz tick, interpolation) + `web/index.html`.
 - [x] T11 Headless Chrome: screenshots of level 0 checked, and the Chrome walk hash equals the Node hash.
-- [ ] T12 Human walks level 0 and signs off.
+- [x] T12 Human walks level 0 and signs off (2026-11-05: "looks great").
 
 ## Later (found during M0, not needed for its gate)
 

@@ -52,3 +52,8 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - `tools/browser-check.mjs` + `web/walktest.html`: the 7200-tick walk ends with hash 3134993295 at
   1783.9998005453087,-47.96875,-909.96875 in **both** Chrome and Node. Now a test.
 - `npm test` 11/11. Remaining for M0: T12, the human walks level 0.
+
+## 2026-11-05 · M0 T12 sign-off, GitHub Pages
+- Jared walked level 0: "looks great". M0 is closed. The question "how to operate the lift?" is noted:
+  objects (lifts, doors, switches) are M5, and the README status now says so.
+- Published on GitHub Pages from `main` (root `index.html` redirects to `web/`, `.nojekyll`).
