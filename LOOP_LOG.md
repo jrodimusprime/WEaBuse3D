@@ -271,3 +271,12 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Jared: "can you combine 1 and 2". Design 7: Xeno's long glossy dark dome, ridges, rows of silver teeth and shooting
   inner jaw, with Mandible's clamping pincers, red compound eyes and back spikes (a shared `mandibles` piece), in
   dark crimson-black. It is now the default (`DEFAULT_ANT`); `?ant=0..6` shows the others. Tests cover designs 0-7.
+
+## 2026-11-05 · the ant, refined
+- Jared: "i dont like the top horns, the eyes are also no good, need better textures, teh claws and manibles and skin
+  should be closer in colour, the mouth should open and close also somehow".
+- Design 7 has its own head now: no top spikes; eyes are glassy slits with a faint ember set into the dome; a hinged
+  lower jaw on a snarl cycle (opens and closes by itself, gapes when spitting) showing a dark throat, horn teeth top
+  and bottom, and the inner jaw shooting out as it opens; the pincers spread with the mouth. Claws, pincers and
+  teeth are horn tinted from the skin (`horn`). organicSkin rewritten: armour plates with dark seams, fine pores,
+  ribbed striations; finer and stronger on the ant. Renders closed and open, front and three-quarter.

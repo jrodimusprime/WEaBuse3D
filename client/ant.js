@@ -36,6 +36,8 @@ const bladeMesh = (rgb) => new Mesh().hexa([[0, -0.15, -0.5], [1, -0.05, -0.1], 
 // one kit per tint (ant_draw tints ants by aitype), coloured from that tint of its standing frame
 const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08]];
 export const DEFAULT_ANT = 7; // Jared: "can you combine 1 and 2" (Xeno and Mandible)
+// horn: the skin's colour lightened toward bone, so claws, pincers and teeth belong to the same creature
+const horn = (body, k) => body.map((v, i) => Math.min(1, v * 1.35 + k * [0.62, 0.52, 0.42][i]));
 function kit(e, g, palette, variant = 0) {
   const tint = g.assets.tintFor(e);
   return built(`${variant}:${tint ? g.assets.tints.ant_draw.indexOf(tint) : 'plain'}`, () => {
@@ -51,7 +53,8 @@ function kit(e, g, palette, variant = 0) {
       ball: ballMesh(body), joint: ballMesh(dark), shell: ballMesh(shade(body, 0.85)), hi: ballMesh(hi),
       claw: boneMesh(bone, 0.15), blade: bladeMesh(bone), teeth: boneMesh(bone, 0.3),
       glow: new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 4, 8, [0.55, 1, 0.35]).done(), // acid
-      silver: boneMesh([0.82, 0.84, 0.86], 0.12), white: boneMesh([0.86, 0.82, 0.72], 0.6), whiteBall: ballMesh([0.86, 0.82, 0.72]),
+      silver: boneMesh(variant === 7 ? horn(body, 0.62) : [0.82, 0.84, 0.86], 0.12), white: boneMesh(variant === 7 ? horn(body, 0.45) : [0.86, 0.82, 0.72], 0.6), whiteBall: ballMesh([0.86, 0.82, 0.72]),
+      hornClaw: boneMesh(horn(body, 0.5), 0.15), mouth: ballMesh([0.06, 0.01, 0.01]), slit: ballMesh([0.35, 0.05, 0.03]), slitGlow: ballMesh([0.9, 0.25, 0.08]),
       socket: ballMesh([0.03, 0.02, 0.02]), redEye: ballMesh([1, 0.12, 0.06]), orangeEye: ballMesh([1, 0.55, 0.1]), yellowEye: ballMesh([1, 0.85, 0.2]),
       petal: bladeMesh(shade(body, 0.8)), crest: bladeMesh(bone), throat: ballMesh([1, 0.2, 0.08]), acid: ballMesh([0.5, 1, 0.3]),
     };
@@ -149,11 +152,11 @@ export function antModel(s, ctx) {
   const bone = (mesh, a, b, r, extra = {}) => {
     const [dx, p1, p2] = boneBasis(a, b, r);
     const X = toWorld(dx), Y = toWorld(p1), Z = toWorld(p2);
-    out.push({ mesh, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(a), bright, skin: 0.6, skinKind: 1, skinScale: 1 / 9, ...extra });
+    out.push({ mesh, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(a), bright, skin: 0.75, skinKind: 1, skinScale: 1 / 7, ...extra });
   };
   const ball = (mesh, c, r, extra = {}) => {
     const X = toWorld([r[0], 0, 0]), Y = toWorld([0, r[1], 0]), Z = toWorld([0, 0, r[2]]);
-    out.push({ mesh, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(c), bright, skin: 0.6, skinKind: 1, skinScale: 1 / 9, ...extra });
+    out.push({ mesh, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(c), bright, skin: 0.75, skinKind: 1, skinScale: 1 / 7, ...extra });
   };
 
   // the body: lowered when crouching, bobbing as it runs, stretched when leaping, curled when hanging
@@ -175,8 +178,8 @@ export function antModel(s, ctx) {
   const at = (k, y = 0, z = 0) => add(add(neck, mul(hd, k)), [0, y, z]);
   const jawOpen = Math.max(P.jaw, 0.15 + 0.1 * Math.sin(t * 2.3));
   // MANDIBLE's pieces: huge curved pincers that clamp, clusters of glowing red eyes, spikes on the carapace
-  const mandibles = (k0, eyeK, eyeZ) => {
-    const clamp = 0.35 + 0.35 * Math.sin(t * 5) * (P.jaw > 0.2 ? 2 : 0.6);
+  const mandibles = (k0, eyeK, eyeZ, extras = true, clampWith = null) => {
+    const clamp = clampWith ?? 0.35 + 0.35 * Math.sin(t * 5) * (P.jaw > 0.2 ? 2 : 0.6);
     for (const sy of [-1, 1]) {
       let a = at(k0, sy * 7, -2), dir = norm([1, sy * (0.6 + clamp), -0.15]);
       for (let i = 0; i < 4; i++) {
@@ -184,12 +187,37 @@ export function antModel(s, ctx) {
         bone(i === 3 ? K.claw : K.white, a, b, 2.6 - i * 0.55);
         a = b; dir = norm([dir[0], dir[1] - sy * (0.55 + clamp * 0.4), dir[2]]);
       }
+      if (!extras) continue;
       for (let k = 0; k < 4; k++) lit(K.redEye, at(eyeK + (k % 2) * 3, sy * (5 + Math.floor(k / 2) * 2.5), eyeZ + (k % 2)), [1.6, 1.6, 1.6], 2.4);
       bone(K.claw, at(2, sy * 6, 9), at(-6, sy * 9, 15), 1.6);
       bone(K.claw, at(-2, sy * 3, 10), at(-10, sy * 4, 18), 1.4);
     }
   };
-  if (V === 1 || V === 7) { // XENO: a long glossy dome, an inner jaw that shoots out, rows of silver teeth, no eyes
+  if (V === 7) { // XENO + MANDIBLE (Jared's pick, then: no top horns, no eye balls, horn-coloured claws, a mouth that works)
+    // the mouth: a snarl that opens and closes by itself, gaping wide to spit
+    const snarl = Math.max(0, Math.sin(t * 1.7 + (e.id || 0) * 1.3));
+    const open = P.jaw > 0.2 ? 0.55 + 0.4 * P.jaw : 0.06 + 0.62 * snarl * snarl;
+    bone(K.body, neck, at(36, 0, 2), 7.8); // the long glossy dome
+    ball(K.shell, at(10, 0, 2), [15, 7.5, 8]);
+    for (const y of [-2.5, 0, 2.5]) bone(K.thin, at(4, y, 8), at(30, y * 0.4, 5), 1.2); // ridges along it
+    for (const sy of [-1, 1]) for (let k = 0; k < 2; k++) { // eyes: glassy slits set into the dome, a faint ember inside
+      lit(K.slit, at(14 + k * 7, sy * (5.6 - k * 0.8), 3.6 - k * 0.6), [3.6 - k, 0.7, 1], 1.3);
+      glowBall(K.slitGlow, at(14 + k * 7, sy * (6 - k * 0.8), 3.6 - k * 0.6), 0.9, 0.22 + 0.08 * Math.sin(t * 3 + k));
+    }
+    for (let i = 0; i < 5; i++) for (const y of [-2.2, 2.2]) bone(K.silver, at(16 + i * 3.4, y, -2.5), at(16 + i * 3.4, y * 0.8, -6.5), 0.9); // upper teeth
+    const hinge = at(8, 0, -3), jd = norm(add(hd, [0, 0, -0.3 - open * 1.5]));
+    if (open > 0.12) ball(K.mouth, at(16, 0, -4 - open * 3), [12, 3.6, 2 + open * 4.5]); // the dark of the throat
+    bone(K.limb, hinge, add(hinge, mul(jd, 24)), 3.6); // the lower jaw
+    for (let i = 0; i < 5; i++) for (const y of [-2.2, 2.2]) {
+      const base = add(add(hinge, mul(jd, 9 + i * 2.8)), [0, y, 0]);
+      bone(K.silver, base, add(base, [0.5, -y * 0.15, 3.6]), 0.8); // lower teeth
+    }
+    const reach = 3 + 15 * Math.max(0, (open - 0.3) / 0.7); // the inner jaw shoots out as it opens
+    const inner = add(hinge, mul(norm(add(hd, [0, 0, -0.2 - open * 0.6])), 10));
+    bone(K.thin, inner, add(inner, mul(hd, 8 + reach)), 2);
+    for (const y of [-1, 1]) bone(K.silver, add(inner, add(mul(hd, 8 + reach), [0, y, 1])), add(inner, add(mul(hd, 11 + reach), [0, y, 1])), 0.8);
+    mandibles(20, 0, 0, false, 0.2 + 0.7 * open); // the pincers spread as the mouth opens
+  } else if (V === 1) { // XENO: a long glossy dome, an inner jaw that shoots out, rows of silver teeth, no eyes
     bone(K.body, neck, at(36, 0, 2), 7.8);
     ball(K.shell, at(10, 0, 2), [15, 7.5, 8]);
     for (const y of [-2.5, 0, 2.5]) bone(K.thin, at(4, y, 8), at(30, y * 0.4, 5), 1.2); // ridges along the dome
@@ -202,7 +230,6 @@ export function antModel(s, ctx) {
     const reach = 6 + 10 * Math.max(0, Math.sin(t * 1.7)) * (P.jaw > 0.3 ? 1.6 : 1);
     bone(K.thin, at(24, 0, -4), at(24 + reach, 0, -4), 2); // the inner jaw
     for (const y of [-1, 1]) bone(K.silver, at(24 + reach, y, -3), at(27 + reach, y, -3), 0.8);
-    if (V === 7) mandibles(20, 8, 8.5); // XENO + MANDIBLE: the pincers and red eyes on the long dome
   } else if (V === 2) { // MANDIBLE: a broad head, huge curved pincers, clusters of glowing red eyes, spiked carapace
     ball(K.shell, at(8, 0, 2), [12, 10, 8]);
     bone(K.body, neck, at(20, 0, -1), 6);
@@ -293,7 +320,7 @@ export function antModel(s, ctx) {
     else foot = [hipJ[0] - 4 + Math.sin(ph) * P.stride, side * 9, Math.max(0, Math.cos(ph)) * P.stride * 0.35];
     const leg = solve(hipJ, foot, 15, 19, [-1, 0, 0.2]);
     bone(K.limb, hipJ, leg.knee, 4.2); ball(K.joint, leg.knee, [3, 3, 3]); bone(K.limb, leg.knee, leg.foot, 3);
-    bone(K.claw, leg.foot, add(leg.foot, [7, side * 0.5, -0.5]), 1.6);
+    bone(V === 7 ? K.hornClaw : K.claw, leg.foot, add(leg.foot, [7, side * 0.5, -0.5]), 1.6);
     // front arm
     const sh = add(chest, [3, side * 7, -3]);
     let hand;
@@ -303,7 +330,7 @@ export function antModel(s, ctx) {
     else hand = [sh[0] + P.arm[0] - 6 + Math.sin(ph + Math.PI) * P.stride * 0.8, side * 8, Math.max(0, Math.cos(ph + Math.PI)) * P.stride * 0.3];
     const arm = solve(sh, hand, 14, 16, [0.2, 0, 1]);
     bone(K.limb, sh, arm.knee, 3.4); ball(K.joint, arm.knee, [2.6, 2.6, 2.6]); bone(K.limb, arm.knee, arm.foot, 2.6);
-    for (const k of [-1, 0, 1]) bone(K.claw, arm.foot, add(arm.foot, [8, side * 0.6 + k * 2, -1.5 - Math.abs(k)]), 1.2); // three claws
+    for (const k of [-1, 0, 1]) bone(V === 7 ? K.hornClaw : K.claw, arm.foot, add(arm.foot, [8, side * 0.6 + k * 2, -1.5 - Math.abs(k)]), 1.2); // three claws
   }
   return out;
 }
