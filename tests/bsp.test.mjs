@@ -83,3 +83,17 @@ test('the player start is clear for the player hull', () => {
   const org = st.origin.split(' ').map(Number);
   assert.equal(boxInSolid(m, org, [-16, -16, -24], [16, 16, 32]), false);
 });
+
+test('brush model *1 holds the front caps, each over solid', () => {
+  const caps = m.models[1];
+  assert.ok(caps && caps.numfaces > 100, 'caps model');
+  assert.equal(caps.firstface, m.models[0].numfaces);
+  for (let i = caps.firstface; i < caps.firstface + caps.numfaces; i++) {
+    const s = m.surfaces[i];
+    assert.equal(s.plane.normal[1], 1);
+    assert.ok(s.planeback, 'faces out of the lane (-Y)');
+    const c = s.verts.reduce((a, v) => [a[0] + v[0] / s.verts.length, a[2] + v[2] / s.verts.length], [0, 0]);
+    // a hair inside the lane behind the cap's centre is solid (corners of slope pieces can be thin, so use the centroid)
+    assert.equal(pointContents(m, [c[0], -63, c[1]]), CONTENTS_SOLID, `cap ${i} at ${c}`);
+  }
+});

@@ -256,6 +256,25 @@ export function compileLevel(input) {
     delete l.faces;
   }
 
+  // ---- front caps: brush model *1 ----
+  // The fronts of the solid tiles at Y = -LANE, facing out of the lane, with
+  // the tile's picture: what a camera in front of the lane (Abuse's own point
+  // of view) sees. They face the void outside the world, so they are not part
+  // of the world's tree; the renderer draws them when the camera is outside.
+  const caps = [];
+  const solidLeaves = [];
+  const collectSolid = (n) => { if (n.line) { collectSolid(n.front); collectSolid(n.back); } else if (n.solid && n.region) solidLeaves.push(n); };
+  collectSolid(tree);
+  for (const leaf of solidLeaves) {
+    for (const piece of gridPieces(leaf.region, [[tw, th]])) {
+      const c = B.centroid(piece.pts);
+      if (c[0] < 0 || c[0] > width || c[1] < 0 || c[1] > height) continue; // the border outside the map
+      const f = { plane: planes.depth(-LANE), side: 1, pts3: piece.pts.map((p) => Q(p, -LANE)), texinfo: texinfo.get(tex.fg(fgTileAt(lv, tw, th, c)), 'decor') };
+      orientFace(f, planes.list[f.plane]);
+      caps.push(f);
+    }
+  }
+
   // ---- clip hulls 1 and 2 ----
   const clipnodes = [];
   const headnodes = [0, 0, 0, 0];
@@ -283,7 +302,8 @@ export function compileLevel(input) {
   }
 
   // ---- lightmaps ----
-  const lighting = bakeLights(orderedFaces, texinfo.list, lv);
+  const allFaces = orderedFaces.concat(caps);
+  const lighting = bakeLights(allFaces, texinfo.list, lv);
 
   const start = { X: SCALE * input.start.x, Y: 0, Z: -SCALE * input.start.y - HULLS[1].mins[2] + 1 };
   const entities = entityText([
@@ -298,8 +318,12 @@ export function compileLevel(input) {
 
   return {
     entities, planes: planes.list, textures: tex.list, texinfo: texinfo.list,
-    nodes, leafs, faces: orderedFaces, marksurfaces, clipnodes, lighting,
-    models: [{ mins: worldMins, maxs: worldMaxs, origin: [0, 0, 0], headnode: [0, headnodes[1], headnodes[2], 0], visleafs: leafs.length - 1, firstface: 0, numfaces: orderedFaces.length }],
+    nodes, leafs, faces: allFaces, marksurfaces, clipnodes, lighting,
+    models: [
+      { mins: worldMins, maxs: worldMaxs, origin: [0, 0, 0], headnode: [0, headnodes[1], headnodes[2], 0], visleafs: leafs.length - 1, firstface: 0, numfaces: orderedFaces.length },
+      // *1, the front caps: drawn only, never collided with (its hulls point at the world's)
+      { mins: [0, -LANE, -SCALE * height], maxs: [SCALE * width, -LANE, 0], origin: [0, 0, 0], headnode: [0, headnodes[1], headnodes[2], 0], visleafs: 0, firstface: orderedFaces.length, numfaces: caps.length },
+    ],
     start,
   };
 }
