@@ -2,7 +2,17 @@
 
 The loop takes the first unchecked task of the current milestone. See README.md › Milestones.
 
-## M1: Level 0, complete, with 3D models (current)
+## M2: Depth mode, 3D gameplay (current)
+
+- [ ] T1 WEaBuse hooks: `g.apart?.(shot, target)` in weapons.js hitAt and game.js explode (blast source set by detonate); WEaBuse regress passes; submodule on branch `depth-hooks`.
+- [ ] T2 LANE 160: rebuild levels 0 and 1; tests follow LANE.
+- [ ] T3 `client/depth.js`: kinds and depths of objects, player depth movement, enemy steering, shot depths, `apart`, `touchesPlayer` / `hurtPlayer` / behaviour / `updatePlayer` / `tick` wrappers. Node tests.
+- [ ] T4 Scene and renderer: models placed in depth (wall, floor, item spin, full-hall stretch), shots at their depth.
+- [ ] T5 `client/play.js`: movement in depth, eye at the player's depth, use/teleport/pickups in 3D, Watch under 2D rules.
+- [ ] T6 Screenshots checked; Pages updated.
+- [ ] T7 Human finishes level 0 in 3D.
+
+## M1: Level 0, complete, with 3D models (done; T8 superseded by first person and M2)
 
 - [x] T1 Compiler: front caps (solid regions' fronts at Y = -LANE, tile art) as brush model *1; tests.
 - [x] T2 `client/sim-host.js` + `client/scene.js`: run WEaBuse's Game in the client, record its draw list in level pixels.
