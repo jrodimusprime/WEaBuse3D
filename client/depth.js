@@ -106,6 +106,8 @@ export class Depth {
     if (k === 'full') return null;
     if (FITTED.has(k)) return this.zoneOf(e)?.c ?? 0;
     if (k === 'wall') return this.lane - 10;
+    // the exit machine hangs over its pad: it takes the pad's place (its first link, level file)
+    if (e.type === 'NEXT_LEVEL_TOP' && e.links?.[0] && e.links[0] !== e) return this.depthOf(e.links[0]);
     if (e.depth === undefined) e.depth = spread(e.id ?? Math.round(e.x), Math.round(e.y)) * (this.lane - 48);
     return e.depth;
   }

@@ -540,6 +540,158 @@ function saveTerminal(s, ctx) {
   ];
 }
 
+// ---- explosions and smoke (the effects behaviours spawn: EXPLODE1-8, clouds) ----
+// The sprites: EXPLODE1 is a big fireball, white-yellow at the core, turning orange then dark red as it
+// breaks up; EXPLODE2 and 3 are gold and red rings spreading out; EXPLODE5 and 7 are white-blue flashes
+// scattering into sparks; the clouds are grey puffs. In 3D: glowing blobs that swell and cool through
+// that ramp, throwing sparks that fall and leaving smoke that rises; rings as spreading glowing tori;
+// flashes as bursts with sparks; puffs that rise and thin. Glowing parts are additive (they light what
+// is behind them); the explosion also lights the room (client/atmosphere.js).
+const FIRE = [[1, 0.92, 0.55], [1, 0.75, 0.25], [1, 0.45, 0.1], [0.75, 0.15, 0.05], [0.25, 0.05, 0.02]];
+const ramp = (p) => {
+  const x = Math.min(0.999, Math.max(0, p)) * (FIRE.length - 1), i = Math.floor(x), f = x - i;
+  return FIRE[i].map((v, k) => v + (FIRE[i + 1][k] - v) * f);
+};
+const unitBlob = () => built('fx:blob', () => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 6, 10, [1, 1, 1]).done());
+const unitRing = () => built('fx:ring', () => new Mesh().torus([0, 0, 0], 1, 0.12, 20, 5, [1, 1, 1]).done());
+const unitSpark = () => built('fx:spark', () => new Mesh().box([0, 0, 0], [1, 0.25, 0.25], [1, 1, 1]).done());
+const smokeBlob = () => built('fx:smoke', () => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 5, 8, [0.32, 0.31, 0.3]).done());
+const scaled = (k, kz = k) => new Float32Array([k, 0, 0, 0, k, 0, 0, 0, kz]);
+const tinted = (mesh, rgb) => built(`fx:tint:${rgb.map((v) => v.toFixed(2))}:${mesh === unitSpark() ? 's' : mesh === unitRing() ? 'r' : 'b'}`, () => {
+  const d = new Float32Array(mesh.data);
+  for (let i = 0; i < mesh.count; i++) d.set(rgb, i * 9 + 6);
+  return { data: d, count: mesh.count };
+});
+// a fixed pseudo-random number in [0, 1) for an effect and an index (the same every frame)
+const fxRand = (e, k) => (((Math.round(e.x) * 73856093) ^ (Math.round(e.y) * 19349663) ^ (k * 83492791)) >>> 0) % 10007 / 10007;
+
+function fxProgress(e) {
+  const n = e.def.states.get(e.state)?.length || 1;
+  return n <= 1 ? 0.5 : Math.min(1, (Math.floor(e.frame) % n) / (n - 1));
+}
+
+function fireball(s, ctx, size) {
+  const { e, img } = s, p = fxProgress(e);
+  const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h / 2)];
+  const out = [];
+  const swell = size * (0.55 + 0.75 * Math.sin(Math.min(1, p * 1.3) * Math.PI * 0.5)) * (p > 0.75 ? 1 - (p - 0.75) * 1.6 : 1);
+  for (let k = 0; k < 7; k++) {
+    const a = fxRand(e, k) * Math.PI * 2, b = (fxRand(e, k + 9) - 0.5) * Math.PI, r = k ? swell * 0.55 : 0;
+    const off = [Math.cos(a) * Math.cos(b) * r, Math.sin(a) * Math.cos(b) * r, Math.sin(b) * r * 0.7 + p * size * 0.4];
+    const blobSize = swell * (k ? 0.45 + 0.25 * fxRand(e, k + 3) : 0.7);
+    out.push({ mesh: tinted(unitBlob(), ramp(p + k * 0.04)), basis: scaled(blobSize), offset: [c[0] + off[0], c[1] + off[1], c[2] + off[2]], additive: true, bright: 1, glowAmt: (k ? 0.75 : 1) * (1 - p) * (0.55 + 0.45 * Math.min(1, p * 4)) + 0.12 });
+  }
+  for (let k = 0; k < 10; k++) { // sparks thrown out, falling
+    const a = fxRand(e, 20 + k) * Math.PI * 2, b = fxRand(e, 40 + k) * 1.2, v = size * (1.2 + fxRand(e, 60 + k));
+    const t = p * 1.2;
+    const pos = [c[0] + Math.cos(a) * Math.cos(b) * v * t, c[1] + Math.sin(a) * Math.cos(b) * v * t, c[2] + Math.sin(b) * v * t - 60 * t * t];
+    const dir = [Math.cos(a) * Math.cos(b), Math.sin(a) * Math.cos(b), Math.sin(b) - 2 * t];
+    const l = Math.sqrt(dir[0] ** 2 + dir[1] ** 2 + dir[2] ** 2), L = 4;
+    out.push({ mesh: tinted(unitSpark(), [1, 0.8, 0.4]), basis: new Float32Array([dir[0] / l * L, dir[1] / l * L, dir[2] / l * L, 0, 1, 0, 0, 0, 1]), offset: pos, additive: true, bright: 1, glowAmt: 2 * (1 - p) });
+  }
+  if (p > 0.35) { // smoke rising from the burn
+    for (let k = 0; k < 3; k++) {
+      const q = (p - 0.35) / 0.65;
+      out.push({ mesh: smokeBlob(), basis: scaled(size * (0.3 + 0.4 * q) * (1 - q * 0.5)), offset: [c[0] + (fxRand(e, 80 + k) - 0.5) * size, c[1] + (fxRand(e, 90 + k) - 0.5) * size, c[2] + size * (0.3 + q * 1.2) + k * 6], bright: 1 });
+    }
+  }
+  return out;
+}
+
+function ringBurst(s, ctx, rgb) {
+  const { e, img } = s, p = fxProgress(e);
+  const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h / 2)];
+  const R = 6 + 26 * p;
+  return [
+    { mesh: tinted(unitRing(), rgb), basis: rotationScale(R, ctx.time / 300), offset: c, additive: true, glowAmt: 1.6 * (1 - p) },
+    { mesh: tinted(unitRing(), rgb), basis: rotationScale(R * 0.8, ctx.time / 300 + 1.4), offset: c, additive: true, glowAmt: 1.2 * (1 - p) },
+    { mesh: tinted(unitBlob(), rgb), basis: scaled(6 * (1 - p) + 1), offset: c, additive: true, glowAmt: 1.5 * (1 - p) },
+  ];
+}
+// a ring stood up and turned to face a little across (so it reads from any side), scaled
+function rotationScale(k, a) {
+  const R = rotation(a, Math.PI / 2.4, 0);
+  return R.map((v) => v * k);
+}
+
+function flash(s, ctx, rgb) {
+  const { e, img } = s, p = fxProgress(e);
+  const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h / 2)];
+  const out = [{ mesh: tinted(unitBlob(), rgb), basis: scaled(img.w * (0.4 + 0.5 * p)), offset: c, additive: true, glowAmt: 1.8 * (1 - p) }];
+  for (let k = 0; k < 8; k++) {
+    const a = fxRand(e, k) * Math.PI * 2, b = (fxRand(e, k + 30) - 0.5) * 2, v = img.w * 1.4 * p;
+    out.push({ mesh: tinted(unitSpark(), [0.9, 0.95, 1]), basis: new Float32Array([Math.cos(a) * 2.5, Math.sin(a) * 2.5, b * 2.5, 0, 0.6, 0, 0, 0, 0.6]), offset: [c[0] + Math.cos(a) * v, c[1] + Math.sin(a) * v, c[2] + b * v], additive: true, glowAmt: 2 * (1 - p) });
+  }
+  return out;
+}
+
+function puff(s, ctx, rgb) {
+  const { e, img } = s, p = fxProgress(e);
+  const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h / 2) + p * 14];
+  const k = img.w * (0.5 + 0.5 * p) * (1 - 0.4 * p);
+  return [{ mesh: tinted(smokeBlob(), rgb), basis: scaled(k, k * 0.85), offset: c }];
+}
+
+const FX = {
+  EXPLODE1: (s, c) => fireball(s, c, 46), EXPLODE4: (s, c) => fireball(s, c, 36), EXPLODE6: (s, c) => fireball(s, c, 30), EXPLODE8: (s, c) => fireball(s, c, 40),
+  EXPLODE2: (s, c) => ringBurst(s, c, [1, 0.75, 0.25]), EXPLODE3: (s, c) => ringBurst(s, c, [1, 0.3, 0.12]),
+  EXPLODE5: (s, c) => flash(s, c, [0.85, 0.9, 1]), EXPLODE7: (s, c) => flash(s, c, [0.7, 0.85, 1]),
+  SMALL_DARK_CLOUD: (s, c) => puff(s, c, [0.18, 0.18, 0.19]), SMALL_LIGHT_CLOUD: (s, c) => puff(s, c, [0.42, 0.42, 0.44]), CLOUD: (s, c) => puff(s, c, [0.5, 0.5, 0.55]),
+};
+
+
+// NEXT_LEVEL_TOP: the end-of-level teleporter machine, hung above its exit pad (they are linked in the level).
+// The sprite is a grey core with red internals, a ring of arms reaching out and down with green emitter
+// lights at their tips, and a white lens pointing down at the pad. In 3D: that machine, over the pad's own
+// spot (depth.js gives it the pad's depth), its arms turning slowly, the emitters blinking, and a beam of
+// light down to the pad while the player is close.
+function exitMachine(s, ctx) {
+  const { e, img } = s;
+  const parts = built('NEXT_LEVEL_TOP', () => {
+    const c = spriteColours(img, ctx.palette);
+    const grey = shade(c.body, 1.15), dark = shade(c.dark, 1.5);
+    const core = new Mesh()
+      .ellipsoid([0, 0, 0], [20, 20, 26], 7, 12, grey)
+      .cylinder([0, 0, 22], 11, 14, 10, dark).cylinder([0, 0, 36], 6, 40, 8, dark) // cap and the hanger
+      .lathe([0, 0, -40], [[0, 0], [12, 4], [16, 10], [14, 14], [0, 16]], 12, dark);
+    const arms = new Mesh();
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      const r0 = 16, r1 = 74, z0 = 6, z1 = -30, w = 3.5;
+      const px = -sa * w, py = ca * w;
+      arms.hexa([
+        [ca * r0 + px, sa * r0 + py, z0 - w], [ca * r1 + px, sa * r1 + py, z1 - w], [ca * r1 - px, sa * r1 - py, z1 - w], [ca * r0 - px, sa * r0 - py, z0 - w],
+        [ca * r0 + px, sa * r0 + py, z0 + w], [ca * r1 + px, sa * r1 + py, z1 + w], [ca * r1 - px, sa * r1 - py, z1 + w], [ca * r0 - px, sa * r0 - py, z0 + w],
+      ], grey);
+      arms.box([ca * r1, sa * r1, z1 - 6], [5, 5, 6], dark); // the emitter head
+    }
+    const lights = new Mesh();
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; lights.box([Math.cos(a) * 74, Math.sin(a) * 74, -43], [2.5, 2.5, 1.5], [0.4, 1, 0.35]); }
+    const red = new Mesh().box([0, -19, 2], [6, 2, 14], [0.9, 0.1, 0.06]).box([0, 19, 2], [6, 2, 14], [0.9, 0.1, 0.06]).box([19, 0, 2], [2, 6, 14], [0.9, 0.1, 0.06]).box([-19, 0, 2], [2, 6, 14], [0.9, 0.1, 0.06]).done();
+    const lens = new Mesh().torus([0, 0, -40], 12, 2.5, 14, 5, [0.95, 0.95, 1]).cylinder([0, 0, -41], 9, 1, 12, [0.85, 0.9, 1]).done();
+    const beam = new Mesh().cylinder([0, 0, 0], 1, 1, 12, [0.7, 0.85, 1]).done();
+    return { core: core.done(), arms: arms.done(), lights: lights.done(), red, lens, beam };
+  });
+  const pad = e.links?.[0];
+  const d = ctx.depthOf(e);
+  const x = 2 * (s.x + img.w / 2), zc = -2 * (s.y + img.h / 2) + 10;
+  const spin = rotation(ctx.time / 4000);
+  const out = [
+    { mesh: parts.core, basis: I3, offset: [x, d, zc] },
+    { mesh: parts.arms, basis: spin, offset: [x, d, zc] },
+    { mesh: parts.lights, basis: spin, offset: [x, d, zc], bright: (ctx.time / 400) % 2 < 1.4 ? 2.2 : 0.6 },
+    { mesh: parts.red, basis: I3, offset: [x, d, zc], bright: 1.6 + 0.4 * Math.sin(ctx.time / 250) },
+    { mesh: parts.lens, basis: I3, offset: [x, d, zc], bright: 1.8 },
+  ];
+  // the beam down to the pad when the player is near it
+  const p = ctx.g.player;
+  if (pad && Math.abs(p.x - pad.x) < 70 && Math.abs(p.y - pad.y) < 60) {
+    const top = zc - 41, bottom = -2 * pad.y + 8, h = top - bottom;
+    out.push({ mesh: parts.beam, basis: new Float32Array([12, 0, 0, 0, 12, 0, 0, 0, h]), offset: [x, d, bottom], additive: true, glowAmt: 0.5 + 0.25 * Math.sin(ctx.time / 90) });
+  }
+  return out;
+}
+
 const BY_AI = {
   flyer_ai: drone, sdoor_ai: door, strap_door_ai: hatch, platform_ai: lift, switcher_ai: wallSwitch, switch_once_ai: wallSwitch,
   tp2_ai: teleporter, hp_up: heart, fast_ai: powerModule, fly_power_ai: powerModule, sneaky_power_ai: powerModule, health_power_ai: powerModule,
@@ -547,7 +699,7 @@ const BY_AI = {
   hwall_ai: blockWall, big_wall_ai: blockWall, restart_ai: saveTerminal,
 };
 const BY_TYPE = {
-  WHO: drone, POINTER: pointer, SWITCH_BALL: switchBall,
+  WHO: drone, POINTER: pointer, SWITCH_BALL: switchBall, NEXT_LEVEL_TOP: exitMachine,
   MBULLET_ICON5: shells, MBULLET_ICON20: shells, GRENADE_ICON2: grenades, GRENADE_ICON10: grenades, ROCKET_ICON2: rocketItem, ROCKET_ICON5: rocketItem,
 };
 
@@ -555,11 +707,11 @@ const BY_TYPE = {
 export function design(s, ctx) {
   const e = s.e;
   if (!e) return null;
-  const fn = BY_TYPE[e.type] || BY_AI[e.ai];
+  const fn = BY_TYPE[e.type] || FX[e.type] || BY_AI[e.ai];
   return fn ? fn(s, ctx) : null;
 }
 
-export const designed = (e) => !!(BY_TYPE[e.type] || BY_AI[e.ai]);
+export const designed = (e) => !!(BY_TYPE[e.type] || FX[e.type] || BY_AI[e.ai]);
 
 function mul3(a, b) {
   const o = new Float32Array(9);

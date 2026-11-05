@@ -303,6 +303,14 @@ Lifts, doors and trap doors share one design kit, the lift's: bevelled metal in 
 colours, a tread plate, yellow trim, and the trap door's yellow and black hazard stripes where things
 move.
 
+**Rule: atmospheric light everywhere** (CLAUDE.md rule 8). Abuse's own light formula is the base;
+on top of it every lamp of the level has a fixture and a halo on the wall (some flicker with Quake's
+lightstyle patterns), and whatever burns or shines lights the room with coloured dynamic light: the
+muzzle flash, explosions (cooling from orange to red), red player tracers, rockets, plasma, acid, lava,
+teleporters and beams, save screens, exit rings (`client/atmosphere.js`, 16 nearest lights a frame).
+A haze darkens the distance. Explosions are designed too: swelling, cooling fireballs throwing sparks
+and leaving smoke, spreading rings and white-blue flashes, all glowing additively.
+
 **Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a
 doorway, shaft or hole its own size, and *frame* walls close the rest of the hall. The depth layer
 enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet

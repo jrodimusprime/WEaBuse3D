@@ -170,3 +170,25 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Screenshot gotcha: a reused Chrome profile served a stale mesh.js; screenshots now use a fresh
   profile and `--disk-cache-size=1`.
 - Review options: `?weapon=NAME`, `?fire=1`.
+
+## 2026-11-05 · slope jumps, explosions, red tracers, cooler guns, atmospheric light, exit machine
+- Jared: jumps fail on slopes ("mini bumps"); drone explosions look bad; the machine gun's bullet should be
+  red; the guns should be cooler and inspired by the game's guns; add a rule for atmospheric light like
+  Quake's; "the end of level teleporter machine doesnt line up".
+- Slopes: WEaBuse queues a jump only on a frame the player stands (game.js updatePlayer). `client/controls.js`
+  JumpAssist: a 150 ms press buffer and 133 ms coyote time set `jumpQueued` the way a standing press would.
+  Tests reproduce the lost press without it and the jump with it.
+- Explosions designed from EXPLODE1-8 and the clouds: additive fireball blobs cooling white-yellow →
+  orange → red with sparks and rising smoke, ring bursts, white-blue flashes, smoke puffs.
+- Renderer: up to 16 coloured dynamic lights in the world and model shaders, haze, additive glow parts,
+  camera-facing halos. `client/atmosphere.js` gathers the halos (with lamp fixtures; Quake lightstyle
+  flicker on some) and the dynamic lights each frame. CLAUDE.md rules 8 (atmosphere) and 9 (Quake controls).
+- Tracers: the player's bullets are red (weapons.js "the player's are red"), additive.
+- Guns redesigned from the cop's weapon sprites and the status bar icons: silver machine gun with a
+  skeleton stock, olive plasma gun with a glowing chamber, green grenade launcher with a red tip and a
+  drum, dark rocket tube with a hazard band and scope, gold firebomb with fuel canisters and a pilot
+  flame, dark red frisbee launcher with a spinning disc, red light saber.
+- The exit: each NEXT_LEVEL pad links to its NEXT_LEVEL_TOP 45 px above; they had separate random depths.
+  The machine now takes its pad's depth and is designed (grey core with red internals, arms with green
+  emitters, a lens, a beam to the pad when the player is near). Test: every machine is over its pad.
+- Review options `?effect=TYPE&frame=N&fxd=px`. `npm test` 35/35.

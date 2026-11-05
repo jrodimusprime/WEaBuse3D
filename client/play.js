@@ -19,6 +19,7 @@
 //   ?at=x,y             put the player here
 //   ?weapon=NAME        review: all weapons, this one in hand (MGUN PGUN GRENADE ROCKET FIREBOMB DFRIS LSABER)
 //   ?fire=1             review: hold the trigger while ?still steps run
+//   ?effect=TYPE&frame=N&fxd=px  review: an effect (EXPLODE1...) frozen at a frame, fxd px ahead
 //   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0)
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
@@ -31,6 +32,8 @@ import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
 import { placeScene, frameBoxes } from './place.js';
 import { viewModel } from './viewmodel.js';
+import { atmosphere } from './atmosphere.js';
+import { JumpAssist } from './controls.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -74,6 +77,10 @@ let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 
 if (params.has('depth')) depth.pd = Number(params.get('depth'));
 if (params.has('weapon')) { g.giveAllWeapons(); g.selectWeapon(params.get('weapon')); } // review: every weapon, this one in hand
 const holdFire = params.has('fire'); // review: the trigger held while ?still steps run
+if (params.has('effect')) { // review: an effect in front of the player, at a frame of its animation
+  const fx = g.effect(params.get('effect'), g.player.x + Number(params.get('fxd') || 70), g.player.y - 20);
+  if (fx) { fx.frame = Number(params.get('frame') || 0); fx.depth = depth.pd; fx.ai = null; }
+}
 let lookEye = null, lookTarget = null;
 const solo = params.has('solo');
 if (params.has('look')) {
@@ -97,6 +104,7 @@ if (params.has('look')) {
 
 // ---- input ----
 const held = new Set();
+const jumpAssist = new JumpAssist();
 addEventListener('keydown', (e) => {
   held.add(e.code);
   if (e.code === 'F2') { renderer.brightness = renderer.brightness >= 2 ? 1 : renderer.brightness + 0.5; e.preventDefault(); }
@@ -146,6 +154,7 @@ function feedInput() {
   if (held.has('Space')) g.keys.add(onLadder ? 'ArrowUp' : 'Space'); // Space jumps, or climbs a ladder
   if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
   if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
+  if (!onLadder) jumpAssist.step(g, held.has('Space')); // a press on a slope's bump is not lost (controls.js)
   // aim: the view direction (AngleVectors forward: x = cp*cy, y = cp*sy, z = -sp). Abuse aims along
   // its part in the plane; the shot crosses the hall by the rest: depth units per pixel along the plane
   let ax = Math.cos(rad(pitch)) * Math.cos(rad(yaw)), az = -Math.sin(rad(pitch));
@@ -241,20 +250,25 @@ function frame(now) {
   const fired = g.player.justFired;
   g.player.justFired = false; // game.js render clears it after drawing the flash
   // the weapon in the hands, placed in front of the eye along the view (forward, left, up)
-  let vm = [];
+  let vm = [], muzzle = null;
   if (!lookEye && !g.player.dead) {
     const cy = Math.cos(rad(yaw)), sy = Math.sin(rad(yaw)), cp = Math.cos(rad(pitch)), sp = Math.sin(rad(pitch));
     const F = [cp * cy, cp * sy, -sp], L = [-sy, cy, 0], U = [sp * cy, sp * sy, cp];
     const basis = new Float32Array([...F, ...L, ...U]);
     const run = Math.min(1, Math.abs(g.player.vx || 0) / 135 + Math.abs(depth.pv) / 270);
+    // a part that turns (the frisbee's disc) turns about its own vertical axis, inside the view
+    const turned = (a) => { const c = Math.cos(a), n = Math.sin(a); return new Float32Array([F[0] * c + L[0] * n, F[1] * c + L[1] * n, F[2] * c + L[2] * n, -F[0] * n + L[0] * c, -F[1] * n + L[1] * c, -F[2] * n + L[2] * c, ...U]); };
     vm = viewModel(g, palette, { fired, run, t: now }).map((q) => ({
-      mesh: q.mesh, basis, bright: q.bright || 1,
+      mesh: q.mesh, basis: q.spin === undefined ? basis : turned(q.spin), bright: q.bright || 1, flash: q.flash,
       offset: [0, 1, 2].map((k) => eye[k] + F[k] * q.at[0] + L[k] * q.at[1] + U[k] * q.at[2]),
     }));
+    if (fired) muzzle = [0, 1, 2].map((k) => eye[k] + F[k] * 90 + L[k] * -8 - U[k] * 4);
   }
+  const atmo = atmosphere(g, depth, scene, { lane: LANE, time: now, eye, muzzle });
   renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
     mode: 'abuse', front: true, caps: false, fovY,
-    sprites: solo ? scene.sprites.filter((s) => s.e === lookTarget) : lookEye ? scene.sprites : scene.sprites.filter((s) => !s.player), // the camera is inside the cop
+    sprites: solo ? scene.sprites.filter((s) => s.e === lookTarget) : [...(lookEye ? scene.sprites : scene.sprites.filter((s) => !s.player)), ...atmo.draws], // the camera is inside the cop
+    glows: solo ? [] : atmo.glows, dyn: solo ? [] : atmo.dyn, eye,
     world: !solo,
     viewmodel: vm,
     boxes: scene.boxes, red: g.redRamp || 0,

@@ -20,6 +20,7 @@ import { cachedModel } from './voxel.js';
 
 const BLOCK = 1024; // lightmap atlas size, in luxels
 const MAX_LIGHTS = 256;
+const MAX_DYN = 16;
 
 // Abuse's light at level pixel p (lighting.js LightMap.update), 0-63.
 const ABUSE_LIGHT = `
@@ -44,6 +45,24 @@ float abuseLight(vec2 p) {
 }
 // game renderer: each colour channel loses (63 - level) of 255
 vec3 abuseLit(vec3 c, vec2 p) { return max(c * 255.0 - (63.0 - abuseLight(p)), 0.0) / 255.0; }
+
+// Atmosphere (CLAUDE.md rule 8): coloured dynamic lights (muzzle flashes, explosions, shots, lava,
+// screens, pads), each a point with a radius, added on top of Abuse's light; and a haze with distance.
+uniform vec4 dynPos[${MAX_DYN}]; // xyz, radius
+uniform vec4 dynCol[${MAX_DYN}]; // rgb, intensity
+uniform int nDyn;
+uniform vec3 eyePos;
+uniform vec4 haze; // rgb, density
+vec3 dynLight(vec3 albedo, vec3 w) {
+  vec3 add = vec3(0.0);
+  for (int i = 0; i < ${MAX_DYN}; i++) {
+    if (i >= nDyn) break;
+    float d = length(w - dynPos[i].xyz) / dynPos[i].w;
+    if (d < 1.0) { float f = (1.0 - d) * (1.0 - d); add += dynCol[i].rgb * dynCol[i].a * f; }
+  }
+  return albedo * add;
+}
+vec3 hazed(vec3 c, vec3 w) { float f = 1.0 - exp(-length(w - eyePos) * haze.a); return mix(c, haze.rgb, f); }
 `;
 
 const WORLD_VS = `#version 300 es
@@ -62,10 +81,11 @@ uniform sampler2D tex; uniform sampler2D lightmap; uniform float brightness; uni
 ${ABUSE_LIGHT}
 out vec4 color;
 void main() {
-  vec3 c = texture(tex, vUv).rgb;
+  vec3 albedo = texture(tex, vUv).rgb, c = albedo;
   if (mode == 0) c *= texture(lightmap, vLuv).r;
   else if (mode == 1) c = abuseLit(c, vec2(vPos.x / 2.0, -vPos.z / 2.0));
-  c *= vShade * brightness;
+  c = c * vShade * brightness + dynLight(albedo, vPos);
+  c = hazed(c, vPos);
   c.r = min(1.0, c.r + red);
   color = vec4(c, 1.0);
 }`;
@@ -88,22 +108,52 @@ void main() {
 const MODEL_FS = `#version 300 es
 precision highp float;
 in vec3 vPos; in vec3 vRgb; in float vShade;
-uniform float brightness; uniform int mode; uniform float bright; uniform float red;
+uniform float brightness; uniform int mode; uniform float bright; uniform float red; uniform int glow; uniform float glowAmt;
 ${ABUSE_LIGHT}
 out vec4 color;
 void main() {
-  vec3 c = min(vRgb * bright, 1.0);
+  vec3 albedo = min(vRgb * bright, 1.0), c = albedo;
   if (mode == 1) c = abuseLit(c, vec2(vPos.x / 2.0, -vPos.z / 2.0));
-  c *= vShade * brightness;
+  c = c * vShade * brightness + dynLight(vRgb, vPos);
+  if (glow == 1) c = vRgb * bright * glowAmt; // additive glow parts: their own light, fading with glowAmt
+  c = hazed(c, vPos);
   c.r = min(1.0, c.r + red);
   color = vec4(c, 1.0);
+}`;
+
+const GLOW_VS = `#version 300 es
+layout(location=0) in vec3 pos;
+layout(location=1) in vec2 uv;
+layout(location=2) in vec4 col;
+uniform mat4 mvp;
+out vec2 vUv; out vec4 vCol; out vec3 vPos;
+void main() { vUv = uv; vCol = col; vPos = pos; gl_Position = mvp * vec4(pos, 1.0); }`;
+
+const GLOW_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; in vec4 vCol; in vec3 vPos;
+uniform vec3 eyePos; uniform vec4 haze;
+out vec4 color;
+void main() {
+  float r = dot(vUv, vUv);
+  if (r > 1.0) discard;
+  float f = (1.0 - r) * (1.0 - r);
+  float fog = exp(-length(vPos - eyePos) * haze.a);
+  color = vec4(vCol.rgb * vCol.a * f * fog, 1.0);
 }`;
 
 export class Renderer {
   constructor(gl) {
     this.gl = gl;
     this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient']);
-    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient']);
+    const atmo = ['dynPos', 'dynCol', 'nDyn', 'eyePos', 'haze'];
+    this.world.u = { ...this.world.u, ...uniforms(gl, this.world.prog, atmo) };
+    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient', 'glow', 'glowAmt', ...atmo]);
+    this.glowProg = program(gl, GLOW_VS, GLOW_FS, ['mvp', 'eyePos', 'haze']);
+    this.glowBuf = gl.createBuffer();
+    this.glowVao = vao(gl, this.glowBuf, [[0, 3, 0], [1, 2, 12], [2, 4, 20]], 36);
+    this.haze = [0.03, 0.03, 0.045, 0.00045];
+    this.dyn = [];
     this.brightness = 1;
     this.lightTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.lightTex);
@@ -263,7 +313,7 @@ export class Renderer {
   // of 'front'/'caps' to show, fovY, sprites and boxes (client/scene.js), red flash.
   frame(view, width, height, opts = {}) {
     const gl = this.gl;
-    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [] } = opts;
+    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [], glows = [], dyn = [], eye = view.eye } = opts;
     gl.viewport(0, 0, width, height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -284,8 +334,16 @@ export class Renderer {
     const mvp = mul(proj, viewM);
     this.mvp = mvp;
     const modeId = mode === 'lightmap' ? 0 : 1;
+    const dynPos = new Float32Array(MAX_DYN * 4), dynCol = new Float32Array(MAX_DYN * 4);
+    const nDyn = Math.min(MAX_DYN, dyn.length);
+    for (let i = 0; i < nDyn; i++) { dynPos.set([...dyn[i].pos, dyn[i].radius], i * 4); dynCol.set([...dyn[i].rgb, dyn[i].intensity ?? 1], i * 4); }
     const shared = (p) => {
       gl.useProgram(p.prog);
+      if (p.u.nDyn) {
+        gl.uniform4fv(p.u.dynPos, dynPos); gl.uniform4fv(p.u.dynCol, dynCol); gl.uniform1i(p.u.nDyn, mode === 'abuse' ? nDyn : 0);
+        gl.uniform3fv(p.u.eyePos, eye); gl.uniform4fv(p.u.haze, mode === 'abuse' ? this.haze : [0, 0, 0, 0]);
+      }
+      if (p.u.glow) { gl.uniform1i(p.u.glow, 0); gl.uniform1f(p.u.glowAmt, 1); }
       gl.uniformMatrix4fv(p.u.mvp, false, mvp);
       gl.uniform1f(p.u.brightness, this.brightness);
       gl.uniform1i(p.u.mode, modeId);
@@ -320,10 +378,11 @@ export class Renderer {
     if (viewmodel.length) passes.push(viewmodel);
     for (let pass = 0; pass < passes.length; pass++) {
       const list = passes[pass];
-      if (pass === 1) gl.clear(gl.DEPTH_BUFFER_BIT);
+      if (pass === 1) { this.drawGlows(sprites, glows, mvp, viewM, eye, mode); gl.clear(gl.DEPTH_BUFFER_BIT); }
       if (!list.length && (pass === 1 || !boxes.length)) continue;
       shared(this.model);
       for (const s of list) {
+        if (s.additive) continue; // drawn in the glow pass
         const m = s.mesh || cachedModel(s.img, this.palette, s.flip, !!s.flat);
         if (!m.count) continue;
         let gpu = this.models.get(m);
@@ -354,6 +413,61 @@ export class Renderer {
         gl.drawArrays(gl.TRIANGLES, 0, o / 9);
       }
     }
+    if (passes.length === 1) this.drawGlows(sprites, glows, mvp, viewM, eye, mode);
+    gl.bindVertexArray(null);
+  }
+
+  // Glowing things, added to what is behind them: additive parts of models (fireballs, beams, tracers)
+  // and halos (billboards, soft round light) at light sources. Depth tested, not written.
+  drawGlows(sprites, glows, mvp, view, eye, mode) {
+    const gl = this.gl;
+    const add = sprites.filter((s) => s.additive);
+    if (!add.length && !glows.length) return;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.depthMask(false);
+    if (add.length) {
+      gl.useProgram(this.model.prog);
+      gl.uniform1i(this.model.u.glow, 1);
+      for (const s of add) {
+        const m = s.mesh;
+        let gpu = this.models.get(m);
+        if (!gpu) {
+          const buf = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+          gl.bufferData(gl.ARRAY_BUFFER, m.data, gl.STATIC_DRAW);
+          gpu = vao(gl, buf, [[0, 3, 0], [1, 3, 12], [2, 3, 24]], 36);
+          this.models.set(m, gpu);
+        }
+        gl.uniformMatrix3fv(this.model.u.basis, false, s.basis || IDENTITY3);
+        gl.uniform3fv(this.model.u.offset, s.offset);
+        gl.uniform1f(this.model.u.bright, s.bright || 1);
+        gl.uniform1f(this.model.u.glowAmt, s.glowAmt ?? 1);
+        gl.bindVertexArray(gpu);
+        gl.drawArrays(gl.TRIANGLES, 0, m.count);
+      }
+      gl.uniform1i(this.model.u.glow, 0);
+    }
+    if (glows.length) {
+      // camera-facing quads: the view's right and up are the first two rows of the view matrix
+      const R = [view[0], view[4], view[8]], U = [view[1], view[5], view[9]];
+      const d = new Float32Array(glows.length * 6 * 9);
+      let o = 0;
+      for (const q of glows) {
+        const corner = (a, b) => { d.set([q.pos[0] + (R[0] * a + U[0] * b) * q.size, q.pos[1] + (R[1] * a + U[1] * b) * q.size, q.pos[2] + (R[2] * a + U[2] * b) * q.size, a, b, ...q.rgb, q.intensity ?? 1], o); o += 9; };
+        corner(-1, -1); corner(1, -1); corner(1, 1); corner(-1, -1); corner(1, 1); corner(-1, 1);
+      }
+      gl.useProgram(this.glowProg.prog);
+      gl.uniformMatrix4fv(this.glowProg.u.mvp, false, mvp);
+      gl.uniform3fv(this.glowProg.u.eyePos, eye);
+      gl.uniform4fv(this.glowProg.u.haze, mode === 'abuse' ? this.haze : [0, 0, 0, 0]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.glowBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, d, gl.STREAM_DRAW);
+      gl.bindVertexArray(this.glowVao);
+      gl.drawArrays(gl.TRIANGLES, 0, glows.length * 6);
+    }
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
 
@@ -416,6 +530,12 @@ function allocBlock(allocated, w, h) {
   if (best + h > BLOCK) throw new Error('AllocBlock: full');
   for (let i = 0; i < w; i++) allocated[x + i] = best + h;
   return [x, y];
+}
+
+function uniforms(gl, prog, names) {
+  const u = {};
+  for (const n of names) u[n] = gl.getUniformLocation(prog, n);
+  return u;
 }
 
 function program(gl, vs, fs, uniforms) {

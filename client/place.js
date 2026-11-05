@@ -56,9 +56,10 @@ export function placeScene(scene, depth, lane, timeMs, g, palette) {
     const l1 = Math.sqrt(p1[0] ** 2 + p1[1] ** 2);
     p1 = l1 < 1e-3 ? [1, 0, 0] : p1.map((v) => v / l1);
     const p2 = [f[1] * p1[2] - f[2] * p1[1], f[2] * p1[0] - f[0] * p1[2], f[0] * p1[1] - f[1] * p1[0]];
-    const w = 1.1, idx = b.bright ?? 0;
+    // the player's bullets are red (weapons.js: "the player's are red"); enemies' carry their own colour
+    const w = 1.1, idx = b.bright ?? (b.mine ? g?.colors?.redBright : 0) ?? 0;
     const rgb = idx && palette ? [palette[idx * 3] / 255, palette[idx * 3 + 1] / 255, palette[idx * 3 + 2] / 255] : [1, 0.85, 0.45];
-    out.push({ mesh: tracerMesh(rgb), basis: new Float32Array([d[0], d[1], d[2], p1[0] * w, p1[1] * w, p1[2] * w, p2[0] * w, p2[1] * w, p2[2] * w]), offset: a, bright: 2.4 });
+    out.push({ mesh: tracerMesh(rgb), basis: new Float32Array([d[0], d[1], d[2], p1[0] * w, p1[1] * w, p1[2] * w, p2[0] * w, p2[1] * w, p2[2] * w]), offset: a, additive: true, glowAmt: 2.2 });
   }
   scene.boxes = scene.boxes.filter((b) => b.shot?.kind !== 'bullet');
   for (const b of scene.boxes) {

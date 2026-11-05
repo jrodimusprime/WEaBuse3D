@@ -34,7 +34,7 @@ function volume(m) {
 
 test('level 0 objects that matter have designed models, made of closed parts', () => {
   for (const type of ['WHO', 'SWITCH_DOOR', 'SMART_PLAT_SMALL', 'SWITCH', 'TELE2', 'TRAP_DOOR2', 'HEALTH', 'MBULLET_ICON20', 'GRENADE_ICON10',
-    'ROCKET_ICON2', 'POWER_FAST', 'POINTER', 'SWITCH_BALL', 'SPRING', 'NEXT_LEVEL', 'TELE_BEAM', 'TP_DOOR', 'LAVA', 'HIDDEN_WALL3', 'HIDDEN_WALL_2x2', 'RESTART_POSITION']) {
+    'ROCKET_ICON2', 'POWER_FAST', 'POINTER', 'SWITCH_BALL', 'SPRING', 'NEXT_LEVEL', 'TELE_BEAM', 'TP_DOOR', 'LAVA', 'HIDDEN_WALL3', 'HIDDEN_WALL_2x2', 'RESTART_POSITION', 'NEXT_LEVEL_TOP']) {
     const e = first(type);
     assert.ok(e && designed(e), `${type} has a design`);
     const parts = design(spriteFor(e), ctx);
@@ -83,4 +83,27 @@ test('a trap door is hatch-sized: the floor around it holds, its opening lets th
   assert.ok(beside <= z.y0, `stood on the floor beside the hatch (feet at ${beside}, floor at ${z.y0})`);
   const through = await drop(z.c);
   assert.ok(through > z.y1, `dropped through the open hatch (feet at ${through})`);
+});
+
+test('the exit machine hangs over its own pad', () => {
+  for (const top of g.entities.filter((e) => e.type === 'NEXT_LEVEL_TOP')) {
+    const pad = top.links[0];
+    assert.equal(pad.type, 'NEXT_LEVEL');
+    assert.equal(depth.depthOf(top), depth.depthOf(pad));
+    assert.equal(top.x, pad.x);
+  }
+});
+
+test('every weapon in the hands is made of closed parts', async () => {
+  const { viewModel } = await import('../client/viewmodel.js');
+  const { WEAPON_ORDER } = await import('../sim/web/src/weapons.js');
+  const p = g.player;
+  const before = p.weapon;
+  for (const w of WEAPON_ORDER) {
+    p.weapon = w;
+    const parts = viewModel(g, palette, { fired: true, run: 0.5, t: 1000 });
+    assert.ok(parts.length >= 2, `${w} has parts`);
+    for (const q of parts) assert.ok(volume(q.mesh) > 0, `${w}: a part is not closed`);
+  }
+  p.weapon = before;
 });

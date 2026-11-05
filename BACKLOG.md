@@ -22,9 +22,9 @@ teleport beam, the teleport pod (TP_DOOR), lava, breakable walls, save terminals
 and the weapon in the player's hands (all seven).
 
 Still on the placeholder, roughly in the order a player meets them:
-FORCE_FIELD, NEXT_LEVEL_TOP (a large wrecked machine), BOLDER, SPRAY_GUN (dome turret),
-ANT_ROOF / HIDDEN_ANT (alien ant), ANT_CRACK, effects (explosions, smoke, sparks), rockets and grenades
-in flight, and the cop himself (only seen in Watch and model review).
+FORCE_FIELD, BOLDER, SPRAY_GUN (dome turret), ANT_ROOF / HIDDEN_ANT (alien ant), ANT_CRACK, rockets and
+grenades in flight, and the cop himself (only seen in Watch and model review).
+(Done since: explosions and smoke, the exit teleporter machine, the guns redesigned from the game's art.)
 
 ## M2: Depth mode, 3D gameplay (done; human sign-off pending)
 

@@ -50,3 +50,11 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
 6. **The voxel extrusion is a placeholder only.** Every object still drawn by it is listed in BACKLOG.md
    under "Models awaiting design" until it has a designed model.
 7. Check every new model with screenshots from several angles and in motion before ticking it off.
+8. **Atmospheric light everywhere** (Quake's great feature, and Abuse was lit the same way). Nothing is lit
+   flat. Every light source has a visible fixture and a glow (halo); everything that burns or shines casts
+   coloured dynamic light on what is around it: muzzle flashes, explosions, shots and rockets, lava,
+   screens, pads, beams, lamps on lifts and switches. Leave darkness between the pools of light, let some
+   lamps flicker (Quake's lightstyles), and keep the haze with distance. A new object that emits light is
+   not done until it lights the room (client/atmosphere.js) and its glowing parts glow (additive parts).
+9. **Controls must feel like Quake's.** A press must never be lost to a bump: jumps are buffered and allowed
+   just after leaving the ground (client/controls.js); test movement on slopes, steps and edges.
