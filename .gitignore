@@ -1,0 +1,6 @@
+ref/
+node_modules/
+*.pak
+id1/
+test-results/
+.DS_Store
