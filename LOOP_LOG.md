@@ -413,3 +413,23 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   at max(4, 1/rate) lane depths (was 10).
 - Screenshots: levels 1, 2, 4, 16, straight on and at slants, no black. tests: every art pixel kept, under 10%
   black in the whole picture.
+
+## Ladders, slopes, jumping off (2026-11-06)
+- Jared: the ladder on level 2 is "hidden at the top with a walk-through image"; ladders let you "clip and get
+  stuck in walls"; "you should be able to jump off a ladder"; "running down inclines and jumping also still
+  seems to be broken, maybe look at the original quake engine"; "stuck on l2 ladder".
+- Slopes: sim's step down after a move tests the whole body, but the player stands by their centre (WEaBuse
+  13b8bd2), so on slopes the centre left the ground: 807 short drops without a jump in levels 0-5's recorded
+  runs, 484 longer than the coyote time. Quake (QuakeWorld PM_GroundMove) steps a walker down up to STEPSIZE
+  (18 units = 9 px). depth.js stepDown after each ground move: 170 left (ledges). Jump assist counts the box.
+- Ladders: client/ladders.js finds the floor cells each ladder passes through (28 in the game); the compiler
+  leaves them open (maps rebuilt), the depth layer closes them with frame walls but for a 56-unit hole against
+  the back wall; climbing pulls the player there (600 units/s); a hatch/door/lift a ladder runs through opens
+  at the back wall (level 2's trap door at 993,796 held the climber under it for good). Space now jumps (off a
+  ladder too: pushed 70 units back into the hall, not caught again for 0.35 s).
+- Also: zones that touch through a chain now share one opening (level 15's two trap doors did not).
+- Tests: every ladder in the game, up and down, from the front of the hall (fails on the trap door without the
+  fix); slopes on level 0 (fail without stepDown); the map tests skip only the ladder-hole cells.
+- Level 1's 3D finish test died (the recorded piece 33 survived on 14 health in 2D and ran on past its goal).
+  Jared chose a new run: tools/depth-run-search.mjs found piece 33 inputs for the 3D rules in 26 tries,
+  reaching the next piece's start with 42 health; kept in tests/data/depth-runs.json. 82/82 tests.

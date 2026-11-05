@@ -42,8 +42,10 @@
 // may leap onto the nearer side wall, cling there and scuttle along it towards
 // the player, spit from it, and spring off it at the player. See wallRun.
 import { behaviors } from '../sim/web/src/behaviors.js';
+import { ladderHoles } from './ladders.js';
 import { enemyFire } from '../sim/web/src/weapons.js';
 
+const STEP_DOWN = 9; // px: Quake's STEPSIZE, 18 units
 const KIND_BY_TYPE = {
   SWITCH_BALL: 'wall', POINTER: 'wall', RESTART_POSITION: 'wall', // on the back wall: a target, a sign, a save terminal
   NEXT_LEVEL: 'floor', NEXT_LEVEL_TOP: 'floor', TELE_BEAM: 'floor', TP_DOOR: 'floor', // at a spot: exits, the beam, the pod
@@ -66,6 +68,10 @@ export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px 
 const REACH = 72; // how far from the back wall a wall switch can be used
 const DOOR_HALF = 48; // a doorway is 96 units across the hall
 const LIFT_HALF = 60; // a lift is as deep as it is wide: 120 units
+const LADDER_HALF = 28; // the hole a ladder climbs through a floor: 56 units deep, against the back wall
+const LADDER_PULL = 600; // units a second a climber is drawn across the hall to the ladder
+const LADDER_KICK = 200; // units a second a jump off a ladder pushes the player back off it, into the hall,
+const LADDER_OFF = 0.35; // for this long (s), while the ladder does not catch them again (about 70 units)
 const FITTED = new Set(['door', 'lift', 'hatch']); // things their own size, in a zone
 const HALF_W = 6, BODY_H = 29; // the player's box in the plane (game.js)
 const SPEED = 270; // the player across the hall, units a second (Abuse's run: 9 px a tick = 270 units/s)
@@ -241,23 +247,35 @@ export class Depth {
     // A doorway or shaft beside something used on the back wall (a switch, a save terminal) opens against
     // the back wall, or the frame walls would keep the player from reaching it (level 2's switch beside a lift).
     const used = g.entities.filter((q) => this.kind(q) === 'wall' && (/switch/.test(q.ai || '') || q.ai === 'restart_ai'));
+    // And so does one a ladder runs through (level 2's trap door at the top of a ladder): the climber is at
+    // the ladder, against the back wall.
+    const onLadder = (z) => g.ladders.some((l) => l.x0 <= z.x1 && l.x1 >= z.x0 && l.y0 <= z.y1 && l.y1 >= z.y0);
     for (const z of out) {
-      if (used.some((q) => q.x >= z.x0 - 24 && q.x <= z.x1 + 24 && q.y >= z.y0 - 16 && q.y <= z.y1 + 16)) { z.back = true; z.c = this.lane - z.h; } // flush with it: no frame in front of the switch
+      if (onLadder(z) || used.some((q) => q.x >= z.x0 - 24 && q.x <= z.x1 + 24 && q.y >= z.y0 - 16 && q.y <= z.y1 + 16)) { z.back = true; z.c = this.lane - z.h; } // flush with it: no frame in front of the switch
     }
     // Doorways and shafts that touch (a double door, a door beside a shaft) share one opening,
     // or no depth would get through both: each group takes the opening of its first member, or of one
     // that opens against the back wall.
     const near = (a, b) => a.x0 - 40 <= b.x1 && b.x0 - 40 <= a.x1 && a.y0 - 40 <= b.y1 && b.y0 - 40 <= a.y1;
     const group = out.map((_, i) => i);
+    const root = (i) => { while (group[i] !== i) i = group[i] = group[group[i]]; return i; };
     for (let i = 0; i < out.length; i++) {
-      for (let j = 0; j < i; j++) if (near(out[i], out[j])) { group[i] = group[j]; break; }
+      for (let j = 0; j < i; j++) if (near(out[i], out[j])) group[root(i)] = root(j); // (all that touch, through chains too)
     }
+    for (let i = 0; i < out.length; i++) group[i] = root(i);
     for (let i = 0; i < out.length; i++) {
       const members = out.filter((_, k) => group[k] === i);
       if (members.length < 2) continue;
       const h = Math.min(...members.map((z) => z.h)), back = members.some((z) => z.back);
       const c = back ? this.lane - h : members[0].c;
       for (const z of members) z.c = Math.max(-this.lane + h + 24, Math.min(this.lane - h - (back ? 0 : 24), c));
+    }
+    // where a ladder runs up through a floor, a hole its size against the back wall (client/ladders.js)
+    const lv = g.level;
+    const solid = (n) => !!g.assets.foreTile(n)?.mask?.some((v) => v === 1);
+    for (const hole of ladderHoles({ ladders: g.ladders, fgW: lv.fgW, fgH: lv.fgH, fgmap: lv.fgmap, tw: g.tw, th: g.th, solid })) {
+      // (from a pixel into the floor: standing on it is not in the hole)
+      out.push({ e: null, kind: 'ladder', x0: hole.x0, x1: hole.x1, y0: hole.y0 + 1, top: hole.y0, y1: hole.y1, h: LADDER_HALF, c: this.lane - LADDER_HALF, back: true, tile: hole.tile });
     }
     this._zones = out;
     return out;
@@ -296,10 +314,18 @@ export class Depth {
   // The player across the hall, one simulation step: `wish` in [-1, 1].
   movePlayer(wish, dt) {
     const p = this.g.player;
-    const want = p.dead ? 0 : wish * SPEED;
-    const dv = want - this.pv, max = ACCEL * dt;
-    this.pv += dv > max ? max : dv < -max ? -max : dv;
-    this.pd += this.pv * dt;
+    if (p.climbing && !p.dead) {
+      // on a ladder: drawn to it, against the back wall where it is
+      const t = this.lane - LADDER_HALF, s = LADDER_PULL * dt;
+      this.pd += Math.max(-s, Math.min(s, t - this.pd));
+      this.pv = 0;
+    } else {
+      const want = p.dead ? 0 : wish * SPEED;
+      const dv = want - this.pv, max = ACCEL * dt;
+      this.pv += dv > max ? max : dv < -max ? -max : dv;
+      this.pd += this.pv * dt;
+      if (this.offLadder > 0) { this.offLadder -= dt; this.pd -= LADDER_KICK * dt; }
+    }
     const lim = this.lane - PLAYER_HALF;
     if (this.pd > lim) { this.pd = lim; this.pv = 0; }
     if (this.pd < -lim) { this.pd = -lim; this.pv = 0; }
@@ -448,6 +474,16 @@ export class Depth {
 
   // ---- installing it into a Game ----
 
+  // Onto the ground under the player's centre, if there is ground within a step below (else they walked off
+  // an edge, and fall).
+  stepDown(p) {
+    const g = this.g;
+    if (g.feetHit(p, p.y + 1)) return;
+    for (let d = 1; d <= STEP_DOWN; d++) {
+      if (g.feetHit(p, p.y + 1 + d)) { p.y += d; return; }
+    }
+  }
+
   install() {
     if (this.on) return;
     this.on = true;
@@ -469,7 +505,21 @@ export class Depth {
       if (c && self.kind(c) !== 'full' && Math.abs(self.depthOf(c) - self.pd) > self.halfDepth(c) + PLAYER_HALF + 8) return;
       return proto.pushPlayer.call(this, dx);
     };
-    g.updatePlayer = function (dt) { const n = this.projs.length; proto.updatePlayer.call(this, dt); self.adopt(n, 'player'); self.enforce(); };
+    // Quake keeps a walker on the ground: after a move along the floor it steps down onto ground up to a
+    // stair's height below (QuakeWorld pmove.c PM_GroundMove, the "stepdown"; Quake's STEPSIZE is 18 units,
+    // 9 px here). Abuse's own step down tests the whole body, but the player stands by their centre, so
+    // running downhill the centre left the slope every few frames and a jump pressed then was lost.
+    g.moveX = function (p, dx) {
+      const stood = p === this.player && p.ground && p.vy >= 0 && !p.climbing && !p.dead;
+      proto.moveX.call(this, p, dx);
+      if (stood) self.stepDown(p);
+    };
+    g.updatePlayer = function (dt) {
+      const n = this.projs.length, climbing = this.player.climbing;
+      proto.updatePlayer.call(this, dt);
+      if (climbing && !this.player.climbing && this.player.vy < 0) self.offLadder = LADDER_OFF; // jumped off: pushed back into the hall
+      self.adopt(n, 'player'); self.enforce();
+    };
     g.tick = function () { proto.tick.call(this); self.afterTick(); self.enforce(); };
     g.spawn = function (type, x, y) {
       const e = proto.spawn.call(this, type, x, y);
@@ -488,7 +538,7 @@ export class Depth {
     if (!this.on) return;
     this.on = false;
     const g = this.g;
-    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'updatePlayer', 'tick', 'spawn']) delete g[k];
+    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'updatePlayer', 'tick', 'spawn']) delete g[k];
     g.depth = null;
   }
 }

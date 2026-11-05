@@ -36,8 +36,51 @@ test('coyote time ends: a press long after leaving the ground does not jump', ()
   settle();
   const p = g.player, a = new JumpAssist();
   a.step(g, false);
+  p.y -= 40; // in the air (standing counts the floor under the body, so clearing the flag alone is not the air)
   for (let i = 0; i <= COYOTE + 1; i++) { p.ground = false; a.step(g, false); }
   p.vy = 0;
   a.step(g, true);
   assert.equal(p.jumpQueued, false);
 });
+
+test('over a gap narrower than the body, held up at both edges, the player is standing: a press jumps', async () => {
+  await g.start(levelFile(2));
+  const { Depth } = await import('../client/depth.js'), { LANE } = await import('../content/compile.mjs');
+  const d = new Depth(g, LANE); d.install();
+  const p = g.player; p.x = 1820; p.y = 1023; p.vy = 0;
+  for (let i = 0; i < 30; i++) { g.keys.clear(); g.update(STEP); }
+  const a = new JumpAssist();
+  let jumped = false, over = false, air = 0;
+  for (let i = 0; i < 40 && !jumped; i++) {
+    g.keys.clear(); g.keys.add('ArrowLeft');
+    air = p.ground ? 0 : air + 1; // over the slit by the lift Abuse has the player in the air
+    const press = air === COYOTE + 1; // late in the crossing, past the coyote time
+    if (press) over = true;
+    a.step(g, press);
+    const wasOver = air > 0;
+    g.update(STEP);
+    if (p.vy < 0 && over && wasOver) jumped = true; // from over the slit, not once landed beyond it
+    if (over && p.ground && !jumped) break;
+  }
+  d.uninstall();
+  assert.ok(over, 'crossed the slit');
+  assert.ok(jumped, 'jumped from over it');
+});
+
+// Quake keeps a runner on a ramp (client/depth.js stepDown). Without it the player, standing by their
+// centre, was in the air for 26 of 30 frames running up level 0's first slope, and 11 running down the next.
+for (const [what, x, y, dir, n] of [['up the slope at the start', 200, 100, -1, 30], ['down the slope at x 1272', 1220, 190, 1, 45]]) {
+  test(`running ${what} of level 0 keeps the player on the ground`, async () => {
+    await g.start(levelFile(0));
+    const { Depth } = await import('../client/depth.js'), { LANE } = await import('../content/compile.mjs');
+    const d = new Depth(g, LANE); d.install();
+    const p = g.player; p.x = x; p.y = y; p.vy = 0;
+    for (let i = 0; i < 30; i++) { g.keys.clear(); g.update(STEP); }
+    const y0 = p.y;
+    let air = 0;
+    for (let i = 0; i < n; i++) { g.keys.clear(); g.keys.add(dir > 0 ? 'ArrowRight' : 'ArrowLeft'); g.update(STEP); if (!p.ground) air++; }
+    d.uninstall();
+    assert.notEqual(p.y, y0, 'went up or down the slope');
+    assert.equal(air, 0, `${air} frames in the air`);
+  });
+}

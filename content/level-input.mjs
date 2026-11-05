@@ -6,6 +6,8 @@
 // Coordinates stay in Abuse pixels here; the compiler converts to Quake units
 // (X = 2x, Z = -2y) when it writes the BSP.
 
+import { ladderHoles } from '../client/ladders.js';
+
 const SIM = new URL('../sim/web/', import.meta.url);
 
 let assetsPromise = null;
@@ -68,12 +70,13 @@ const rectPoly = ({ x0, y0, x1, y1 }) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]
 // Solid shapes of the level in pixel space. Full-width rectangles in a row are
 // merged into runs, and runs of full cells are merged downwards, so the BSP
 // does not have to split thousands of identical blocks one by one.
-export function levelShapes(lv, assets, tw, th) {
+export function levelShapes(lv, assets, tw, th, ladderCells = new Set()) {
   const W = lv.fgW, H = lv.fgH;
   const cellRect = new Array(W * H).fill(null); // {y0,y1} within the cell when full width
   const shapes = [];
   for (let ty = 0; ty < H; ty++) {
     for (let tx = 0; tx < W; tx++) {
+      if (ladderCells.has(ty * W + tx)) continue; // a floor a ladder passes through (client/ladders.js)
       const tile = assets.foreTile(lv.fgmap[ty * W + tx]);
       if (!tile || !tile.mask) continue;
       const poly = tileOutline(tile, tw, th);
@@ -111,6 +114,15 @@ export function levelShapes(lv, assets, tw, th) {
   return [...done.map(rectPoly), ...shapes];
 }
 
+// The floors a ladder passes through (sim game.js: a LADDER and its first link are its corners).
+export function levelLadderHoles(lv, assets, tw, th) {
+  const ladders = lv.objects.filter((o) => o.type === 'LADDER' && o.links?.length).map((o) => {
+    const b = lv.objects[o.links[0]];
+    return { x0: o.x, y0: o.y, x1: b.x, y1: b.y };
+  });
+  return ladderHoles({ ladders, fgW: lv.fgW, fgH: lv.fgH, fgmap: lv.fgmap, tw, th, solid: (n) => !!assets.foreTile(n)?.mask?.some((v) => v === 1) });
+}
+
 // Everything the compiler needs about one level.
 export async function loadLevelInput(file) {
   const assets = await loadAssets();
@@ -121,11 +133,13 @@ export async function loadLevelInput(file) {
   const bt = assets.backTile(0) || assets.backTile([...assets.back.keys()][0]);
   const tw = ft.w, th = ft.h;
   const start = lv.objects.find((o) => o.type === 'START');
+  const holes = levelLadderHoles(lv, assets, tw, th);
   return {
     name: file.replace(/\.spe$/, ''),
     lv, assets, tw, th, bw: bt.w, bh: bt.h,
     width: lv.fgW * tw, height: lv.fgH * th,
-    shapes: levelShapes(lv, assets, tw, th),
+    shapes: levelShapes(lv, assets, tw, th, new Set(holes.flatMap((h) => h.cells))),
+    holes,
     start: start ? { x: start.x, y: start.y } : { x: 100, y: 100 },
   };
 }

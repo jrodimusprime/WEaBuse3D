@@ -46,7 +46,8 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
 4. **Place things where they would be in a 3D level:** buttons on walls, pads on floors, items on the ground
    where you can walk over them, enemies free to move across the hall.
 5. **Move like a 3D shooter.** On a ladder, walking forward while looking up climbs and looking down
-   descends. Use is "walk up to it and press E".
+   descends; Space jumps off it. A ladder through a floor climbs through a hole of its own against the back
+   wall. On slopes the player stays on the ground, as in Quake. Use is "walk up to it and press E".
 6. **The voxel extrusion is a placeholder only.** Every object still drawn by it is listed in BACKLOG.md
    under "Models awaiting design" until it has a designed model.
 7. Check every new model with screenshots from several angles and in motion before ticking it off.

@@ -349,6 +349,22 @@ doorway, shaft or hole its own size, and *frame* walls close the rest of the hal
 enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet
 designed still use the voxel extrusion as a placeholder, listed in BACKLOG.md.
 
+**Ladders through floors.** In Abuse a ladder often runs up through a solid floor tile, and the climber
+passes through it. In 3D that floor is a slab across the hall, so the climber went up into solid floor and
+could end up inside walls. Now, like a Quake ladder shaft, the map leaves the floor a ladder passes through
+open (`client/ladders.js`; the compiler and the depth layer share it), and the depth layer's frame walls
+close it again but for a hole the ladder's size against the back wall, where the ladder is painted. A climber
+is drawn across the hall to the ladder, and a trap door, door or lift that a ladder runs through opens against
+the back wall too. Space jumps off a ladder, pushing the player back into the hall (`tests/ladders.test.mjs`
+climbs every ladder in the game, up and down, from the front of the hall).
+
+**Moving like Quake on slopes.** Quake keeps a walker on the ground: after a move along the floor it steps
+down onto ground up to a stair's height below (QuakeWorld's PM_GroundMove; 18 units, 9 px here), and the
+player stands on anything under their hull. Abuse's player stands only by the point under their centre, so
+running up or down a slope the centre left the ground every few frames (26 of 30 frames in the air running up
+level 0's first slope), and a jump pressed then was lost. The depth layer steps the player down (`stepDown`),
+and the jump assist (`client/controls.js`) counts the body's whole box as standing.
+
 ---
 
 ## Determinism
@@ -409,6 +425,12 @@ All test tools drive the **real** game code, headless in Node or in real browser
 
 Golden images and winning runs, like WEaBuse's won list, are **only replaced on purpose**,
 in a commit that says why. A test is never edited to make a change pass.
+
+The 3D finish tests replay WEaBuse's recorded 2D runs under the 3D rules (`tools/depth-harness.mjs`). Where a
+piece of a run no longer survives a change to the 3D rules, `tools/depth-run-search.mjs` finds inputs for that
+piece that do, reaching where the next piece starts, and keeps them in `tests/data/depth-runs.json` (WEaBuse's
+own recording is not touched). Level 1's piece 33 has them since the Quake step-down: the recorded inputs ran on
+past the next piece's start into enemy fire with 19 health; the new ones stop there with 42.
 
 ---
 

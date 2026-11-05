@@ -79,13 +79,13 @@ export function frameBoxes(depth, lane, g, renderer) {
   const fallback = renderer.textureInfo.findIndex((t) => t.name.startsWith('fg'));
   for (const z of depth.zones()) {
     const cx = Math.max(0, Math.min(lv.fgW - 1, Math.floor((z.x0 + z.x1) / 2 / g.tw)));
-    let tex = null;
+    let tex = z.tile !== undefined ? renderer.textureNamed(`fg${z.tile}`) : null; // a ladder's hole: the floor's own tile
     for (let ty = Math.floor(z.y0 / g.th) - 1; ty >= 0 && tex === null; ty--) {
       const n = lv.fgmap[ty * lv.fgW + cx];
       if (g.assets.foreTile(n)?.mask) tex = renderer.textureNamed(`fg${n}`);
     }
     tex ??= fallback;
-    const x0 = 2 * z.x0, x1 = 2 * (z.x1 + 1), zt = -2 * z.y0, zb = -2 * (z.y1 + 1);
+    const x0 = 2 * z.x0, x1 = 2 * (z.x1 + 1), zt = -2 * (z.top ?? z.y0), zb = -2 * (z.y1 + 1);
     if (z.c - z.h > -lane) out.push({ min: [x0, -lane, zb], max: [x1, z.c - z.h, zt], tex });
     if (z.c + z.h < lane) out.push({ min: [x0, z.c + z.h, zb], max: [x1, lane, zt], tex });
   }

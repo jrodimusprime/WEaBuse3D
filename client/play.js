@@ -191,12 +191,13 @@ function feedInput() {
   g.keys.clear();
   // On a ladder, like a 3D shooter: walking forward looking up climbs, looking down descends
   // (backward reverses). While climbing that way the walk along the hall is left out.
-  const climb = onLadder && fwd !== 0 && Math.abs(pitch) > 20 ? (pitch < 0 ? fwd : -fwd) : 0;
+  // (just after a jump off a ladder it does not catch the player again: depth.offLadder)
+  const climb = onLadder && !(depth.offLadder > 0) && fwd !== 0 && Math.abs(pitch) > 20 ? (pitch < 0 ? fwd : -fwd) : 0;
   if (climb > 0) g.keys.add('ArrowUp');
   if (climb < 0) g.keys.add('ArrowDown');
   if (!climb && along > 0.25) g.keys.add('ArrowRight');
   if (!climb && along < -0.25) g.keys.add('ArrowLeft');
-  if (held.has('Space')) g.keys.add(onLadder ? 'ArrowUp' : 'Space'); // Space jumps, or climbs a ladder
+  if (held.has('Space')) g.keys.add('Space'); // Space jumps, off a ladder too (Jared: "you should be able to jump off a ladder")
   if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
   if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
   if (!onLadder) jumpAssist.step(g, held.has('Space')); // a press on a slope's bump is not lost (controls.js)

@@ -1,5 +1,6 @@
 // The compiled level: reproducible, structurally sound, and solid exactly where
-// the simulation's tiles are solid.
+// the simulation's tiles are solid (but for the floor a ladder climbs through, left open for the depth
+// layer's ladder hole: client/ladders.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -60,6 +61,7 @@ test('the world is solid exactly where the simulation is', () => {
   const away = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, 2], [-2, 2], [2, -2]];
   for (let py = 0; py < input.height; py += 3) {
     for (let px = 0; px < input.width; px += 3) {
+      if (input.holes.some((h) => h.cells.includes(Math.floor(py / input.th) * input.lv.fgW + Math.floor(px / input.tw)))) continue; // a ladder's hole
       const solid = simTileSolid(input, px, py);
       if (away.some(([dx, dy]) => simTileSolid(input, px + dx, py + dy) !== solid)) continue; // too close to an edge
       for (const Y of [1 - LANE, 0, LANE - 1]) {
