@@ -25,7 +25,9 @@ npm run serve            # python3 -m http.server 8001, from the repo root
 The page plays level 0 in first person. Click the view to capture the mouse, look and aim with
 it, fire with the left button, move with W A S D (relative to where you look), jump or climb with
 Space, use switches, lifts and doors with E, change weapons with 1-7 or the wheel. **Watch the
-recorded run** plays WEaBuse's winning run of the level through the cop's eyes. `web/walk.html` is
+recorded run** plays WEaBuse's winning run of the level through the cop's eyes. **Level** in the bottom panel lists
+every level you have passed in this browser (and the one you are on); pick one to play it again.
+All 22 levels are compiled. `web/walk.html` is
 the M0 walk. The 2.5D version (angled and side cameras) is on the branch `feature/2.5d`.
 
 ```sh
@@ -308,7 +310,9 @@ on top of it every lamp of the level has a fixture and a halo on the wall (some 
 lightstyle patterns), and whatever burns or shines lights the room with coloured dynamic light: the
 muzzle flash, explosions (cooling from orange to red), red player tracers, rockets, plasma, acid, lava,
 teleporters and beams, save screens, exit rings (`client/atmosphere.js`, 16 nearest lights a frame).
-A haze darkens the distance. Explosions are designed too: swelling, cooling fireballs throwing sparks
+A haze darkens the distance. Guns, drones, lifts, doors and hatches wear a Quake-style metal skin
+(`engine/detail.js`: grain, brushed streaks, panel seams, rivets, scratches), projected along each
+model's own axes. Explosions are designed too: swelling, cooling fireballs throwing sparks
 and leaving smoke, spreading rings and white-blue flashes, all glowing additively.
 
 **Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a

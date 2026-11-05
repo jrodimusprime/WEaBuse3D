@@ -4,7 +4,7 @@
   "type": "module",
   "license": "GPL-2.0-or-later",
   "scripts": {
-    "build:maps": "node content/build.mjs",
+    "build:maps": "node content/build.mjs $(seq 0 21)",
     "test": "node --test tests/",
     "serve": "python3 -m http.server 8001"
   }

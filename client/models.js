@@ -53,7 +53,7 @@ function drone(s, ctx) {
   const at = (local) => [0, 1, 2].map((k) => centre[k] + R[k] * local[0] + R[3 + k] * local[1] + R[6 + k] * local[2]);
   const spin = (a) => mul3(R, rotation(a));
   return [
-    { mesh: parts.hull, basis: R, offset: centre },
+    { mesh: parts.hull, basis: R, offset: centre, skin: 0.7, skinScale: 1 / 16 },
     { mesh: parts.duct, basis: R, offset: at([48, 0, 0]), bright: 1.7 },
     { mesh: parts.duct, basis: R, offset: at([-48, 0, 0]), bright: 1.7 },
     { mesh: parts.fan, basis: spin(t * 25), offset: at([48, 0, 0]) },
@@ -110,7 +110,7 @@ function lift(s, ctx) {
   });
   const x = r.x0 + r.x1 + 1, top = -2 * r.y0;
   return [
-    { mesh: parts.deck, basis: I3, offset: [x, z.c, top] },
+    { mesh: parts.deck, basis: I3, offset: [x, z.c, top], skin: 0.8, skinScale: 1 / 32 },
     { mesh: parts.lamp, basis: I3, offset: [x, z.c, top], bright: e.aistate === 3 ? 2 : 0.6 },
   ];
 }
@@ -145,7 +145,7 @@ function hatch(s, ctx) {
   const open = e.state === 'blocking' ? 1 : e.state === 'running' ? progress(e) : e.state === 'walking' ? 1 - progress(e) : 0;
   const x = z.x0 + z.x1 + 1, top = -2 * z.y0;
   return [
-    { mesh: parts.plate, basis: I3, offset: [x - open * 2 * parts.hw, z.c, top - Math.min(1, open * 4) * 3] },
+    { mesh: parts.plate, basis: I3, offset: [x - open * 2 * parts.hw, z.c, top - Math.min(1, open * 4) * 3], skin: 0.8, skinScale: 1 / 32 },
     { mesh: parts.rim, basis: I3, offset: [x, z.c, top] },
   ];
 }
@@ -177,7 +177,7 @@ function door(s, ctx) {
   const open = e.state === 'blocking' ? 1 : e.state === 'running' ? progress(e) : e.state === 'walking' ? 1 - progress(e) : 0;
   const x = 2 * (s.x + img.w / 2), floor = -2 * (s.y + img.h);
   return [
-    { mesh: parts.panel, basis: I3, offset: [x, z.c, floor + open * (parts.H - 6)] },
+    { mesh: parts.panel, basis: I3, offset: [x, z.c, floor + open * (parts.H - 6)], skin: 0.8, skinScale: 1 / 32 },
     { mesh: parts.post, basis: I3, offset: [x, z.c - z.h - 2, floor] },
     { mesh: parts.post, basis: I3, offset: [x, z.c + z.h + 2, floor] },
     ...(open > 0.05 ? [{ mesh: parts.strip, basis: I3, offset: [x, z.c, floor], bright: 1 + open }] : []),

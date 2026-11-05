@@ -192,3 +192,16 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   The machine now takes its pad's depth and is designed (grey core with red internals, arms with green
   emitters, a lens, a beam to the pad when the player is near). Test: every machine is over its pad.
 - Review options `?effect=TYPE&frame=N&fxd=px`. `npm test` 35/35.
+
+## 2026-11-05 · level picker, all 22 levels, Quake-style skins
+- Jared: "i need to be able to switch back to levels i have already passed in browser in bottom menu";
+  then "quake used simple textures on guns to improve their look can you do the same".
+- All 22 levels compiled (59 MB in web/maps, 1.0-5.4 MB each, ~11 s). `tests/levels.test.mjs`: each one
+  rebuilds byte-identically to the committed file and is solid where the sim is (8-neighbour edge skip,
+  as bsp.test; a 4-neighbour first try counted slope edges as failures). `npm run build:maps` builds all.
+- Bottom panel: a Level list of passed levels (localStorage `weabuse3d.passed`), the current one and the
+  next after the furthest passed. Finishing a level by play marks it; a watched run does not.
+- `engine/detail.js`: a generated 256x256 metal skin (noise, brushed rows, 64 px panel seams with rivets,
+  scratches). The model shader projects it triplanar in model space (no UVs; it stays on the moving gun)
+  and multiplies it in (`skin`, `skinScale` per draw). On guns, the drone hull, lifts, doors, hatches.
+- `npm test` 57/57.

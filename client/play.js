@@ -57,10 +57,31 @@ const world = loadBSP(new Uint8Array(bspBuf));
 const renderer = new Renderer(gl);
 renderer.load(world, new Uint8Array(palBuf));
 
+// ---- progress: the levels passed in this browser, so any of them can be played again ----
+const LEVELS = 22;
+const PROGRESS_KEY = 'weabuse3d.passed';
+const loadPassed = () => { try { return new Set(JSON.parse(localStorage.getItem(PROGRESS_KEY) || '[]')); } catch { return new Set(); } };
+const savePassed = (set) => { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify([...set].sort((a, b) => a - b))); } catch { /* private mode: progress lasts this visit */ } };
+const passed = loadPassed();
+const levelSelect = document.getElementById('levels');
+function fillLevels() {
+  // every level passed, the one being played, and the next one after the furthest passed
+  const open = new Set([0, level, ...passed]);
+  for (const n of passed) if (n + 1 < LEVELS) open.add(n + 1);
+  levelSelect.innerHTML = '';
+  for (const n of [...open].sort((a, b) => a - b)) {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = `${n}${passed.has(n) ? ' ✓' : ''}`; o.selected = n === level;
+    levelSelect.append(o);
+  }
+}
+fillLevels();
+levelSelect.addEventListener('change', () => { levelSelect.blur(); location.search = `?level=${levelSelect.value}`; });
+
 const g = await createGame(hudEl);
 let finished = null;
-g.nextLevel = (n) => { finished = n; g.transitioning = true; };
-g.onEndGame = () => { finished = 'end'; };
+g.nextLevel = (n) => { finished = n; g.transitioning = true; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } }; // (a watched run passes nothing)
+g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
 await g.start(levelFile(level));
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));
@@ -260,6 +281,7 @@ function frame(now) {
     const turned = (a) => { const c = Math.cos(a), n = Math.sin(a); return new Float32Array([F[0] * c + L[0] * n, F[1] * c + L[1] * n, F[2] * c + L[2] * n, -F[0] * n + L[0] * c, -F[1] * n + L[1] * c, -F[2] * n + L[2] * c, ...U]); };
     vm = viewModel(g, palette, { fired, run, t: now }).map((q) => ({
       mesh: q.mesh, basis: q.spin === undefined ? basis : turned(q.spin), bright: q.bright || 1, flash: q.flash,
+      skin: q.bright && q.bright > 1.2 ? 0 : 0.85, skinScale: 1 / 10, // Quake-style skin on the gun, not on what glows
       offset: [0, 1, 2].map((k) => eye[k] + F[k] * q.at[0] + L[k] * q.at[1] + U[k] * q.at[2]),
     }));
     if (fired) muzzle = [0, 1, 2].map((k) => eye[k] + F[k] * 90 + L[k] * -8 - U[k] * 4);

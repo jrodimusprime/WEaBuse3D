@@ -24,6 +24,8 @@
   #status { color: #cfc6b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #controls { margin-top: 2px; }
   #panel button, #panel a { color: #f0c060; background: none; border: 1px solid #5a4e3c; font: inherit; padding: 2px 8px; cursor: pointer; text-decoration: none; margin-right: 6px; }
+  .pick { color: #e0d2b4; margin-right: 8px; }
+  #levels { background: #1a1712; color: #f0c060; border: 1px solid #5a4e3c; font: inherit; padding: 1px 4px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -44,7 +46,7 @@
       <b>Space</b> jump · <b>ladders</b>: walk forward looking up or down · <b>E</b> use: walk up to a switch on the wall, stand on a teleporter or lift; climb down · <b>1-7 / wheel</b> weapon ·
       <b>right button</b> power · <b>L</b> lights · <b>G</b> god · <b>F2</b> brightness
     </div>
-    <div style="margin-top:5px"><button id="watch">Watch the recorded run</button><button id="restart">Restart</button><a href="walk.html">Walk mode</a></div>
+    <div style="margin-top:5px"><label class="pick">Level <select id="levels" title="Levels you have passed, and the one you are on"></select></label><button id="watch">Watch the recorded run</button><button id="restart">Restart</button><a href="walk.html">Walk mode</a></div>
   </div>
 </div>
 <script type="module" src="../client/play.js"></script>
