@@ -186,17 +186,27 @@ export function compileLevel(input) {
   };
   walk2D(tree);
 
-  // Wall faces: every empty leaf, cut along the background grid, at both ends of the lane.
+  // Wall faces: every empty leaf, cut along the foreground and background
+  // grids, at both ends of the lane. A wall shows what Abuse draws behind the
+  // player there: the cell's foreground tile when it has any picture (most
+  // open space is covered by non-solid decorative tiles), else the background.
   const backNode = { y: LANE }, frontNode = { y: -LANE };
   const emptyLeaves = [];
   const collect = (n) => { if (n.line) { collect(n.front); collect(n.back); } else if (!n.solid) emptyLeaves.push(n); };
   collect(tree);
   const cellW = bw / rx, cellH = bh / ry; // one background tile, in level pixels
+  const drawn = new Map(); // foreground tile number -> has a picture
+  const fgDrawn = (n) => {
+    if (!drawn.has(n)) { const im = assets.foreTile(n); drawn.set(n, !!im && im.pix.some((v) => v)); }
+    return drawn.get(n);
+  };
   for (const leaf of emptyLeaves) {
-    for (const piece of gridPieces(leaf.region, cellW, cellH)) {
+    for (const piece of gridPieces(leaf.region, [[tw, th], [cellW, cellH]])) {
       const c = B.centroid(piece.pts);
-      const tile = bgTileAt(lv, Math.floor(c[0] / cellW), Math.floor(c[1] / cellH));
-      const ti = texinfo.get(tex.bg(tile), 'bgwall', rx, ry);
+      const fgTile = fgTileAt(lv, tw, th, c);
+      const ti = fgDrawn(fgTile)
+        ? texinfo.get(tex.fg(fgTile), 'decor')
+        : texinfo.get(tex.bg(bgTileAt(lv, Math.floor(c[0] / cellW), Math.floor(c[1] / cellH))), 'bgwall', rx, ry);
       addFace(backNode, leaf, { plane: planes.depth(LANE), side: 1, pts3: piece.pts.map((p) => Q(p, LANE)), texinfo: ti });
       addFace(frontNode, leaf, { plane: planes.depth(-LANE), side: 0, pts3: piece.pts.map((p) => Q(p, -LANE)), texinfo: ti });
     }
@@ -326,10 +336,10 @@ function splitAtGrid(lp, t0, t1, tw, th) {
   return out;
 }
 
-// a convex region cut along a grid, as convex pieces
-function gridPieces(region, cw, ch) {
+// a convex region cut along one or more grids ([[cellW, cellH], ...]), as convex pieces
+function gridPieces(region, grids) {
   let parts = [region];
-  for (const [axis, size] of [[0, cw], [1, ch]]) {
+  for (const [axis, size] of grids.flatMap(([cw, ch]) => [[0, cw], [1, ch]])) {
     const vs = region.pts.map((p) => p[axis]);
     const lo = Math.min(...vs), hi = Math.max(...vs);
     for (let k = Math.floor(lo / size) + 1; k * size < hi - 1e-9; k++) {
@@ -392,6 +402,7 @@ class TexInfos {
     const key = `${miptex}|${kind}|${rx}|${ry}`;
     if (this.byKey.has(key)) return this.byKey.get(key);
     const h = 1 / SCALE;
+    // 'decor' and 'bgwall' face the lane: s along X, t down (the 2D picture, as Abuse draws it)
     const vecs = kind === 'floor' ? [[h, 0, 0, 0], [0, h, 0, 0]]
       : kind === 'wall' ? [[0, h, 0, 0], [0, 0, -h, 0]]
         : [[h * rx, 0, 0, 0], [0, 0, -h * ry, 0]];

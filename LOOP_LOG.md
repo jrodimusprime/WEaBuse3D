@@ -36,3 +36,19 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Evidence: `npm test` 10/10. Landing puts the feet on the platform top (Z −184). A 2-minute random
   walk (jumps, turns, runs) never ends a tick in solid and hashes the same twice (a38b9ac for the
   7200-tick run).
+
+## 2026-11-05 · M0 T10–T11 renderer, walk page, Chrome = Node
+- First screenshots showed black lane walls. Level 0's background map is entirely blank tile 0,
+  and 75–100% of every level's background is blank except level 14. What Abuse actually draws behind
+  the player is the non-solid **decorative foreground tiles**: 2012 of level 0's 2013 open cells.
+  The lane walls now show the cell's foreground picture when it has one, else the background tile.
+- `engine/render.js` (WebGL2; gl_rsurf.c AllocBlock and BuildSurfaceDisplayList, gl_rmain.c
+  R_SetupGL axes), `client/main.js` (pointer lock, WASD, run, jump, 60 Hz tick, interpolation),
+  `web/index.html`.
+- Screenshots (headless Chrome, SwiftShader) checked at the start corridor, two points along the
+  scripted walk and a tall shaft: textured floors, ceilings and decor walls, lit, no holes.
+  The "STUCK" seen in two early shots was my own rounded test position (1784.00 sits exactly on
+  a hull plane, while the walk stood at 1783.9998). It was not a bug.
+- `tools/browser-check.mjs` + `web/walktest.html`: the 7200-tick walk ends with hash 3134993295 at
+  1783.9998005453087,-47.96875,-909.96875 in **both** Chrome and Node. Now a test.
+- `npm test` 11/11. Remaining for M0: T12, the human walks level 0.

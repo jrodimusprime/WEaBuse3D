@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Walk test</title></head>
+<body>
+<pre id="out">running</pre>
+<script type="module">
+  // Plays the scripted walk (client/walk-script.js) in this browser and prints
+  // the hash, so tools/browser-check.mjs can compare it with Node's.
+  import { loadBSP } from '../engine/bsp.js';
+  import { scriptedCommands, runWalk } from '../client/walk-script.js';
+  const n = Number(new URLSearchParams(location.search).get('ticks') || 7200);
+  const world = loadBSP(new Uint8Array(await (await fetch('maps/level00.bsp')).arrayBuffer()));
+  const r = runWalk(world, scriptedCommands(n));
+  document.getElementById('out').textContent = `WALK ${n} ${r.hash} ${r.stuck} ${r.origin.join(',')}`;
+</script>
+</body>
+</html>

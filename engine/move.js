@@ -48,8 +48,9 @@ export function makeCommand({ fwd = 0, back = 0, left = 0, right = 0, run = fals
 // One tick for the player: SV_ClientThink then SV_Physics_Client.
 export function playerTick(world, p, cmd) {
   // SV_ClientThink: angles from the command; the body pitches a third of the view
-  p.vAngle = [cmd.pitch, cmd.yaw, 0];
-  p.angles = [Math.trunc(-cmd.pitch / 3), cmd.yaw, 0];
+  const pitch = ((cmd.pitch + 32768) & 0xffff) - 32768; // signed, so a third of it is a third
+  p.vAngle = [pitch, cmd.yaw, 0];
+  p.angles = [Math.trunc(-pitch / 3), cmd.yaw, 0];
   airMove(world, p, cmd);
 
   // SV_Physics_Client, MOVETYPE_WALK: PlayerPreThink (jump), gravity, unstick, walk

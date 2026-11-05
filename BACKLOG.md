@@ -13,9 +13,17 @@ The loop takes the first unchecked task of the current milestone. See README.md 
 - [x] T7 `content/bsp2-write.mjs` + `engine/bsp.js` (Mod_LoadBrushModel for BSP2). Tests: structure valid, rebuild byte-identical.
 - [x] T8 Test: the compiled world is solid exactly where the simulation's tiles are (hull 0 point contents vs `tileSolid`, away from edges).
 - [x] T9 `engine/trace.js` (SV_HullPointContents, SV_RecursiveHullCheck) + `engine/move.js` (Quake walk physics, fixed tick) + deterministic angle tables. Test: a scripted walk never enters solid and its hash repeats.
-- [ ] T10 `engine/render.js` (WebGL2 world: textures, lightmap atlas) + `client/` (pointer lock, WASD, jump, 15 Hz tick, interpolation) + `web/index.html`.
-- [ ] T11 Headless Chrome: screenshots of level 0 checked, and the Chrome walk hash equals the Node hash.
+- [x] T10 `engine/render.js` (WebGL2 world: textures, lightmap atlas) + `client/` (pointer lock, WASD, jump, 15 Hz tick, interpolation) + `web/index.html`.
+- [x] T11 Headless Chrome: screenshots of level 0 checked, and the Chrome walk hash equals the Node hash.
 - [ ] T12 Human walks level 0 and signs off.
+
+## Later (found during M0, not needed for its gate)
+
+- Decor tiles that are partly transparent over a non-blank background (common in level 14): draw the decor as its own see-through layer just in front of the back wall, with the background behind it. Today the decor tile is drawn opaque, so transparent pixels show as palette colour 0 (black).
+- Port R_MarkLeaves / R_RecursiveWorldNode with frustum culling. Today every face is drawn every frame.
+- Cross-runtime check in Firefox and WebKit (Playwright). Chrome = Node is done.
+- Palette + colormap shader (Abuse's own light tables) in place of the RGB multiply.
+- Build all 22 levels and add them to the tests.
 
 ## Blocked
 

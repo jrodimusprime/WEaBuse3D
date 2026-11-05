@@ -7,9 +7,28 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-> **Status: plan only.** Nothing below is built yet. This README is the plan, and the
-> AI build loop works from it (see [The AI loop](#the-ai-loop)). Milestones are ticked off
-> here as they pass their gates.
+> **Status: M0 (first walk) is built and waiting for a human to walk it.** Level 0 compiles to
+> a Quake BSP2, and you can walk through it in first person. The rest of this README is the
+> plan. The AI build loop works from it (see [The AI loop](#the-ai-loop)), with tasks in
+> `BACKLOG.md` and progress in `LOOP_LOG.md`.
+
+## Run it
+
+```sh
+git clone --recursive https://github.com/jrodimusprime/WEaBuse3D.git
+cd WEaBuse3D
+npm run serve            # python3 -m http.server 8001, from the repo root
+# open http://localhost:8001/web/
+```
+
+Click the view to capture the mouse. Walk with W A S D or the arrows, run with Shift, jump with
+Space, and press F2 to cycle the brightness.
+
+```sh
+npm test                 # compiler, loader, solidity vs the simulation, walk physics, Chrome = Node
+npm run build:maps       # rebuild web/maps/level00.bsp (byte-for-byte reproducible)
+node tools/browser-check.mjs   # the scripted walk in headless Chrome vs Node
+```
 
 Sister project: [WEaBuse](https://github.com/jrodimusprime/weAbUSE), the faithful 2D WebGL
 port. WEaBuse matters here because it already has a **deterministic, headless, re-implemented
