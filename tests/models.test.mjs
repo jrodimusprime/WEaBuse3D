@@ -126,7 +126,7 @@ test('level 1: the alien ant in every state, turrets and cracks, all closed part
   const c1 = { ...ctx, depthOf: (e) => d1.depthOf(e) ?? 0, zoneOf: (e) => d1.zoneOf(e), padOf: (e) => d1.padOf(e), pd: 0 };
   const ant = g.entities.find((e) => e.type === 'ANT_ROOF');
   assert.ok(designed(ant));
-  for (let V = 0; V <= 6; V++) for (const state of ant.def.states.keys()) {
+  for (let V = 0; V <= 7; V++) for (const state of ant.def.states.keys()) {
     c1.antVariant = V;
     ant.setState(state);
     for (const frame of [0, 3]) {

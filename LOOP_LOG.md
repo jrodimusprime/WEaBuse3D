@@ -266,3 +266,8 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Renders front-on and three-quarter, spitting, in `docs/ant-designs.png` (review options `?amb=N`, `?ant=N`).
   The first renders were from behind (front is ang=180 for that ant); redone.
 - Tests: every design in every state builds a whole, closed model. 58/58.
+
+## 2026-11-05 · design 7, Xeno + Mandible, is the ant
+- Jared: "can you combine 1 and 2". Design 7: Xeno's long glossy dark dome, ridges, rows of silver teeth and shooting
+  inner jaw, with Mandible's clamping pincers, red compound eyes and back spikes (a shared `mandibles` piece), in
+  dark crimson-black. It is now the default (`DEFAULT_ANT`); `?ant=0..6` shows the others. Tests cover designs 0-7.

@@ -34,7 +34,8 @@ const ballMesh = (rgb) => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 5, 8, rgb).
 const bladeMesh = (rgb) => new Mesh().hexa([[0, -0.15, -0.5], [1, -0.05, -0.1], [1, 0.05, -0.1], [0, 0.15, -0.5], [0, -0.15, 0.5], [1, -0.05, 0.1], [1, 0.05, 0.1], [0, 0.15, 0.5]], rgb).done();
 
 // one kit per tint (ant_draw tints ants by aitype), coloured from that tint of its standing frame
-const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12]];
+const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08]];
+export const DEFAULT_ANT = 7; // Jared: "can you combine 1 and 2" (Xeno and Mandible)
 function kit(e, g, palette, variant = 0) {
   const tint = g.assets.tintFor(e);
   return built(`${variant}:${tint ? g.assets.tints.ant_draw.indexOf(tint) : 'plain'}`, () => {
@@ -44,7 +45,7 @@ function kit(e, g, palette, variant = 0) {
     let body = shade(c.body, 1.5);
     const V = VARIANT_BODY[variant];
     if (V) body = tint ? body.map((v, k) => 0.5 * v + 0.5 * V[k]) : V;
-    const dark = variant === 1 ? [0.1, 0.07, 0.08] : shade(c.dark, 1.8), hi = variant === 1 ? [0.5, 0.44, 0.46] : shade(c.light, 1.05), bone = [0.8, 0.72, 0.62];
+    const dark = variant === 1 || variant === 7 ? [0.1, 0.06, 0.07] : shade(c.dark, 1.8), hi = variant === 1 || variant === 7 ? [0.5, 0.42, 0.44] : shade(c.light, 1.05), bone = [0.8, 0.72, 0.62];
     return {
       body: boneMesh(body, 0.75), limb: boneMesh(body, 0.55), thin: boneMesh(dark, 0.4), tail: boneMesh(body, 0.7),
       ball: ballMesh(body), joint: ballMesh(dark), shell: ballMesh(shade(body, 0.85)), hi: ballMesh(hi),
@@ -112,7 +113,7 @@ function pose(e, t, f) {
 export function antModel(s, ctx) {
   const { e, img } = s;
   if (e.state === 'hiding' || !img) return [];
-  const V = ctx.antVariant || 0;
+  const V = ctx.antVariant ?? DEFAULT_ANT;
   const K = kit(e, ctx.g, ctx.palette, V);
   const t = ctx.time / 1000;
   const n = e.def.states.get(e.state)?.length || 1;
@@ -173,7 +174,22 @@ export function antModel(s, ctx) {
   const side = (v, y) => [v[0], y, v[2]];
   const at = (k, y = 0, z = 0) => add(add(neck, mul(hd, k)), [0, y, z]);
   const jawOpen = Math.max(P.jaw, 0.15 + 0.1 * Math.sin(t * 2.3));
-  if (V === 1) { // XENO: a long glossy dome, an inner jaw that shoots out, rows of silver teeth, no eyes
+  // MANDIBLE's pieces: huge curved pincers that clamp, clusters of glowing red eyes, spikes on the carapace
+  const mandibles = (k0, eyeK, eyeZ) => {
+    const clamp = 0.35 + 0.35 * Math.sin(t * 5) * (P.jaw > 0.2 ? 2 : 0.6);
+    for (const sy of [-1, 1]) {
+      let a = at(k0, sy * 7, -2), dir = norm([1, sy * (0.6 + clamp), -0.15]);
+      for (let i = 0; i < 4; i++) {
+        const b = add(a, mul(dir, 8 - i));
+        bone(i === 3 ? K.claw : K.white, a, b, 2.6 - i * 0.55);
+        a = b; dir = norm([dir[0], dir[1] - sy * (0.55 + clamp * 0.4), dir[2]]);
+      }
+      for (let k = 0; k < 4; k++) lit(K.redEye, at(eyeK + (k % 2) * 3, sy * (5 + Math.floor(k / 2) * 2.5), eyeZ + (k % 2)), [1.6, 1.6, 1.6], 2.4);
+      bone(K.claw, at(2, sy * 6, 9), at(-6, sy * 9, 15), 1.6);
+      bone(K.claw, at(-2, sy * 3, 10), at(-10, sy * 4, 18), 1.4);
+    }
+  };
+  if (V === 1 || V === 7) { // XENO: a long glossy dome, an inner jaw that shoots out, rows of silver teeth, no eyes
     bone(K.body, neck, at(36, 0, 2), 7.8);
     ball(K.shell, at(10, 0, 2), [15, 7.5, 8]);
     for (const y of [-2.5, 0, 2.5]) bone(K.thin, at(4, y, 8), at(30, y * 0.4, 5), 1.2); // ridges along the dome
@@ -186,21 +202,11 @@ export function antModel(s, ctx) {
     const reach = 6 + 10 * Math.max(0, Math.sin(t * 1.7)) * (P.jaw > 0.3 ? 1.6 : 1);
     bone(K.thin, at(24, 0, -4), at(24 + reach, 0, -4), 2); // the inner jaw
     for (const y of [-1, 1]) bone(K.silver, at(24 + reach, y, -3), at(27 + reach, y, -3), 0.8);
+    if (V === 7) mandibles(20, 8, 8.5); // XENO + MANDIBLE: the pincers and red eyes on the long dome
   } else if (V === 2) { // MANDIBLE: a broad head, huge curved pincers, clusters of glowing red eyes, spiked carapace
     ball(K.shell, at(8, 0, 2), [12, 10, 8]);
     bone(K.body, neck, at(20, 0, -1), 6);
-    const clamp = 0.35 + 0.35 * Math.sin(t * 5) * (P.jaw > 0.2 ? 2 : 0.6);
-    for (const sy of [-1, 1]) {
-      let a = at(16, sy * 7, -2), dir = norm([1, sy * (0.6 + clamp), -0.15]);
-      for (let i = 0; i < 4; i++) {
-        const b = add(a, mul(dir, 8 - i));
-        bone(i === 3 ? K.claw : K.white, a, b, 2.6 - i * 0.55);
-        a = b; dir = norm([dir[0], dir[1] - sy * (0.55 + clamp * 0.4), dir[2]]);
-      }
-      for (let k = 0; k < 4; k++) lit(K.redEye, at(9 + (k % 2) * 3, sy * (5 + Math.floor(k / 2) * 2.5), 7 + (k % 2)), [1.6, 1.6, 1.6], 2.4);
-      bone(K.claw, at(2, sy * 6, 9), at(-6, sy * 9, 15), 1.6); // carapace spikes
-      bone(K.claw, at(-2, sy * 3, 10), at(-10, sy * 4, 18), 1.4);
-    }
+    mandibles(16, 9, 7);
   } else if (V === 3) { // MAW: the head opens in four petals round a ring of teeth and a glowing throat
     ball(K.shell, at(6, 0, 1), [11, 9, 9]);
     const mouth = at(15, 0, 0), open = 0.45 + 0.45 * Math.max(P.jaw * 1.4, 0.4 + 0.3 * Math.sin(t * 3));

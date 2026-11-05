@@ -31,7 +31,7 @@ import { collectScene } from './scene.js';
 import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
 import { placeScene, frameBoxes } from './place.js';
-placeScene.antVariant = Number(new URLSearchParams(location.search).get('ant') || 0); // ?ant=1..6: the ant designs to choose from
+{ const a = new URLSearchParams(location.search).get('ant'); placeScene.antVariant = a === null ? undefined : Number(a); } // ?ant=0..7 (7, Xeno with Mandible's pincers, is the default)
 import { viewModel } from './viewmodel.js';
 import { atmosphere } from './atmosphere.js';
 import { JumpAssist } from './controls.js';
