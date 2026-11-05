@@ -7,9 +7,9 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in first person, like Quake) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
+**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D, first person, like Quake) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
 
-> **Status: M1 is done; M2 (depth mode: 3D gameplay) is in progress.** WEaBuse's simulation runs the
+> **Status: M2 (depth mode: 3D gameplay) is built and waiting for a human to finish level 0 in 3D.** WEaBuse's simulation runs the
 > game, the Quake-style engine draws it, and every object (the cop, the WHO flyers, lifts, doors,
 > pickups) is a 3D voxel model made from Abuse's own sprites.
 

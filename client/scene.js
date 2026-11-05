@@ -23,7 +23,7 @@ export function collectScene(g) {
   const lv = g.level;
   if (!lv || !g.player) return { sprites, boxes };
   const alpha = Math.min(1, g.tickAcc / TICK);
-  const blit = (def, stateName, frame, x, y, dir, middle = false, tint = null, bright = 1, player = false) => {
+  const blit = (def, stateName, frame, x, y, dir, middle = false, tint = null, bright = 1, player = false, e = null) => {
     const frames = def.states.get(stateName) || def.states.get('stopped');
     if (!frames || !def.file) return;
     let img = g.assets.sprite(def.file, frames[Math.floor(frame) % frames.length]);
@@ -31,7 +31,7 @@ export function collectScene(g) {
     if (tint) img = g.assets.tinted(img, tint);
     const ox = dir < 0 ? img.w - img.xcfg - 1 : img.xcfg; // game.js blit
     const yy = middle ? y + img.h / 2 : y;
-    sprites.push({ img, x: Math.round(x - ox), y: Math.round(yy - img.h + 1), flip: dir < 0, bright, id: def.name, player });
+    sprites.push({ img, x: Math.round(x - ox), y: Math.round(yy - img.h + 1), flip: dir < 0, bright, id: def.name, player, e });
   };
 
   const fx = [];
@@ -43,11 +43,11 @@ export function collectScene(g) {
     if (e.ai === 'tele_beam_ai' && e.fade < 8 && (g.tickCount & 1)) continue;
     if (e.ai === 'boss_ai' && e.fade > 0 && (g.tickCount * 5 + e.id) % 14 < e.fade) continue;
     if (MIDDLE_DRAW.has(e.def.funs.get('draw_fun'))) { fx.push([e, x, y]); continue; }
-    blit(e.def, e.state, e.frame, x, y, e.dir, false, g.assets.tintFor(e));
+    blit(e.def, e.state, e.frame, x, y, e.dir, false, g.assets.tintFor(e), 1, false, e);
     if (e.a.beam) {
       const { x0, x1, y0, y1 } = e.a.beamRect; // game.js drawBeam
       const flick = (g.tickCount || 0) % 3;
-      boxes.push({ x: Math.round((x0 + x1) / 2) - 1, y: Math.round(y0), w: 3, h: Math.round(y1 - y0), idx: flick ? g.colors.cyan : g.colors.white });
+      boxes.push({ x: Math.round((x0 + x1) / 2) - 1, y: Math.round(y0), w: 3, h: Math.round(y1 - y0), idx: flick ? g.colors.cyan : g.colors.white, e });
     }
   }
 
@@ -65,13 +65,15 @@ export function collectScene(g) {
     blit(top, 'stopped', p.aim, p.dir > 0 ? p.x : p.x + 4, topY, 1, false, null, bright, true);
   }
 
-  // projectiles: weapons.js drawProjectiles, through a recorder in place of the renderer
+  // projectiles: weapons.js drawProjectiles, one shot at a time through a recorder, so each piece knows its shot
   const cx = Math.floor(g.cam.x), cy = Math.floor(g.cam.y);
-  const recorder = {
-    draw: (img, x, y, { flip = false } = {}) => sprites.push({ img, x: x + cx, y: y + cy, flip, bright: 1, id: 'proj' }),
-    rect: (x, y, w, h, idx) => boxes.push({ x: x + cx, y: y + cy, w, h, idx }),
-  };
-  drawProjectiles({ ...g, r: recorder, cam: g.cam, projs: g.projs, colors: g.colors, assets: g.assets }, alpha);
-  for (const [e, x, y] of fx) blit(e.def, e.state, e.frame, x, y, e.dir, true);
+  for (const b of g.projs) {
+    const recorder = {
+      draw: (img, x, y, { flip = false } = {}) => sprites.push({ img, x: x + cx, y: y + cy, flip, bright: 1, id: 'proj', shot: b }),
+      rect: (x, y, w, h, idx) => boxes.push({ x: x + cx, y: y + cy, w, h, idx, shot: b }),
+    };
+    drawProjectiles({ r: recorder, cam: g.cam, projs: [b], colors: g.colors, assets: g.assets }, alpha);
+  }
+  for (const [e, x, y] of fx) blit(e.def, e.state, e.frame, x, y, e.dir, true, null, 1, false, e);
   return { sprites, boxes };
 }

@@ -74,13 +74,14 @@ const MODEL_VS = `#version 300 es
 layout(location=0) in vec3 pos;
 layout(location=1) in vec3 normal;
 layout(location=2) in vec3 rgb;
-uniform mat4 mvp; uniform vec3 offset;
+uniform mat4 mvp; uniform mat3 basis; uniform vec3 offset;
 out vec3 vPos; out vec3 vRgb; out float vShade;
 void main() {
-  vec3 w = pos + offset;
+  vec3 w = basis * pos + offset;
+  vec3 n = normalize(basis * normal);
   vPos = w; vRgb = rgb;
-  // a fixed key light from in front, above and to the left
-  vShade = normal.y < -0.5 ? 1.0 : normal.z > 0.5 ? 0.92 : normal.z < -0.5 ? 0.6 : normal.y > 0.5 ? 0.7 : 0.8;
+  // light from above and from the front of the hall, plus some from the sides
+  vShade = 0.66 + 0.22 * max(n.z, 0.0) + 0.12 * abs(n.y) + 0.08 * abs(n.x) - 0.18 * max(-n.z, 0.0);
   gl_Position = mvp * vec4(w, 1.0);
 }`;
 
@@ -102,7 +103,7 @@ export class Renderer {
   constructor(gl) {
     this.gl = gl;
     this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient']);
-    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient']);
+    this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient']);
     this.brightness = 1;
     this.lightTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.lightTex);
@@ -282,7 +283,7 @@ export class Renderer {
     if (sprites.length || boxes.length) {
       shared(this.model);
       for (const s of sprites) {
-        const m = cachedModel(s.img, this.palette, s.flip);
+        const m = cachedModel(s.img, this.palette, s.flip, !!s.flat);
         if (!m.count) continue;
         let gpu = this.models.get(m);
         if (!gpu) {
@@ -292,7 +293,9 @@ export class Renderer {
           gpu = vao(gl, buf, [[0, 3, 0], [1, 3, 12], [2, 3, 24]], 36);
           this.models.set(m, gpu);
         }
-        gl.uniform3f(this.model.u.offset, 2 * s.x, 0, -2 * s.y);
+        gl.uniformMatrix3fv(this.model.u.basis, false, s.basis || IDENTITY3);
+        if (s.offset) gl.uniform3fv(this.model.u.offset, s.offset);
+        else gl.uniform3f(this.model.u.offset, 2 * s.x, 0, -2 * s.y);
         gl.uniform1f(this.model.u.bright, s.bright || 1);
         gl.bindVertexArray(gpu);
         gl.drawArrays(gl.TRIANGLES, 0, m.count);
@@ -303,6 +306,7 @@ export class Renderer {
         for (const b of boxes) o = boxVerts(data, o, b, this.palette);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.boxBuf);
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STREAM_DRAW);
+        gl.uniformMatrix3fv(this.model.u.basis, false, IDENTITY3);
         gl.uniform3f(this.model.u.offset, 0, 0, 0);
         gl.uniform1f(this.model.u.bright, 1.4);
         gl.bindVertexArray(this.boxVao);
@@ -331,9 +335,12 @@ export class Renderer {
   }
 }
 
-// A box over a pixel rectangle, 2 px deep around the lane centre.
+const IDENTITY3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+
+// A box over a pixel rectangle, 2 px deep around its depth (b.depth, or the lane centre).
 function boxVerts(d, o, b, pal) {
-  const x0 = 2 * b.x, x1 = 2 * (b.x + b.w), z0 = -2 * b.y, z1 = -2 * (b.y + b.h), y0 = -2, y1 = 2;
+  const dep = b.depth || 0;
+  const x0 = 2 * b.x, x1 = 2 * (b.x + b.w), z0 = -2 * b.y, z1 = -2 * (b.y + b.h), y0 = dep - (b.half || 2), y1 = dep + (b.half || 2);
   const c = [pal[b.idx * 3] / 255, pal[b.idx * 3 + 1] / 255, pal[b.idx * 3 + 2] / 255];
   const q = (p, n) => { for (const v of [p[0], p[1], p[2], p[0], p[2], p[3]]) { d.set([v[0], v[1], v[2], n[0], n[1], n[2], c[0], c[1], c[2]], o); o += 9; } };
   q([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0]);

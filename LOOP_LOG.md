@@ -96,3 +96,23 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   the view to the cop's facing and aim. Crosshair and a "click to look around" hint.
 - Screenshots checked: the corridor with the WHO flyers ahead, and the view turned to the side wall.
   `npm test` 18/18.
+
+## 2026-11-05 · M2 T1–T6 depth mode
+- T1: WEaBuse branch `depth-hooks` (0440c05): inert `g.apart?.(shot, target)` in weapons.js hitAt and in
+  game.js explode (blast set by detonate). WEaBuse regress.mjs: 22/22 still win. The submodule tracks that
+  branch. WEaBuse `main` is untouched.
+- T2: LANE 160 (a hall 320 units deep).
+- T3: `client/depth.js`. Finding: switches measure their own distance and ask `g.pressed('action')`, so
+  the layer answers "use" only to objects at the player's depth (while their behaviour runs). A player's
+  shot travels in depth along the line of sight from the eye, not from the muzzle. Found while
+  testing: freshRun leaves `p.aim`/`p.aimAngle` from the previous run (harmless, recomputed on the
+  first step with a pointer).
+- T4: `client/place.js` (slabs for full-hall things, flat on the back wall, floor pads as deep as wide,
+  spinning items), voxel `flat` variant, renderer basis+offset per model, one-shot-at-a-time
+  projectile recording.
+- T5: `client/play.js`: W A S D across the hall, eye at the player's depth, shots along the view, Watch
+  under 2D rules.
+- Evidence: `npm test` 26/26, including **level 0 finished under the 3D rules** (the recorded run plus
+  an across-the-hall autopilot reaches the exit, no deaths, lowest health 86). Screenshots: the wide
+  hall with ammo spread across the floor, the flyers at their depths, a switch on the back wall, a
+  teleporter pad on the floor, the lift and doors spanning the hall.

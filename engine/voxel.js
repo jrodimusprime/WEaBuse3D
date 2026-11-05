@@ -13,7 +13,7 @@ const MAX_HALF = 7; // the thickest a column gets: 7 px each side of the lane ce
 
 // Half-thickness (in pixels) of every opaque pixel: grows by 3/4 px per pixel
 // of distance from the outline (4-neighbour distance), in half-pixel steps.
-export function thickness(img, flip) {
+export function thickness(img, flip, flat = false) {
   const { w, h } = img;
   const at = (i, j) => img.pix[j * w + (flip ? w - 1 - i : i)];
   const d = new Int32Array(w * h).fill(-1);
@@ -40,15 +40,17 @@ export function thickness(img, flip) {
   const t = new Float32Array(w * h);
   for (let k = 0; k < t.length; k++) {
     if (d[k] < 0) continue;
-    t[k] = Math.min(MAX_HALF, Math.round((1 + (d[k] - 1) * 0.75) * 2) / 2);
+    t[k] = flat ? MAX_HALF : Math.min(MAX_HALF, Math.round((1 + (d[k] - 1) * 0.75) * 2) / 2);
   }
   return { t, at };
 }
 
-// Builds the model. `palette` is 768 bytes (palette.lmp layout).
-export function voxelModel(img, palette, flip = false) {
+// Builds the model. `palette` is 768 bytes (palette.lmp layout). A `flat`
+// model is a slab, every column as thick as the thickest (doors, walls, lifts:
+// things that are stretched across the whole hall).
+export function voxelModel(img, palette, flip = false, flat = false) {
   const { w, h } = img;
-  const { t, at } = thickness(img, flip);
+  const { t, at } = thickness(img, flip, flat);
   const out = [];
   const S = SCALE;
   const col = (idx) => [palette[idx * 3] / 255, palette[idx * 3 + 1] / 255, palette[idx * 3 + 2] / 255];
@@ -93,11 +95,13 @@ export function voxelModel(img, palette, flip = false) {
   return { data: new Float32Array(out), count: out.length / 9 };
 }
 
-// Models are built once per image and facing.
+// Models are built once per image, facing and shape.
 const cache = new WeakMap();
-export function cachedModel(img, palette, flip) {
-  let pair = cache.get(img);
-  if (!pair) { pair = [null, null]; cache.set(img, pair); }
-  const k = flip ? 1 : 0;
-  return (pair[k] ??= voxelModel(img, palette, flip));
+export function cachedModel(img, palette, flip, flat = false) {
+  let set = cache.get(img);
+  if (!set) { set = [null, null, null, null]; cache.set(img, set); }
+  const k = (flip ? 1 : 0) + (flat ? 2 : 0);
+  return (set[k] ??= voxelModel(img, palette, flip, flat));
 }
+
+export const MODEL_HALF = SCALE * MAX_HALF; // the deepest a model reaches from its centre, in units

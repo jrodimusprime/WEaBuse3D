@@ -1,13 +1,14 @@
 // Abuse in 3D, from the cop's eyes: WEaBuse's simulation runs the game, the
 // Quake-style engine draws it, and you play it like Quake.
 //
-// The game itself still happens on Abuse's lane (the plane the 2D levels are
-// drawn on): the cop moves left and right, jumps, climbs and aims within it.
-// Quake's controls are projected onto that plane:
+// The rules run in Abuse's plane (WEaBuse), and the depth layer (depth.js)
+// adds the third dimension: the cop, the enemies, items, switches and shots
+// all have a place across the hall.
 //   - mouse look turns the view freely (pitch and yaw), like Quake;
-//   - W A S D move relative to the view (cl_input.c CL_BaseMove), and the part
-//     of that movement along the lane is Abuse's left or right;
-//   - the aim is where you look, projected onto the lane: the cop fires along it.
+//   - W A S D move relative to the view (cl_input.c CL_BaseMove): the part along
+//     the hall is Abuse's own running, the part across it is the depth layer's;
+//   - the aim is where you look: Abuse aims along it in the plane, and the shot
+//     travels across the hall along the line of sight.
 // (The 2.5D cameras, angled and side, live on the branch feature/2.5d.)
 //
 // URL options (screenshots and tests):
@@ -21,6 +22,8 @@ import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
 import { collectScene } from './scene.js';
 import { createStatbar } from './statbar.js';
+import { Depth, EYE } from './depth.js';
+import { placeScene } from './place.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -51,12 +54,15 @@ g.onEndGame = () => { finished = 'end'; };
 await g.start(levelFile(level));
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));
+const LANE = Number(world.entities[0]._abuse_lane || 160);
+const depth = new Depth(g, LANE);
+depth.install();
 if (params.has('at')) { const [x, y] = params.get('at').split(',').map(Number); g.teleportPlayer(x, y); }
 setMsg('');
 
 // ---- the view: Quake's viewangles, in degrees (pitch + is down, yaw 0 is +X = Abuse's right) ----
 let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 0);
-const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px tall)
+if (params.has('depth')) depth.pd = Number(params.get('depth'));
 
 // ---- input ----
 const held = new Set();
@@ -94,6 +100,8 @@ function feedInput() {
   const fwd = down('KeyW', 'ArrowUp') - down('KeyS', 'ArrowDown');
   const side = down('KeyD') - down('KeyA');
   const along = Math.cos(rad(yaw)) * fwd + Math.sin(rad(yaw)) * side; // forward.x * fwd + right.x * side
+  const across = Math.sin(rad(yaw)) * fwd - Math.cos(rad(yaw)) * side; // forward.y * fwd + right.y * side
+  depth.movePlayer(Math.max(-1, Math.min(1, across)), STEP);
   const p = g.player;
   const onLadder = g.ladders.some((l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5 && p.y >= l.y0 && p.y <= l.y1);
   g.keys.clear();
@@ -102,9 +110,12 @@ function feedInput() {
   if (held.has('Space')) g.keys.add(onLadder ? 'ArrowUp' : 'Space'); // Space jumps, or climbs a ladder
   if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
   if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
-  // aim: the view direction, projected onto the lane (AngleVectors forward: x = cp*cy, z = -sp)
+  // aim: the view direction (AngleVectors forward: x = cp*cy, y = cp*sy, z = -sp). Abuse aims along
+  // its part in the plane; the shot crosses the hall by the rest: depth units per pixel along the plane
   let ax = Math.cos(rad(pitch)) * Math.cos(rad(yaw)), az = -Math.sin(rad(pitch));
-  const len = Math.hypot(ax, az);
+  const ay = Math.cos(rad(pitch)) * Math.sin(rad(yaw));
+  const len = Math.sqrt(ax * ax + az * az);
+  depth.shotRatio = Math.max(-12, Math.min(12, (2 * ay) / Math.max(len, 1e-6)));
   if (len < 0.2) { ax = p.dir; az = 0; } else { ax /= len; az /= len; }
   aimAt(g, Math.round(p.x + 200 * ax), Math.round(p.y - EYE - 200 * az));
 }
@@ -117,12 +128,14 @@ async function startWatch() {
   if (!pieces.length) { setMsg('No recorded run for this level.'); return; }
   watch = { ppo, pieces, k: -1, i: 0, n: 0, acts: null, face: 1, act: 0, loading: false };
   g.demo = true; // the game ignores the keyboard while a recorded run plays
+  depth.uninstall(); // the run was found under the 2D rules, so it plays under them
+  depth.pd = 0;
   await nextPiece();
 }
 async function nextPiece() {
   const w = watch;
   w.k++;
-  if (w.k >= w.pieces.length) { watch = null; g.demo = false; return; }
+  if (w.k >= w.pieces.length) { watch = null; g.demo = false; depth.install(); return; }
   const piece = w.pieces[w.k];
   w.loading = true;
   await w.ppo.startRun(g, levelFile(level), piece.seed || null);
@@ -155,12 +168,13 @@ document.getElementById('restart').addEventListener('click', async (e) => {
   watch = null; g.demo = false; finished = null; setMsg('');
   await g.start(levelFile(level));
   g.freshRun();
+  depth.install(); depth.pd = 0; depth.pv = 0;
 });
 if (params.has('watch')) startWatch();
 
 // ---- the loop: fixed simulation steps, drawing every frame ----
 let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;
-let prev = { x: g.player.x, y: g.player.y };
+let prev = { x: g.player.x, y: g.player.y, d: depth.pd };
 function frame(now) {
   const w = Math.floor(canvas.clientWidth * devicePixelRatio), h = Math.floor(canvas.clientHeight * devicePixelRatio);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
@@ -170,7 +184,7 @@ function frame(now) {
     acc -= STEP;
     if (finished !== null || stillSteps === 0) continue;
     if (stillSteps > 0) stillSteps--;
-    prev = { x: g.player.x, y: g.player.y };
+    prev = { x: g.player.x, y: g.player.y, d: depth.pd };
     if (watch) { watchStep(); continue; }
     feedInput();
     g.update(STEP);
@@ -183,10 +197,10 @@ function frame(now) {
   // the eye, between the last two steps
   const a = acc / STEP, p = g.player;
   const ex = prev.x + (p.x - prev.x) * a, ey = prev.y + (p.y - prev.y) * a;
-  const eye = [2 * ex, 0, -2 * (ey - EYE)];
+  const eye = [2 * ex, prev.d + (depth.pd - prev.d) * a, -2 * (ey - EYE)];
   const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
   renderer.setAbuseLights(g.level.lights, g.ambient, g.lightsOn);
-  const scene = collectScene(g);
+  const scene = placeScene(collectScene(g), depth, LANE, now);
   g.player.justFired = false; // game.js render clears it after drawing the flash
   renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
     mode: 'abuse', front: true, caps: false, fovY,
