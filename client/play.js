@@ -17,6 +17,7 @@
 //   ?still=N            step N simulation steps with no input, then hold
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
+//   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0)
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
 //                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
@@ -74,6 +75,7 @@ if (params.has('look')) {
   const e = g.entities.filter((q) => q.type === params.get('look'))[Number(params.get('n') || 0)];
   if (e) {
     lookTarget = e;
+    if (params.has('pose')) { e.setState(params.get('pose')); e.frame = Number(params.get('frame') || 0); } // review only
     const img = g.spriteOf(e);
     const ang = (Number(params.get('ang') || 0) * Math.PI) / 180, dist = Number(params.get('dist') || 160);
     const k = depth.kind(e);

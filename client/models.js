@@ -62,9 +62,98 @@ function drone(s, ctx) {
   ];
 }
 
+// ---- the industrial kit: lifts, doors and trap doors share one design ----
+// Jared: "the trap door should be like the elevator in design, also doors".
+// All three are built from the lift's sprite colours: a bevelled metal slab
+// with a tread plate and a yellow trim, and the trap door's yellow and black
+// hazard stripes where something moves.
+function kitColours(ctx) {
+  return built('kit:colours', () => {
+    const def = ctx.g.assets.defs.get('SMART_PLAT_SMALL');
+    const img = def && ctx.g.assets.sprite(def.file, def.states.get('stopped')[0]);
+    const c = img ? spriteColours(img, ctx.palette) : { main: [0.35, 0.35, 0.37], second: [0.5, 0.5, 0.52], dark: [0.12, 0.12, 0.13], light: [0.8, 0.8, 0.4] };
+    return { metal: c.main, tread: shade(c.second, 1.05), under: shade(c.main, 0.75), trim: shade(c.light, 0.8), dark: shade(c.dark, 1.3), hazard: [0.92, 0.72, 0.12], black: [0.08, 0.08, 0.08], lamp: [1, 0.85, 0.3] };
+  });
+}
+
+// hazard stripes: alternating yellow and black blocks from `from` to `to` along x or y, centred at `across`, height z
+function stripes(m, axis, from, to, across, z, k, half = 3) {
+  const n = Math.max(2, Math.round((to - from) / 8));
+  for (let i = 0; i < n; i++) {
+    const a = from + ((to - from) * i) / n, b = from + ((to - from) * (i + 1)) / n, mid = (a + b) / 2, hw = (b - a) / 2;
+    const c = i % 2 ? k.black : k.hazard;
+    if (axis === 'x') m.box([mid, across, z], [hw, half, 1], c); else m.box([across, mid, z], [half, hw, 1], c);
+  }
+}
+
+// ---- lifts (platform.lsp, platform_ai) ----
+// The sprite is a deck with sloped sides and a lamp in the middle. In 3D: a
+// lift-sized deck, as deep as it is wide, with bevelled sides, a tread, a trim,
+// an undercarriage and a lamp that lights while it runs.
+function lift(s, ctx) {
+  const { e } = s;
+  const z = ctx.zoneOf(e), r = ctx.g.deckRect(e);
+  if (!z || !r) return null;
+  const parts = built(`lift:${e.type}`, () => {
+    const k = kitColours(ctx);
+    const hw = r.x1 - r.x0 + 1, hd = z.h; // half sizes in units (2 per pixel)
+    const deck = new Mesh()
+      .taper([0, 0, -14], [hw - 10, hd - 10], [hw, hd], -2, k.under)
+      .box([0, 0, -1], [hw, hd, 1], k.metal)
+      .box([0, 0, 0.4], [hw - 8, hd - 8, 0.5], k.tread)
+      .box([hw - 2, 0, 0], [2, hd, 1.2], k.trim).box([-hw + 2, 0, 0], [2, hd, 1.2], k.trim)
+      .box([0, hd - 2, 0], [hw, 2, 1.2], k.trim).box([0, -hd + 2, 0], [hw, 2, 1.2], k.trim)
+      .box([0, 0, -20], [hw * 0.45, hd * 0.45, 6], k.dark)
+      .done();
+    const lamp = new Mesh().cylinder([0, 0, -27], 7, 4, 10, k.lamp).done();
+    return { deck, lamp };
+  });
+  const x = r.x0 + r.x1 + 1, top = -2 * r.y0;
+  return [
+    { mesh: parts.deck, basis: I3, offset: [x, z.c, top] },
+    { mesh: parts.lamp, basis: I3, offset: [x, z.c, top], bright: e.aistate === 3 ? 2 : 0.6 },
+  ];
+}
+
+// ---- trap doors (doors.lsp, strap_door_ai) ----
+// The sprite is a floor hatch with yellow and black chevrons that slides into
+// its housing as it opens (49 px down to 31). In 3D: a hatch its own size in a
+// hole its own size (the depth layer's floor zone), built like the lift's deck,
+// with hazard stripes along its edges, dropping a little and sliding under the
+// floor as it opens (running), open (blocking), closing (walking).
+function hatch(s, ctx) {
+  const { e } = s;
+  const z = ctx.zoneOf(e);
+  if (!z) return null;
+  const parts = built(`hatch:${e.type}`, () => {
+    const k = kitColours(ctx);
+    const hw = z.x1 - z.x0 + 1, hd = z.h;
+    const plate = new Mesh()
+      .taper([0, 0, -10], [hw - 6, hd - 6], [hw, hd], -1, k.under)
+      .box([0, 0, -0.5], [hw, hd, 0.5], k.metal)
+      .box([0, 0, 0.4], [hw - 12, hd - 12, 0.5], k.tread);
+    stripes(plate, 'x', -hw, hw, hd - 4, 0.6, k);
+    stripes(plate, 'x', -hw, hw, -hd + 4, 0.6, k);
+    stripes(plate, 'y', -hd + 8, hd - 8, hw - 4, 0.6, k);
+    stripes(plate, 'y', -hd + 8, hd - 8, -hw + 4, 0.6, k);
+    const rim = new Mesh()
+      .box([0, hd + 2, -4], [hw + 4, 2, 4], k.trim).box([0, -hd - 2, -4], [hw + 4, 2, 4], k.trim)
+      .box([hw + 2, 0, -4], [2, hd, 4], k.trim).box([-hw - 2, 0, -4], [2, hd, 4], k.trim)
+      .done();
+    return { plate: plate.done(), rim, hw };
+  });
+  const open = e.state === 'blocking' ? 1 : e.state === 'running' ? progress(e) : e.state === 'walking' ? 1 - progress(e) : 0;
+  const x = z.x0 + z.x1 + 1, top = -2 * z.y0;
+  return [
+    { mesh: parts.plate, basis: I3, offset: [x - open * 2 * parts.hw, z.c, top - Math.min(1, open * 4) * 3] },
+    { mesh: parts.rim, basis: I3, offset: [x, z.c, top] },
+  ];
+}
+
 // ---- doors (doors.lsp, sdoor_ai) ----
 // The sprite is a panel in a frame whose middle block lifts, showing lit strips
-// below. In 3D: a door-sized panel in its doorway (the depth layer's zone),
+// below. In 3D: a door-sized panel in its doorway, built like the lift (metal,
+// tread plate, yellow trim, a lamp) with hazard stripes along its foot,
 // sliding up into the lintel as it opens: running opens, blocking is open,
 // walking closes. Frame posts stand at the edges of the opening.
 function door(s, ctx) {
@@ -72,16 +161,18 @@ function door(s, ctx) {
   const z = ctx.zoneOf(e);
   if (!z) return null;
   const parts = built(`door:${e.type}`, () => {
-    const c = spriteColours(img, ctx.palette);
-    const H = 2 * img.h, D = z.h;
+    const k = kitColours(ctx);
+    const H = 2 * img.h, D = z.h - 2;
     const panel = new Mesh()
-      .box([0, 0, H / 2], [7, D - 2, H / 2], c.main)
-      .box([0, 0, H * 0.25], [8, D - 6, 3], shade(c.second, 1.1)).box([0, 0, H * 0.5], [8, D - 6, 3], shade(c.second, 1.1)).box([0, 0, H * 0.75], [8, D - 6, 3], shade(c.second, 1.1))
-      .box([8, 0, H * 0.5], [1, 6, 6], c.light).box([-8, 0, H * 0.5], [1, 6, 6], c.light)
-      .done();
-    const post = new Mesh().box([0, 0, H / 2], [12, 5, H / 2], shade(c.dark, 1.3)).done();
-    const strip = new Mesh().box([0, 0, 1], [6, D - 6, 1], [1, 0.85, 0.35]).done();
-    return { panel, post, strip, H };
+      .box([0, 0, H / 2], [6, D, H / 2], k.metal)
+      .box([0, 0, H / 2], [7, D - 8, H / 2 - 10], k.tread)
+      .box([0, D - 3, H / 2], [7.5, 3, H / 2], k.trim).box([0, -D + 3, H / 2], [7.5, 3, H / 2], k.trim)
+      .box([0, 0, H - 3], [7.5, D, 3], k.trim)
+      .box([0, 0, H * 0.55], [8, 10, 4], k.lamp);
+    stripes(panel, 'y', -D, D, 0, 4, k, 7.5);
+    const post = new Mesh().taper([0, 0, 0], [12, 6], [10, 5], H, k.dark).box([0, 0, H / 2], [12.5, 2, H / 2 - 6], k.trim).done();
+    const strip = new Mesh().box([0, 0, 1], [6, D - 6, 1], k.lamp).done();
+    return { panel: panel.done(), post, strip, H };
   });
   const open = e.state === 'blocking' ? 1 : e.state === 'running' ? progress(e) : e.state === 'walking' ? 1 - progress(e) : 0;
   const x = 2 * (s.x + img.w / 2), floor = -2 * (s.y + img.h);
@@ -90,36 +181,6 @@ function door(s, ctx) {
     { mesh: parts.post, basis: I3, offset: [x, z.c - z.h - 2, floor] },
     { mesh: parts.post, basis: I3, offset: [x, z.c + z.h + 2, floor] },
     ...(open > 0.05 ? [{ mesh: parts.strip, basis: I3, offset: [x, z.c, floor], bright: 1 + open }] : []),
-  ];
-}
-
-// ---- lifts (platform.lsp, platform_ai) ----
-// The sprite is a deck with sloped sides and a lamp in the middle. In 3D: a
-// lift-sized deck, as deep as it is wide, with bevelled sides, a trim, an
-// undercarriage and a lamp that lights while it runs.
-function lift(s, ctx) {
-  const { e, img } = s;
-  const z = ctx.zoneOf(e), r = ctx.g.deckRect(e);
-  if (!z || !r) return null;
-  const parts = built(`lift:${e.type}`, () => {
-    const c = spriteColours(img, ctx.palette);
-    const W = r.x1 - r.x0 + 1, hw = W, hd = z.h; // half sizes in units (2 per pixel)
-    const deck = new Mesh()
-      .taper([0, 0, -14], [hw - 10, hd - 10], [hw, hd], -2, shade(c.main, 0.75))
-      .box([0, 0, -1], [hw, hd, 1], c.main)
-      .box([0, 0, 0.4], [hw - 8, hd - 8, 0.5], shade(c.second, 1.05)) // the tread
-      .box([hw - 2, 0, 0], [2, hd, 1.2], shade(c.light, 0.8)).box([-hw + 2, 0, 0], [2, hd, 1.2], shade(c.light, 0.8))
-      .box([0, hd - 2, 0], [hw, 2, 1.2], shade(c.light, 0.8)).box([0, -hd + 2, 0], [hw, 2, 1.2], shade(c.light, 0.8))
-      .box([0, 0, -20], [hw * 0.45, hd * 0.45, 6], shade(c.dark, 1.2))
-      .done();
-    const lamp = new Mesh().cylinder([0, 0, -27], 7, 4, 10, [1, 0.85, 0.3]).done();
-    return { deck, lamp };
-  });
-  const x = r.x0 + r.x1 + 1, top = -2 * r.y0;
-  const running = e.aistate === 3;
-  return [
-    { mesh: parts.deck, basis: I3, offset: [x, z.c, top] },
-    { mesh: parts.lamp, basis: I3, offset: [x, z.c, top], bright: running ? 2 : 0.6 },
   ];
 }
 
@@ -174,7 +235,7 @@ function teleporter(s, ctx) {
   ];
 }
 
-const BY_AI = { flyer_ai: drone, sdoor_ai: door, platform_ai: lift, switcher_ai: wallSwitch, switch_once_ai: wallSwitch, tp2_ai: teleporter };
+const BY_AI = { flyer_ai: drone, sdoor_ai: door, strap_door_ai: hatch, platform_ai: lift, switcher_ai: wallSwitch, switch_once_ai: wallSwitch, tp2_ai: teleporter };
 const BY_TYPE = { WHO: drone };
 
 // The designed parts for a scene sprite of an object, or null for the placeholder.

@@ -297,9 +297,14 @@ state:
 | Lift (`platform_ai`) | a deck with sloped sides and a lamp | a lift-sized deck with bevelled sides and a lamp that lights while it runs, in a shaft |
 | Switch | a box with green and red lights | a panel on the back wall with two lamps |
 | Teleporter (`tp2_ai`) | a round pad seen at an angle | a round pad with a rim that glows while it teleports |
+| Trap door (`strap_door_ai`) | a floor hatch with hazard chevrons that slides into its housing | a hatch its own size in a hole its own size, sliding under the floor; the floor around it holds |
 
-**Rule: things keep their own size.** Doors and lifts no longer span the hall. Each stands in a
-doorway or shaft its own size, and *frame* walls close the rest of the hall. The depth layer
+Lifts, doors and trap doors share one design kit, the lift's: bevelled metal in the lift sprite's
+colours, a tread plate, yellow trim, and the trap door's yellow and black hazard stripes where things
+move.
+
+**Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a
+doorway, shaft or hole its own size, and *frame* walls close the rest of the hall. The depth layer
 enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet
 designed still use the voxel extrusion as a placeholder, listed in BACKLOG.md.
 

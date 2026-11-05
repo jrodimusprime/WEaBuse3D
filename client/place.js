@@ -2,7 +2,7 @@
 // where there is a design, otherwise the voxel placeholder with a transform
 // from the depth layer's kinds and depths:
 //
-//   door, lift  their own size, in their doorway or shaft (3D conversion rule 3)
+//   door, lift, hatch  their own size, in their doorway, shaft or hole (3D conversion rule 3)
 //   full        stretched across the whole hall, as a slab (breakable walls, lava, force fields)
 //   wall        flattened against the back wall
 //   floor       as deep as it is wide, at its spot
@@ -22,7 +22,7 @@ export function placeScene(scene, depth, lane, timeMs, g, palette) {
     if (k === 'shot') dep = s.shot.d0 !== undefined ? depth.shotDepth(s.shot) : depth.pd;
     else if (k === 'player') dep = depth.pd;
     else if (k === 'full') { sy = lane / MODEL_HALF; s.flat = true; }
-    else if (k === 'door' || k === 'lift') { const z = depth.zoneOf(s.e); sy = (z?.h ?? 48) / MODEL_HALF; dep = z?.c ?? 0; s.flat = true; }
+    else if (k === 'door' || k === 'lift' || k === 'hatch') { const z = depth.zoneOf(s.e); sy = (z?.h ?? 48) / MODEL_HALF; dep = z?.c ?? 0; s.flat = true; }
     else if (k === 'wall') { sy = 0.5; dep = lane - MODEL_HALF * 0.5; }
     else if (k === 'floor') { sy = s.img.w / MODEL_HALF; dep = depth.depthOf(s.e); }
     else if (k === 'item') { dep = depth.depthOf(s.e); spin = (timeMs / 1000) * 2.2 + (s.e.id || 0); }

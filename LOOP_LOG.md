@@ -137,3 +137,16 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - `?look=TYPE&ang&dist&up&solo=1` model review view (rule 7). Screenshots checked solo and in the level.
 - `npm test` 29/29: designed parts closed (divergence volume > 0), door panel rises with state, door- and
   lift-sized zones, level 0 finished under the 3D rules with an autopilot that lines up with the openings.
+
+## 2026-11-05 · trap doors like the lift; one industrial kit
+- Jared: "the trap door should be like the elevator in design. also doors should be like that too."
+- TRAP_DOOR2/3 (strap_door_ai) are floor hatches with hazard chevrons that slide into a housing (sprite
+  49 → 31 px over 'running'). Now `hatch` kind: a floor zone as deep as the hatch is wide. The floor around
+  the hole holds a player dropping onto it at another depth (enforce sets them back on top, grounded),
+  and bumps a head from below. Only at the hatch's depth does the player fall through the open hatch.
+- `client/models.js`: lift, door and hatch share one kit (kitColours from SMART_PLAT_SMALL's sprite:
+  metal, tread, under, trim, dark, plus hazard yellow/black and lamp). The hatch drops 3 units and slides
+  under the floor; the door was restyled (metal panel, tread, trim, lamp, hazard foot, tapered posts).
+- `?look=…&pose=STATE&frame=N` poses the reviewed object. Screenshots: hatch shut and half open, door shut
+  and half open, lift, hatch in the level.
+- `npm test` 30/30 (new: the floor beside an open hatch holds, the opening lets the player drop; hatch parts closed).

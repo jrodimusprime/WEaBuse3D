@@ -14,6 +14,8 @@
 //   door   a door its own size, in a doorway: frame walls close the rest of
 //          the hall there (3D conversion rule 3).
 //   lift   a lift its own size, in a shaft with walls around it.
+//   hatch  a trap door its own size, in a hole in the floor: the rest of the
+//          hole is floor you can stand on (and bump your head on).
 //   full   spans the hall: breakable walls, force fields, lava, boulders,
 //          exits, sensors and logic. The simulation alone decides these.
 //
@@ -37,7 +39,7 @@ import { behaviors } from '../sim/web/src/behaviors.js';
 const KIND_BY_TYPE = { SWITCH_BALL: 'wall', POINTER: 'wall' };
 const KIND_BY_AI = {
   flyer_ai: 'enemy', ant_ai: 'enemy',
-  sdoor_ai: 'door', platform_ai: 'lift',
+  sdoor_ai: 'door', platform_ai: 'lift', strap_door_ai: 'hatch',
   hp_up: 'item', weapon_icon_ai: 'item', fast_ai: 'item', fly_power_ai: 'item', sneaky_power_ai: 'item', health_power_ai: 'item',
   switcher_ai: 'wall', switch_once_ai: 'wall', spray_gun_ai: 'wall', crack_ai: 'wall',
   tp2_ai: 'floor', spring_ai: 'floor',
@@ -49,6 +51,7 @@ export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px 
 const REACH = 72; // how far from the back wall a wall switch can be used
 const DOOR_HALF = 48; // a doorway is 96 units across the hall
 const LIFT_HALF = 60; // a lift is as deep as it is wide: 120 units
+const FITTED = new Set(['door', 'lift', 'hatch']); // things their own size, in a zone
 const HALF_W = 6, BODY_H = 29; // the player's box in the plane (game.js)
 const SPEED = 270; // the player across the hall, units a second (Abuse's run: 9 px a tick = 270 units/s)
 const ACCEL = 2400;
@@ -85,7 +88,7 @@ export class Depth {
   depthOf(e) {
     const k = this.kind(e);
     if (k === 'full') return null;
-    if (k === 'door' || k === 'lift') return this.zoneOf(e)?.c ?? 0;
+    if (FITTED.has(k)) return this.zoneOf(e)?.c ?? 0;
     if (k === 'wall') return this.lane - 10;
     if (e.depth === undefined) e.depth = spread(e.id ?? Math.round(e.x), Math.round(e.y)) * (this.lane - 48);
     return e.depth;
@@ -94,7 +97,7 @@ export class Depth {
   // half of how deep an object is (floor pads are as deep as they are wide)
   halfDepth(e) {
     const k = this.kind(e);
-    if (k === 'door' || k === 'lift') return this.zoneOf(e)?.h ?? DOOR_HALF;
+    if (FITTED.has(k)) return this.zoneOf(e)?.h ?? DOOR_HALF;
     if (k === 'floor') return 2 * ((this.g.spriteOf(e)?.w || 20) / 2);
     if (k === 'item') return 14;
     return 18;
@@ -114,7 +117,7 @@ export class Depth {
     const k = this.kind(e);
     if (k === 'full') return true;
     if (k === 'wall') return this.pd >= this.lane - PLAYER_HALF - REACH;
-    if (k === 'door' || k === 'lift') { const z = this.zoneOf(e); return !z || Math.abs(this.pd - z.c) <= z.h - PLAYER_HALF + 1; }
+    if (FITTED.has(k)) { const z = this.zoneOf(e); return !z || Math.abs(this.pd - z.c) <= z.h - PLAYER_HALF + 1; }
     return Math.abs(this.depthOf(e) - this.pd) < this.halfDepth(e) + PLAYER_HALF;
   }
 
@@ -170,6 +173,12 @@ export class Depth {
         if (!r) continue;
         const h = DOOR_HALF;
         out.push({ e, kind: k, x0: r.x0 - 2, x1: r.x1 + 2, y0: r.y0, y1: r.y1, h, c: spread(e.id ?? 0, 7) * (this.lane - h - 24) });
+      } else if (k === 'hatch') {
+        // a trap door: a hole in the floor as wide as the closed hatch, as deep across the hall as it is wide
+        const r = g.rectOf(e);
+        if (!r) continue;
+        const h = Math.max(40, r.x1 - r.x0 + 1);
+        out.push({ e, kind: k, floor: true, x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, h, c: spread(e.id ?? 0, 13) * (this.lane - h - 24) });
       } else if (k === 'lift') {
         const r = g.deckRect(e);
         if (!r) continue;
@@ -218,6 +227,12 @@ export class Depth {
     if (!bad) { this._legal = { x: p.x, y: p.y }; return; }
     const L = this._legal;
     if (!L) return;
+    if (bad.floor && L.y <= bad.y0 + 1 && p.y > L.y) {
+      // dropping onto the floor around a hatch: it holds (like ground under the feet)
+      p.y = L.y; p.vy = 0; p.ground = true;
+      return;
+    }
+    if (bad.floor && L.y - BODY_H >= bad.y1 && p.y < L.y) { p.y = L.y; p.vy = 0; return; } // a head against it from below
     p.x = L.x; p.vx = 0;
     if (this.zonesAt(p.x, p.y).includes(bad)) { p.y = L.y; p.vy = 0; }
   }

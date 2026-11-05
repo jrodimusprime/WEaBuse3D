@@ -33,7 +33,7 @@ function volume(m) {
 }
 
 test('level 0 objects that matter have designed models, made of closed parts', () => {
-  for (const type of ['WHO', 'SWITCH_DOOR', 'SMART_PLAT_SMALL', 'SWITCH', 'TELE2']) {
+  for (const type of ['WHO', 'SWITCH_DOOR', 'SMART_PLAT_SMALL', 'SWITCH', 'TELE2', 'TRAP_DOOR2']) {
     const e = first(type);
     assert.ok(e && designed(e), `${type} has a design`);
     const parts = design(spriteFor(e), ctx);
@@ -63,4 +63,23 @@ test('a lift is lift-sized and its shaft covers its run', () => {
   assert.ok(z.h < LANE / 2);
   const stops = lift.links.slice(0, 2).map((l) => l.y);
   assert.ok(z.y0 < Math.min(...stops) && z.y1 >= Math.max(...stops));
+});
+
+test('a trap door is hatch-sized: the floor around it holds, its opening lets the player drop', async () => {
+  const hatchE = first('TRAP_DOOR2');
+  const z = depth.zoneOf(hatchE);
+  assert.ok(z && z.floor && z.h < LANE / 2, 'a hatch-sized hole');
+  // open it, with nothing to close it again
+  hatchE.links = []; hatchE.aistate = 2; hatchE.setState('blocking'); g.refreshSolids();
+  const drop = async (pd) => {
+    const x = (z.x0 + z.x1) / 2;
+    g.teleportPlayer(x, z.y0 - 1); g.cam.x = x - 160; g.cam.y = z.y0 - 100;
+    depth.pd = pd; depth._legal = { x, y: z.y0 - 1 };
+    for (let i = 0; i < 60; i++) { g.keys.clear(); g.update(1 / 60); }
+    return g.player.y;
+  };
+  const beside = await drop(z.c > 0 ? z.c - z.h - 40 : z.c + z.h + 40);
+  assert.ok(beside <= z.y0, `stood on the floor beside the hatch (feet at ${beside}, floor at ${z.y0})`);
+  const through = await drop(z.c);
+  assert.ok(through > z.y1, `dropped through the open hatch (feet at ${through})`);
 });
