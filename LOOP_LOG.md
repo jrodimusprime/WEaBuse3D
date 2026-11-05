@@ -290,3 +290,10 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   a sixteen-vertebra beaded tail arching up and back. New `muscleSkin` (fibres along each limb, skinKind 2).
 - Found on the way: the ant's skins were scaled for world units but laid on unit bone meshes, so they barely
   showed; the muscle skin is scaled per unit mesh. Renders in `docs/ant-boxart.png`. Tests cover designs 0-8.
+
+## 2026-11-05 · smaller head, the gun on its back
+- Jared: "the head is comically large so. shrink that, it also has a gun on its back so add that... the head only
+  really needs to be the first part of the head". The cranium is now its first ellipsoid only, and the face, grin
+  and jaw are about 3/4 the size. A fleshy cannon grows from the upper back (mount, sinew braces, breech, a ribbed
+  barrel forward over the head, the orange glowing muzzle that was on the cover); it kicks and flares on
+  weapon_fire / ceil_fire. docs/ant-boxart.png updated.

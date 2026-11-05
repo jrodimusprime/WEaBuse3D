@@ -189,38 +189,47 @@ export function antModel(s, ctx) {
       bone(K.crease, add(top, mul(sub(bottom, top), 0.55)).map((v, k) => v + (k === 1 ? sy * 2.5 : 0)), bottom, 0.8, M);
     }
     for (let i = 0; i < 7; i++) ball(K.pink, add(hip, [2 + i * 3.6, 0, 6.5 + Math.sin(i / 6 * Math.PI) * 3]), [1.8, 1.8, 1.6], Mb); // vertebrae
-    // the neck and the head: a long cranium sweeping up and back, the ember at its tip, the face and the grin
-    const neckBase = add(chest, [6, 0, 3]), face = add(neckBase, [13 + P.stretch * 2, 0, 1 + P.rear * 6]);
-    fb(neckBase, face, 4.5, K.sinew);
+    // the neck and the head, smaller (Jared: "the head is comically large ... only really needs to be the first
+    // part"): one swelling cranium sweeping back from the face, the face, and the grin on its jaw
+    const neckBase = add(chest, [6, 0, 3]), face = add(neckBase, [10 + P.stretch * 2, 0, 1 + P.rear * 5]);
+    fb(neckBase, face, 3.6, K.sinew);
     const back = norm([-0.62, 0, 0.78]);
-    const crTop = add(face, [-1, 0, 5]);
-    // the cranium: three overlapping ellipsoids stretched along the sweep, swelling then rounding off
+    const crTop = add(face, [-1, 0, 3.6]);
     const along = (c, long, short) => {
       const [dx, p1, p2] = boneBasis([0, 0, 0], back, short);
       const X = toWorld(mul(dx, long)), Y = toWorld(p1), Z = toWorld(p2);
       out.push({ mesh: K.fleshBall, basis: new Float32Array([...X, ...Y, ...Z]), offset: W(c), bright, ...Mb });
     };
-    along(add(crTop, mul(back, 7)), 12, 8.8);
-    along(add(crTop, mul(back, 19)), 12.5, 7.4);
-    along(add(crTop, mul(back, 29)), 7.5, 5.2);
-    glowBall(K.ember, add(crTop, mul(back, 33.5)), 2.2, 0.8 + 0.3 * Math.sin(t * 4));
-    lit(K.ember, add(crTop, mul(back, 33.5)), [1.4, 1.4, 1.4], 2.2);
-    fball(add(face, [3, 0, -1]), [7, 7.5, 5.6]); // the face
+    along(add(crTop, mul(back, 5)), 9, 6.4);
+    fball(add(face, [2.4, 0, -0.8]), [5.4, 5.8, 4.4]); // the face
     const snarl = Math.max(0, Math.sin(t * 1.7 + (e.id || 0) * 1.3));
     const open = P.jaw > 0.2 ? 0.55 + 0.4 * P.jaw : 0.08 + 0.6 * snarl * snarl;
-    ball(K.gums, add(face, [6, 0, -3.5 - open * 2]), [5, 6.2, 2 + open * 3.5]); // the dark behind the teeth
+    ball(K.gums, add(face, [4.8, 0, -2.8 - open * 1.6]), [3.9, 4.8, 1.6 + open * 2.8]); // the dark behind the teeth
     for (let i = 0; i < 9; i++) { // the upper row: a wide grin across the face
-      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 6.6, x = 8 + Math.cos(a) * 3;
-      bone(K.ivory, add(face, [x, y, -2.2]), add(face, [x + 0.6, y * 0.96, -6.2 - (i % 2) * 0.8]), 0.95);
+      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 5.1, x = 6.2 + Math.cos(a) * 2.3;
+      bone(K.ivory, add(face, [x, y, -1.8]), add(face, [x + 0.5, y * 0.96, -4.9 - (i % 2) * 0.6]), 0.75);
     }
-    const hinge = add(face, [-2, 0, -3]), jd = norm([1, 0, -0.25 - open * 1.4]);
-    const jawTip = add(hinge, mul(jd, 12));
-    fb(hinge, jawTip, 3.2);
-    fball(jawTip, [3.5, 6, 2.4]);
+    const hinge = add(face, [-1.6, 0, -2.4]), jd = norm([1, 0, -0.25 - open * 1.4]);
+    const jawTip = add(hinge, mul(jd, 9.4));
+    fb(hinge, jawTip, 2.5);
+    fball(jawTip, [2.8, 4.7, 1.9]);
     for (let i = 0; i < 9; i++) { // the lower row on the jaw
-      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 6, base = add(add(hinge, mul(jd, 7 + Math.cos(a) * 4)), [0, y, 0.8]);
-      bone(K.ivory, base, add(base, [0.4, -y * 0.04, 3.4 + (i % 2) * 0.6]), 0.85);
+      const a = (i / 8 - 0.5) * 2.2, y = Math.sin(a) * 4.7, base = add(add(hinge, mul(jd, 5.5 + Math.cos(a) * 3.1)), [0, y, 0.6]);
+      bone(K.ivory, base, add(base, [0.3, -y * 0.04, 2.7 + (i % 2) * 0.5]), 0.66);
     }
+    // the gun on its back (as on the cover, where its muzzle glows orange): a fleshy cannon grown out of the
+    // upper back, braced by sinew, barrel forward over the head; it kicks back and flares when the ant fires
+    const firing = e.state === 'weapon_fire' || e.state === 'ceil_fire' ? Math.sin(P.glow * Math.PI) : 0;
+    const mount = add(chest, [-6, 0, 9]);
+    fball(mount, [6.5, 5.5, 4.5]);
+    for (const sy of [-1, 1]) bone(K.sinew, add(chest, [-1, sy * 5, 5]), add(mount, [2, sy * 2.5, 1]), 1.4, M); // braces
+    const breech = add(mount, [2 - firing * 2, 0, 4]), aimDir = norm([1, 0, 0.18 + P.rear * 0.3]);
+    fball(breech, [5, 4, 4]);
+    const muzzle = add(breech, mul(aimDir, 20 - firing * 2.5));
+    fb(breech, muzzle, 2.6, K.sinew);
+    for (let i = 1; i <= 3; i++) ball(K.pink, add(breech, mul(aimDir, i * 5)), [1.6, 3, 3], Mb); // ribbing along the barrel
+    lit(K.ember, muzzle, [2, 2.4, 2.4], 2.2);
+    glowBall(K.ember, muzzle, 2.4 + 2.5 * firing, 0.6 + 0.3 * Math.sin(t * 4) + 1.4 * firing);
     // the tail: sixteen vertebrae, beaded, arching up and back, swaying
     let tp = add(hip, [-8, 0, 2]), ang = Math.PI - 0.55 - P.tailUp * 0.15;
     for (let i = 0; i < 16; i++) {
