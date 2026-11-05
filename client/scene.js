@@ -23,7 +23,7 @@ export function collectScene(g) {
   const lv = g.level;
   if (!lv || !g.player) return { sprites, boxes };
   const alpha = Math.min(1, g.tickAcc / TICK);
-  const blit = (def, stateName, frame, x, y, dir, middle = false, tint = null, bright = 1) => {
+  const blit = (def, stateName, frame, x, y, dir, middle = false, tint = null, bright = 1, player = false) => {
     const frames = def.states.get(stateName) || def.states.get('stopped');
     if (!frames || !def.file) return;
     let img = g.assets.sprite(def.file, frames[Math.floor(frame) % frames.length]);
@@ -31,7 +31,7 @@ export function collectScene(g) {
     if (tint) img = g.assets.tinted(img, tint);
     const ox = dir < 0 ? img.w - img.xcfg - 1 : img.xcfg; // game.js blit
     const yy = middle ? y + img.h / 2 : y;
-    sprites.push({ img, x: Math.round(x - ox), y: Math.round(yy - img.h + 1), flip: dir < 0, bright, id: def.name });
+    sprites.push({ img, x: Math.round(x - ox), y: Math.round(yy - img.h + 1), flip: dir < 0, bright, id: def.name, player });
   };
 
   const fx = [];
@@ -56,13 +56,13 @@ export function collectScene(g) {
   const bright = p.justFired ? 1.8 : 1;
   const pre = p.power === 'FAST' ? 'fast_' : p.power === 'FLY' ? 'fly_' : '';
   const drawState = pre && POWER_STATES.has(p.state) && body?.states.has(pre + p.state) ? pre + p.state : p.state;
-  if (body) blit(body, p.dead ? 'dead' : drawState, p.anim, p.x, p.y, p.dir, false, null, bright);
+  if (body) blit(body, p.dead ? 'dead' : drawState, p.anim, p.x, p.y, p.dir, false, null, bright, true);
   const top = !p.dead && g.assets.defs.get(WEAPONS[p.weapon]?.top);
   if (top && !p.climbing) {
     const bf = body.states.get(drawState) || body.states.get('stopped');
     const bimg = bf ? g.assets.sprite(body.file, bf[Math.floor(p.anim) % bf.length]) : null;
     const topY = p.y + 29 - (bimg?.h || 29);
-    blit(top, 'stopped', p.aim, p.dir > 0 ? p.x : p.x + 4, topY, 1, false, null, bright);
+    blit(top, 'stopped', p.aim, p.dir > 0 ? p.x : p.x + 4, topY, 1, false, null, bright, true);
   }
 
   // projectiles: weapons.js drawProjectiles, through a recorder in place of the renderer

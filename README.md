@@ -7,7 +7,7 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (walk level 0 in first person)
+**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D; F3 changes the camera) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
 
 > **Status: M0 (first walk) is done; M1 (level 0 complete, 3D models) is in progress.** Level 0 compiles to a Quake BSP2, and you can walk through
 > it in first person. There are no objects yet: lifts, doors, switches and enemies arrive in M6. The rest of this README is the
@@ -23,11 +23,14 @@ npm run serve            # python3 -m http.server 8001, from the repo root
 # open http://localhost:8001/web/
 ```
 
-Click the view to capture the mouse. Walk with W A S D or the arrows, run with Shift, jump with
-Space, and press F2 to cycle the brightness.
+The page plays level 0 with Abuse's controls: A D or the arrows to move, W, Up or Space to jump,
+S, Down or E to use (switches, lifts, doors), the mouse to aim and fire, 1-7 or the wheel for
+weapons. F3 cycles the camera (angled, side, first person) and F2 the brightness. **Watch the
+recorded run** plays WEaBuse's winning run of the level. `web/walk.html` is the M0 first-person walk.
 
 ```sh
-npm test                 # compiler, loader, solidity vs the simulation, walk physics, Chrome = Node
+npm test                 # compiler, loader, solidity vs the simulation, walk physics, Chrome = Node,
+                         # level 0 won through the 3D host, drawing never changes the game, voxel models
 npm run build:maps       # rebuild web/maps/level00.bsp (byte-for-byte reproducible)
 node tools/browser-check.mjs   # the scripted walk in headless Chrome vs Node
 ```

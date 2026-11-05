@@ -9,7 +9,7 @@
 //   ?still=1            no input; just draw (screenshots)
 //   ?bright=1.6         lightmap brightness
 import { loadBSP } from '../engine/bsp.js';
-import { WorldRenderer } from '../engine/render.js';
+import { Renderer } from '../engine/render.js';
 import { newPlayer, playerTick, makeCommand, FRAMETIME, VIEW_HEIGHT, onGround } from '../engine/move.js';
 import { fromDegrees } from '../engine/detmath.js';
 import { boxInSolid } from '../engine/trace.js';
@@ -29,7 +29,7 @@ const [bspBuf, palBuf] = await Promise.all([
   fetch('maps/palette.lmp').then((r) => r.arrayBuffer()),
 ]);
 const world = loadBSP(new Uint8Array(bspBuf));
-const renderer = new WorldRenderer(gl);
+const renderer = new Renderer(gl);
 renderer.load(world, new Uint8Array(palBuf));
 if (params.has('bright')) renderer.brightness = Number(params.get('bright'));
 const scale = Number(world.entities[0]._abuse_scale || 2);
@@ -89,7 +89,8 @@ function frame(now) {
   eye[2] += VIEW_HEIGHT;
   const w = Math.floor(canvas.clientWidth * devicePixelRatio), h = Math.floor(canvas.clientHeight * devicePixelRatio);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-  renderer.draw(eye, [pitch, yaw, 0], w, h);
+  const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // CalcFov for fov 90
+  renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, { mode: 'lightmap', front: true, caps: false, fovY });
   frames++;
   if (now - fpsT > 500) { fps = Math.round((frames * 1000) / (now - fpsT)); frames = 0; fpsT = now; }
   const px = Math.round(player.origin[0] / scale), py = Math.round(-(player.origin[2] - 24) / scale);

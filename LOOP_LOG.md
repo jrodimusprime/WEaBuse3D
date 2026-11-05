@@ -57,3 +57,22 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Jared walked level 0: "looks great". M0 is closed. The question "how to operate the lift?" is noted:
   objects (lifts, doors, switches) are M5, and the README status now says so.
 - Published on GitHub Pages from `main` (root `index.html` redirects to `web/`, `.nojekyll`).
+
+## 2026-11-05 · M1 T1–T7 level 0 in 3D, with 3D models
+- Jared clarified that "level 1" means level 00. Level 0's enemies are six WHO flyers (jugger.lsp, flyer_ai).
+- T1: brush model *1 holds the front caps (the solid tiles' fronts at Y = −64, facing out of the lane).
+- T2: `client/sim-host.js` hosts WEaBuse's Game (null WebGL, autoPause, like headless.mjs); aim is
+  fed as mouse = point − cam (game.js updatePlayer). `client/scene.js` mirrors game.js render()'s
+  object section into a list in level pixels.
+- T3: `engine/voxel.js`: rounded voxel models from sprite frames.
+- T4: renderer rewritten. Abuse's light formula per pixel in the shader (lights in a float texture,
+  live ambient, dimmers and the L key work), caps and near-wall switches, model and box passes,
+  look-at cameras, `pick()` from screen to lane.
+- T5: `client/play.js` + `web/index.html` (walk moved to `web/walk.html`). Cameras are angled, side and
+  first person (in first person the player's own model is hidden, since the camera sat inside it).
+  Fixed the start panel staying visible (CSS display overrode `hidden`).
+- T6: tests. Level 0's recorded run reaches the exit through the host. Collecting the scene every step
+  leaves every per-step state hash equal. Voxel models are closed (divergence-theorem volume),
+  mirrored and deterministic. `npm test` 18/18.
+- T7: screenshots checked: the cop on the ledge (angled), the WHO flyers and pickups, the lift with its
+  training message (side), the first-person corridor, and the Watch mode running. No console errors.
