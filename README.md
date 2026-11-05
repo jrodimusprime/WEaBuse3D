@@ -472,7 +472,8 @@ start the next milestone until they pass and a human has signed off.
 | The simulation submodule and WEaBuse drift apart | Pin the commit. Bumping it is a task that must pass all layers. |
 
 **Open questions for the human** (to answer at the M0 gate):
-- Repo name and hosting: `jrodimusprime/WEaBuse3D` on GitHub?
+- ~~Repo name and hosting~~: settled, public at
+  [github.com/jrodimusprime/WEaBuse3D](https://github.com/jrodimusprime/WEaBuse3D).
 - Should a new camera mode or depth mode ever change Abuse's rules (for example, enemies that
   can see you in depth)? Any such change belongs under Jared rules.
 
