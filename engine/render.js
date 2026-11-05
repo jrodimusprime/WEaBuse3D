@@ -263,7 +263,7 @@ export class Renderer {
   // of 'front'/'caps' to show, fovY, sprites and boxes (client/scene.js), red flash.
   frame(view, width, height, opts = {}) {
     const gl = this.gl;
-    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true } = opts;
+    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [] } = opts;
     gl.viewport(0, 0, width, height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -315,10 +315,15 @@ export class Renderer {
       for (const g of this.frameGroups) { gl.bindTexture(gl.TEXTURE_2D, g.tex); gl.drawArrays(gl.TRIANGLES, g.first, g.count); }
     }
 
-    // objects
-    if (sprites.length || boxes.length) {
+    // objects, then the view model on top (depth cleared, so it never sinks into a wall)
+    const passes = [sprites];
+    if (viewmodel.length) passes.push(viewmodel);
+    for (let pass = 0; pass < passes.length; pass++) {
+      const list = passes[pass];
+      if (pass === 1) gl.clear(gl.DEPTH_BUFFER_BIT);
+      if (!list.length && (pass === 1 || !boxes.length)) continue;
       shared(this.model);
-      for (const s of sprites) {
+      for (const s of list) {
         const m = s.mesh || cachedModel(s.img, this.palette, s.flip, !!s.flat);
         if (!m.count) continue;
         let gpu = this.models.get(m);
@@ -336,7 +341,7 @@ export class Renderer {
         gl.bindVertexArray(gpu);
         gl.drawArrays(gl.TRIANGLES, 0, m.count);
       }
-      if (boxes.length) {
+      if (pass === 0 && boxes.length) {
         const data = new Float32Array(boxes.length * 36 * 9);
         let o = 0;
         for (const b of boxes) o = boxVerts(data, o, b, this.palette);

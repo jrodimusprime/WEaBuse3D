@@ -89,6 +89,18 @@ export class Mesh {
   // a cylinder standing on the vertical axis: centre of its base, radius, height
   cylinder(c, r, h, n, rgb) { return this.lathe(c, [[r, 0], [r, h]], n, rgb); }
 
+  // a cylinder lying along +X: the centre of its back end, radius, length (a barrel)
+  cylinderX(c, r, len, n, rgb) {
+    const ring = (x, i) => { const a = (i / n) * Math.PI * 2; return [c[0] + x, c[1] + r * Math.cos(a), c[2] + r * Math.sin(a)]; };
+    return this.inside((a, b, cc) => [Math.min(Math.max((a[0] + b[0] + cc[0]) / 3, c[0] + 1e-3), c[0] + len - 1e-3), c[1], c[2]], () => {
+      for (let i = 0; i < n; i++) {
+        this.quad(ring(0, i), ring(len, i), ring(len, i + 1), ring(0, i + 1), rgb);
+        this.tri([c[0], c[1], c[2]], ring(0, i), ring(0, i + 1), rgb);
+        this.tri([c[0] + len, c[1], c[2]], ring(len, i + 1), ring(len, i), rgb);
+      }
+    });
+  }
+
   // an ellipsoid: centre, radii, rings and segments
   ellipsoid(c, [rx, ry, rz], rings, segs, rgb) {
     return this.inside(c, () => this.ellipsoid0(c, [rx, ry, rz], rings, segs, rgb));
@@ -164,6 +176,7 @@ export function spriteColours(img, palette) {
     dark: by((c) => -lum(c)),
     light: by(lum),
     vivid: by((c) => sat(c) * (0.4 + lum(c))),
+    red: by((c) => c[0] - (c[1] + c[2]) / 2),
   };
 }
 

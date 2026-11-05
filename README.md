@@ -596,4 +596,7 @@ Deliberate departures from the original Abuse 0.8 go here, the same way they do 
 Departures inherited from WEaBuse's simulation (such as level 5's jetpack room door)
 apply here too and are listed in WEaBuse's README.
 
-- *(none specific to the 3D version yet)*
+- **Faster player bullets.** In first person the player's bullets fly 2.5 times faster than the original's,
+  with the same reach: the life of each bullet is cut to the fewest ticks that cover the original distance
+  (`client/depth.js` `quicken`, after weapons.js sgun_ai). Jared: "player bullet speeds dont feel right,
+  needs to be faster". Each bullet is drawn as a glowing tracer along its path through 3D.

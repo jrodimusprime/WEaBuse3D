@@ -16,12 +16,15 @@ The loop takes the first unchecked task of the current milestone. See README.md 
 
 ## Models awaiting design (drawn by the voxel placeholder until designed; CLAUDE.md rule 6)
 
-Level 0 and 1 objects still on the placeholder, roughly in the order a player meets them:
-HEALTH (heart), weapon/ammo icons (MBULLET_ICON*, GRENADE_ICON*, ROCKET_ICON2, FBOMB_ICON1), POWER_FAST,
-POINTER (sign), SWITCH_BALL, SPRING, FORCE_FIELD, TP_DOOR, HIDDEN_WALL* and HIDDEN_WALL_2x2/3FLR/3WAL,
-LAVA, BOLDER, SPRAY_GUN (dome turret), ANT_ROOF / HIDDEN_ANT (alien ant), ANT_CRACK,
-NEXT_LEVEL / NEXT_LEVEL_TOP (exits), TELE_BEAM, effects (explosions, smoke, sparks), projectiles
-(rockets, grenades, plasma), and the cop himself (only seen in Watch and model review).
+Designed so far: WHO, doors, trap doors, lift, switches, teleporters, health, shells, grenades, rockets,
+other weapon pick-ups (a crate), power-ups, the pointer sign, the switch ball, the spring, exits, the
+teleport beam, the teleport pod (TP_DOOR), lava, breakable walls, save terminals (RESTART_POSITION),
+and the weapon in the player's hands (all seven).
+
+Still on the placeholder, roughly in the order a player meets them:
+FORCE_FIELD, NEXT_LEVEL_TOP (a large wrecked machine), BOLDER, SPRAY_GUN (dome turret),
+ANT_ROOF / HIDDEN_ANT (alien ant), ANT_CRACK, effects (explosions, smoke, sparks), rockets and grenades
+in flight, and the cop himself (only seen in Watch and model review).
 
 ## M2: Depth mode, 3D gameplay (done; human sign-off pending)
 

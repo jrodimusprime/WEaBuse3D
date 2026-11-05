@@ -17,6 +17,8 @@
 //   ?still=N            step N simulation steps with no input, then hold
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
+//   ?weapon=NAME        review: all weapons, this one in hand (MGUN PGUN GRENADE ROCKET FIREBOMB DFRIS LSABER)
+//   ?fire=1             review: hold the trigger while ?still steps run
 //   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0)
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
@@ -28,6 +30,7 @@ import { collectScene } from './scene.js';
 import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
 import { placeScene, frameBoxes } from './place.js';
+import { viewModel } from './viewmodel.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -69,6 +72,8 @@ setMsg('');
 // ---- the view: Quake's viewangles, in degrees (pitch + is down, yaw 0 is +X = Abuse's right) ----
 let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 0);
 if (params.has('depth')) depth.pd = Number(params.get('depth'));
+if (params.has('weapon')) { g.giveAllWeapons(); g.selectWeapon(params.get('weapon')); } // review: every weapon, this one in hand
+const holdFire = params.has('fire'); // review: the trigger held while ?still steps run
 let lookEye = null, lookTarget = null;
 const solo = params.has('solo');
 if (params.has('look')) {
@@ -218,6 +223,7 @@ function frame(now) {
     prev = { x: g.player.x, y: g.player.y, d: depth.pd };
     if (watch) { watchStep(); continue; }
     feedInput();
+    if (holdFire) g.mouseDown = true;
     g.update(STEP);
   }
   if (finished !== null && !msgEl.innerHTML) {
@@ -232,11 +238,25 @@ function frame(now) {
   const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
   renderer.setAbuseLights(g.level.lights, g.ambient, g.lightsOn);
   const scene = placeScene(collectScene(g), depth, LANE, now, g, palette);
+  const fired = g.player.justFired;
   g.player.justFired = false; // game.js render clears it after drawing the flash
+  // the weapon in the hands, placed in front of the eye along the view (forward, left, up)
+  let vm = [];
+  if (!lookEye && !g.player.dead) {
+    const cy = Math.cos(rad(yaw)), sy = Math.sin(rad(yaw)), cp = Math.cos(rad(pitch)), sp = Math.sin(rad(pitch));
+    const F = [cp * cy, cp * sy, -sp], L = [-sy, cy, 0], U = [sp * cy, sp * sy, cp];
+    const basis = new Float32Array([...F, ...L, ...U]);
+    const run = Math.min(1, Math.abs(g.player.vx || 0) / 135 + Math.abs(depth.pv) / 270);
+    vm = viewModel(g, palette, { fired, run, t: now }).map((q) => ({
+      mesh: q.mesh, basis, bright: q.bright || 1,
+      offset: [0, 1, 2].map((k) => eye[k] + F[k] * q.at[0] + L[k] * q.at[1] + U[k] * q.at[2]),
+    }));
+  }
   renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
     mode: 'abuse', front: true, caps: false, fovY,
     sprites: solo ? scene.sprites.filter((s) => s.e === lookTarget) : lookEye ? scene.sprites : scene.sprites.filter((s) => !s.player), // the camera is inside the cop
     world: !solo,
+    viewmodel: vm,
     boxes: scene.boxes, red: g.redRamp || 0,
   });
   g.updateHud();

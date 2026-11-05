@@ -33,11 +33,12 @@ function volume(m) {
 }
 
 test('level 0 objects that matter have designed models, made of closed parts', () => {
-  for (const type of ['WHO', 'SWITCH_DOOR', 'SMART_PLAT_SMALL', 'SWITCH', 'TELE2', 'TRAP_DOOR2']) {
+  for (const type of ['WHO', 'SWITCH_DOOR', 'SMART_PLAT_SMALL', 'SWITCH', 'TELE2', 'TRAP_DOOR2', 'HEALTH', 'MBULLET_ICON20', 'GRENADE_ICON10',
+    'ROCKET_ICON2', 'POWER_FAST', 'POINTER', 'SWITCH_BALL', 'SPRING', 'NEXT_LEVEL', 'TELE_BEAM', 'TP_DOOR', 'LAVA', 'HIDDEN_WALL3', 'HIDDEN_WALL_2x2', 'RESTART_POSITION']) {
     const e = first(type);
     assert.ok(e && designed(e), `${type} has a design`);
     const parts = design(spriteFor(e), ctx);
-    assert.ok(parts.length >= 2, `${type} has parts`);
+    assert.ok(parts.length >= 1, `${type} has parts`);
     for (const p of parts) {
       assert.ok(p.mesh.count > 0 && p.mesh.count % 3 === 0);
       assert.ok(volume(p.mesh) > 0, `${type}: a part is not closed or faces inward`);

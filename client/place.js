@@ -10,6 +10,15 @@
 //   enemy, fx and shots at their depth
 import { MODEL_HALF } from '../engine/voxel.js';
 import { design } from './models.js';
+import { Mesh } from '../engine/mesh.js';
+
+// a unit tracer (0..1 along X, 1 across), stretched by its transform; one per colour
+const tracers = new Map();
+function tracerMesh(rgb) {
+  const k = rgb.map((v) => v.toFixed(2)).join();
+  if (!tracers.has(k)) tracers.set(k, new Mesh().box([0.5, 0, 0], [0.5, 1, 1], rgb).done());
+  return tracers.get(k);
+}
 
 export function placeScene(scene, depth, lane, timeMs, g, palette) {
   const ctx = { palette, lane, time: timeMs, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e) };
@@ -33,6 +42,25 @@ export function placeScene(scene, depth, lane, timeMs, g, palette) {
     s.offset = [2 * s.x + half - c * half, dep - sn * half, -2 * s.y];
     out.push(s);
   }
+  // bullets: one glowing tracer each, along its path since the last tick, through 3D
+  const tracers = new Set();
+  for (const b of scene.boxes) if (b.shot?.kind === 'bullet') tracers.add(b.shot);
+  for (const b of tracers) {
+    const dAt = (x, y) => (b.d0 === undefined ? depth.pd : Math.max(-lane, Math.min(lane, b.d0 + Math.sqrt((x - b.sx) ** 2 + (y - b.sy) ** 2) * b.ratio)));
+    const a = [2 * b.px, dAt(b.px, b.py), -2 * b.py], e = [2 * b.x, dAt(b.x, b.y), -2 * b.y];
+    const d = [e[0] - a[0], e[1] - a[1], e[2] - a[2]];
+    const len = Math.sqrt(d[0] ** 2 + d[1] ** 2 + d[2] ** 2);
+    if (len < 0.5) continue;
+    const f = d.map((v) => v / len);
+    let p1 = [f[1], -f[0], 0];
+    const l1 = Math.sqrt(p1[0] ** 2 + p1[1] ** 2);
+    p1 = l1 < 1e-3 ? [1, 0, 0] : p1.map((v) => v / l1);
+    const p2 = [f[1] * p1[2] - f[2] * p1[1], f[2] * p1[0] - f[0] * p1[2], f[0] * p1[1] - f[1] * p1[0]];
+    const w = 1.1, idx = b.bright ?? 0;
+    const rgb = idx && palette ? [palette[idx * 3] / 255, palette[idx * 3 + 1] / 255, palette[idx * 3 + 2] / 255] : [1, 0.85, 0.45];
+    out.push({ mesh: tracerMesh(rgb), basis: new Float32Array([d[0], d[1], d[2], p1[0] * w, p1[1] * w, p1[2] * w, p2[0] * w, p2[1] * w, p2[2] * w]), offset: a, bright: 2.4 });
+  }
+  scene.boxes = scene.boxes.filter((b) => b.shot?.kind !== 'bullet');
   for (const b of scene.boxes) {
     if (b.shot) b.depth = b.shot.d0 !== undefined ? depth.shotDepth(b.shot) : depth.pd;
     else if (b.e && depth.kind(b.e) === 'full') b.half = lane;

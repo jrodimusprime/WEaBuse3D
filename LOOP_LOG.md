@@ -150,3 +150,23 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - `?look=…&pose=STATE&frame=N` poses the reviewed object. Screenshots: hatch shut and half open, door shut
   and half open, lift, hatch in the level.
 - `npm test` 30/30 (new: the floor beside an open hatch holds, the opening lets the player drop; hatch parts closed).
+
+## 2026-11-05 · models batch 1, save terminals, faster bullets, the weapon in hand
+- Jared: "continue doing whatever you were doing" (next: models awaiting design); then "the save game
+  machines dont look right its like a huge wall thingo"; then "player bullet speeds dont feel right,
+  needs to be faster, also cant see player hands or the weapon theyre holding".
+- Designed from their sprites (contact sheets): heart, shell clip, grenades, rocket, generic crate,
+  power module, pointer (on the wall, pointing down-left as drawn), switch-ball target, spring jump pad,
+  exit pad, teleport beam, TP_DOOR pod (dome lifts as it opens), lava (red pool, crust, bubbles), block
+  walls (stones that shift and fall away with damage), and the save terminal: RESTART_POSITION is a
+  wall terminal (screen of green text that turns blue when used, scanner, keypad, lamp), now 'wall'
+  kind instead of a hall-wide slab. Exits, the beam and the pod are 'floor' kind (at a spot).
+- `spriteColours` gains `red` (the vivid pick had made the heart and lava yellow).
+- Bullets: a Jared rule, 2.5x faster with the same reach (`quicken` cuts the life to match sgun_ai's
+  6/5 acceleration). Drawn as glowing tracers oriented along their 3D path.
+- `client/viewmodel.js`: Quake-style view model, one design per weapon (MGUN, PGUN, GRENADE, ROCKET,
+  FIREBOMB, DFRIS, LSABER) in gloved hands with sleeves (DARNEL's colours), bob while running, kick and
+  muzzle flash on firing, drawn after a depth clear.
+- Screenshot gotcha: a reused Chrome profile served a stale mesh.js; screenshots now use a fresh
+  profile and `--disk-cache-size=1`.
+- Review options: `?weapon=NAME`, `?fire=1`.

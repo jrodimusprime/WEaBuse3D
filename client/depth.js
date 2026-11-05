@@ -5,9 +5,9 @@
 // object a third coordinate, depth (Quake Y, in units, 0 = the middle of the
 // hall), and decides when two things that meet in the plane also meet in 3D:
 //
-//   wall   on the back wall: switches, the switch ball, signs, turrets, ant cracks.
+//   wall   on the back wall: switches, the switch ball, signs, save terminals, turrets, ant cracks.
 //          Reached by walking up to the wall.
-//   floor  on the floor at a spot, as deep as they are wide: teleporters, springs.
+//   floor  on the floor at a spot, as deep as they are wide: teleporters, springs, exits, pods, the beam.
 //   item   at a spot: health, ammo, power-ups.
 //   enemy  moves across the hall toward the player: flyers, ants.
 //   fx     an effect or anything spawned, at the depth of whatever made it.
@@ -36,7 +36,10 @@
 // recorded input decide.
 import { behaviors } from '../sim/web/src/behaviors.js';
 
-const KIND_BY_TYPE = { SWITCH_BALL: 'wall', POINTER: 'wall' };
+const KIND_BY_TYPE = {
+  SWITCH_BALL: 'wall', POINTER: 'wall', RESTART_POSITION: 'wall', // on the back wall: a target, a sign, a save terminal
+  NEXT_LEVEL: 'floor', NEXT_LEVEL_TOP: 'floor', TELE_BEAM: 'floor', TP_DOOR: 'floor', // at a spot: exits, the beam, the pod
+};
 const KIND_BY_AI = {
   flyer_ai: 'enemy', ant_ai: 'enemy',
   sdoor_ai: 'door', platform_ai: 'lift', strap_door_ai: 'hatch',
@@ -55,6 +58,19 @@ const FITTED = new Set(['door', 'lift', 'hatch']); // things their own size, in 
 const HALF_W = 6, BODY_H = 29; // the player's box in the plane (game.js)
 const SPEED = 270; // the player across the hall, units a second (Abuse's run: 9 px a tick = 270 units/s)
 const ACCEL = 2400;
+
+// Jared rule (README): in first person the player's bullets fly BULLET_SPEEDUP times faster, with the
+// same reach. weapons.js sgun_ai: each tick the speed grows to trunc(speed * 6 / 5) and the bullet moves
+// that far, until its life runs out; the life is cut to the fewest ticks that cover the old reach.
+export const BULLET_SPEEDUP = 2.5;
+function reach(speed, ticks) { let d = 0; for (let i = 0; i < ticks; i++) { speed = Math.trunc((speed * 6) / 5); d += speed; } return d; }
+function quicken(b) {
+  const want = reach(b.speed, b.life);
+  b.speed = Math.round(b.speed * BULLET_SPEEDUP);
+  let n = 1;
+  while (n < b.life && reach(b.speed, n) < want) n++;
+  b.life = n;
+}
 
 // a stable spread in [-1, 1) from two integers
 function spread(a, b) {
@@ -149,7 +165,11 @@ export class Depth {
       if (b.d0 !== undefined) continue;
       b.sx = b.x; b.sy = b.y;
       // the player's shot follows the line of sight, which starts at the eye, not at the muzzle
-      if (shooter === 'player') { b.sx = p.x; b.sy = p.y - EYE; b.d0 = this.pd; b.ratio = this.shotRatio; continue; }
+      if (shooter === 'player') {
+        b.sx = p.x; b.sy = p.y - EYE; b.d0 = this.pd; b.ratio = this.shotRatio;
+        if (b.kind === 'bullet') quicken(b);
+        continue;
+      }
       const d0 = shooter ? this.depthOf(shooter) : null;
       b.d0 = d0 === null ? this.pd : d0;
       const dx = p.x - b.x, dy = p.y - 15 - b.y;
