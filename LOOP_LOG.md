@@ -374,3 +374,13 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   shows: most on levels 2, 4, 9, 11, 16. Screenshots: level 2's sky and sun behind its window frames, level 4's
   and 16's city skylines, level 14's grilles, level 1's frames (the background shifts behind them between two
   spots). docs/windows.png. 67/67 tests.
+
+## Gaps in the skyline (2026-11-06)
+- Jared: "there are gaps in the skyline" (level 1, near the back wall, looking along the hall).
+- Cause: on the city levels (1, 12, 16) Abuse paints the background map only where its camera can reach (level
+  1: half of that area is art, everything outside it black). A window seen at a slant or from close to looked
+  further along the backdrop plane, into the black.
+- Fix: each point of a window is held to what the 2D game shows behind it from some camera that has it on
+  screen (px = cam * rate + p - cam, cam clamped to the level). Front-on views are unchanged; the 3D depth stays
+  wherever it fits. Checked against a 2D render of the same spot: level 1's lower panes now show the city
+  instead of black. Levels 2, 4 and 16 unchanged front-on, no black at a slant. 67/67 tests.

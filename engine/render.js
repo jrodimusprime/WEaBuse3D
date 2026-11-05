@@ -87,6 +87,7 @@ uniform highp usampler2D bgMap; uniform sampler2D bgAtlas;
 uniform vec4 bgInfo; // map width, height (tiles), tile width, height (pixels)
 uniform vec4 bgRate; // x rate, y rate, the lane's half depth, atlas columns
 uniform vec2 bgShift; // where the 2D view's camera puts the background: (view / 2) * (1 - rate)
+uniform vec2 bgView; uniform vec2 bgWorld; // the 2D view's size, and the foreground's (how far its camera goes), in pixels
 ${ABUSE_LIGHT}
 // What the background shows through point P of a lane wall. Abuse draws it at camera * rate: in 3D that is a
 // plane behind the wall at lane / rate (x and y each their own), seen along the ray from the eye. From the middle
@@ -96,6 +97,12 @@ vec3 backdrop(vec3 P) {
   float tx = (wall / bgRate.x - eyePos.y) / dy, ty = (wall / bgRate.y - eyePos.y) / dy;
   vec2 q = vec2(eyePos.x + (P.x - eyePos.x) * tx, eyePos.z + (P.z - eyePos.z) * ty);
   vec2 px = vec2(q.x * 0.5 * bgRate.x, -q.y * 0.5 * bgRate.y) + bgShift;
+  // Abuse paints only what its camera can show behind each window (on the city levels the rest of the map is
+  // black). A window seen at a slant, or from close to, would look further, so it is held to what the 2D game
+  // shows there from any camera that has it on screen: px = cam * rate + (p - cam), for cam from lo to hi.
+  vec2 p = vec2(P.x, -P.z) * 0.5;
+  vec2 lo = max(vec2(0.0), p - bgView), hi = max(lo, min(p, bgWorld - bgView));
+  px = clamp(px, hi * bgRate.xy + p - hi, lo * bgRate.xy + p - lo);
   vec2 tile = bgInfo.zw;
   ivec2 cell = ivec2(mod(floor(px / tile), bgInfo.xy)); // the map repeats, as Abuse's does
   int slot = int(texelFetch(bgMap, cell, 0).r), cols = int(bgRate.w);
@@ -220,7 +227,7 @@ export function paletteLut(pal) {
 export class Renderer {
   constructor(gl) {
     this.gl = gl;
-    this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient', 'win', 'bgFace', 'bgOn', 'bgMap', 'bgAtlas', 'bgInfo', 'bgRate', 'bgShift']);
+    this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient', 'win', 'bgFace', 'bgOn', 'bgMap', 'bgAtlas', 'bgInfo', 'bgRate', 'bgShift', 'bgView', 'bgWorld']);
     const atmo = ['dynPos', 'dynCol', 'nDyn', 'eyePos', 'haze'];
     this.world.u = { ...this.world.u, ...uniforms(gl, this.world.prog, atmo) };
     this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient', 'glow', 'glowAmt', 'skin', 'skin2', 'skin3', 'skinKind', 'skinAmt', 'skinScale', ...atmo]);
@@ -425,7 +432,8 @@ export class Renderer {
   }
 
   // The level's background (Abuse's parallax layer), seen through the windows of the lane walls:
-  // { w, h, map (tile numbers, w x h), tile (n -> {w, h, pix} in the palette), rate: {xmul, xdiv, ymul, ydiv}, view: [w, h] }
+  // { w, h, map (tile numbers, w x h), tile (n -> {w, h, pix} in the palette), rate: {xmul, xdiv, ymul, ydiv}, view: [w, h],
+  //   world: the foreground's size in pixels [w, h] (how far the 2D camera goes) }
   setBackdrop(bg) {
     if (this.backdrop) { this.gl.deleteTexture(this.backdrop.map); this.gl.deleteTexture(this.backdrop.atlas); }
     this.backdrop = bg && bg.w && bg.h ? this.makeBackdrop(bg) : null;
@@ -452,6 +460,7 @@ export class Renderer {
     return {
       map, atlas: atl, info: [bg.w, bg.h, tw, th], rate: [Math.max(0.05, rx), Math.max(0.05, ry), this.lane, cols],
       shift: [(bg.view[0] / 2) * (1 - rx), (bg.view[1] / 2) * (1 - ry)],
+      view: bg.view, world: bg.world || [1e6, 1e6],
     };
   }
 
@@ -569,7 +578,7 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, bd.map);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, bd.atlas);
     gl.activeTexture(gl.TEXTURE0);
-    gl.uniform4fv(this.world.u.bgInfo, bd.info); gl.uniform4fv(this.world.u.bgRate, bd.rate); gl.uniform2fv(this.world.u.bgShift, bd.shift);
+    gl.uniform4fv(this.world.u.bgInfo, bd.info); gl.uniform4fv(this.world.u.bgRate, bd.rate); gl.uniform2fv(this.world.u.bgShift, bd.shift); gl.uniform2fv(this.world.u.bgView, bd.view); gl.uniform2fv(this.world.u.bgWorld, bd.world);
     gl.bindVertexArray(this.worldVao);
     for (const g of world ? this.groups : []) {
       if ((g.kind === 'front' && !front) || (g.kind === 'caps' && !caps)) continue;

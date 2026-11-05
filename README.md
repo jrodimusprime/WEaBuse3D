@@ -335,7 +335,10 @@ In 3D the lane walls are windows wherever Abuse would show the background: cells
 see-through pixels of foreground tiles. Through them the renderer shows the background on a plane behind the
 wall at lane / rate (across and up each at their own rate), seen along the ray from the eye: from the middle of
 the hall that is exactly the 2D parallax, and walking past a window the skyline slides by slower than the wall,
-as it does in Abuse (`engine/render.js` `backdrop`, `setBackdrop`; docs/windows.png).
+as it does in Abuse. Abuse paints only what its camera can show behind each window (on the city levels, 1, 12
+and 16, the rest of the map is black), so a window seen at a slant or from close to is held to what the 2D game
+shows behind it from any camera that has it on screen; without that, the far panes showed gaps of black
+(`engine/render.js` `backdrop`, `setBackdrop`; docs/windows.png).
 
 **Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a
 doorway, shaft or hole its own size, and *frame* walls close the rest of the hall. The depth layer
