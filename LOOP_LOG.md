@@ -384,3 +384,18 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   screen (px = cam * rate + p - cam, cam clamped to the level). Front-on views are unchanged; the 3D depth stays
   wherever it fits. Checked against a 2D render of the same spot: level 1's lower panes now show the city
   instead of black. Levels 2, 4 and 16 unchanged front-on, no black at a slant. 67/67 tests.
+
+## The city outside is far away (2026-11-06)
+- Jared: "the images in the window appear too near at least when i tested level 002 ... takes away from the
+  atmosphere".
+- Cause: level 2 scrolls its background at 5/8 across and 1:1 up and down, so the plane sat 96 units behind
+  the glass, and fixed to the wall vertically; it was also lit by the hall's lamp pools and gunfire.
+- Its art is small patches shaped to the windows, so one far plane for the level would look into black. New
+  client/backdrop.js groups the see-through cells that show art into windows (within 3 cells, so panes either
+  side of a pillar share one view), with each window's anchor (what Abuse shows at its centre), the box of art
+  behind it (grown to where the art ends) and its extent. The shader puts each window's picture on a plane at
+  max(10, 1/rate) lane depths, mirrors sideways and draws the top and bottom rows on, keeps the eye within
+  half a screen of the window and no closer than half the lane. Lit by Abuse's lamps only, hazed.
+- Screenshots: level 2 from 60 px apart: the wall moves ~170 px on screen, the tower behind ~20. Levels 1 and
+  16 still show their cities. tests/backdrop.test.mjs (anchors on art and in their box; the pillar case).
+  71/71 tests.

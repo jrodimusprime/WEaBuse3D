@@ -25,6 +25,7 @@
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
 //                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
+import { windowCells } from './backdrop.js';
 import { loadBSP } from '../engine/bsp.js';
 import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
@@ -91,7 +92,11 @@ g.nextLevel = (n) => { finished = n; g.transitioning = true; if (!watch) { passe
 g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
 await g.start(levelFile(level));
 // the level's background, seen out of the windows (Abuse's parallax layer, at its own scroll rate)
-renderer.setBackdrop({ w: g.level.bgW, h: g.level.bgH, map: g.level.bgmap, tile: (n) => g.assets.backTile(n), rate: g.level.bgRate, view: [320, 200], world: [g.level.fgW * g.tw, g.level.fgH * g.th] });
+{
+  const lv = g.level, back = { size: [g.bw, g.bh], tile: (n) => g.assets.backTile(n) };
+  const cells = windowCells({ ...lv, rate: lv.bgRate, tile: [g.tw, g.th], back, fore: (n) => g.assets.foreTile(n), palette: g.assets.palette });
+  renderer.setBackdrop({ w: lv.bgW, h: lv.bgH, map: lv.bgmap, tile: back.tile, rate: lv.bgRate, view: [320, 200], cells });
+}
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));
 const LANE = Number(world.entities[0]._abuse_lane || 160);
