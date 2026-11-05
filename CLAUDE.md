@@ -28,3 +28,25 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
 5. Run `npm test`. For visual changes, also take a screenshot and look at it.
 6. If green, commit, tick the task, and append to LOOP_LOG.md. If still red after 3 attempts, revert, record the task under Blocked with the output, and move on.
 7. Stop when the milestone exit criteria pass. A human signs off each gate.
+
+## 3D conversion rules (binding for every object brought into 3D)
+1. **Design every model; never just extrude a sprite.** Read the sprite's frames first (render them, look at
+   them) and work out what the thing *is*: its parts, materials, colours and how it moves. Then build a real
+   3D model from primitives (boxes, cylinders, spheres, tori, lathes) in the sprite's own palette colours,
+   with the detail a Quake-era model would have. Take inspiration from what the 2D art implies (a sprite
+   that narrows over its frames is turning; a door whose middle lifts is a panel sliding up).
+2. **Animate from the simulation's state.** The model's pose comes from the object's state, frame and
+   aistate (a door's openness from running/blocking/walking, a lift's lamp from running), plus presentation
+   time (spin, bob, glow). The model never changes the simulation.
+3. **Keep things their own size.** A door is door-sized and stands in a doorway; a lift is lift-sized and
+   runs in a shaft. Whatever the object does not cover across the hall is closed by *frame* geometry (walls
+   beside a doorway, walls around a shaft), and the depth layer enforces it: the player passes only through
+   the opening, and shots stop at the frame. Never stretch an object across the whole hall to make a puzzle
+   work.
+4. **Place things where they would be in a 3D level:** buttons on walls, pads on floors, items on the ground
+   where you can walk over them, enemies free to move across the hall.
+5. **Move like a 3D shooter.** On a ladder, walking forward while looking up climbs and looking down
+   descends. Use is "walk up to it and press E".
+6. **The voxel extrusion is a placeholder only.** Every object still drawn by it is listed in BACKLOG.md
+   under "Models awaiting design" until it has a designed model.
+7. Check every new model with screenshots from several angles and in motion before ticking it off.

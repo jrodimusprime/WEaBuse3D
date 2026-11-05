@@ -284,17 +284,24 @@ pinned tool versions.
 
 ## Turning sprites into 3D
 
-1. **Sprites first (M7).** Each Abuse animation frame becomes a Quake sprite frame,
-   oriented in the lane plane in Classic mode and facing the camera in the others.
-   Abuse's per-frame x/y offsets carry over, so sprites sit where the 2D game draws them.
-2. **Voxel models (M9).** Each sprite frame is extruded into voxels. Every opaque pixel
-   becomes a column whose depth comes from a simple rule (a fixed thickness, rounded toward
-   the edges by distance to the silhouette). The voxels are greedy-meshed into an alias
-   model frame with palette-index skins. Animations keep Abuse's frame sequences and timings.
-   The tool is `content/spr2mdl.mjs`, and it is reproducible.
+**Rule: every model is designed, not extruded** (CLAUDE.md, "3D conversion rules"). The first pass
+(M1) extruded each sprite into voxels, and the result looked like pancake versions of the art. Now
+every object gets a real 3D model, built from primitives (boxes, cylinders, spheres, tori and lathes)
+in the sprite's own colours, designed from what the 2D frames imply, and posed from the simulation's
+state:
 
-The model only changes how an object looks. Collision is always the simulation's
-boundary polygons.
+| Object | 2D art | 3D design |
+| --- | --- | --- |
+| WHO drone | a flat hovercraft side-on; narrower frames are it turning | a hull with a canopy and two glowing thruster rings that turns, banks and bobs |
+| Doors (`sdoor_ai`) | a panel in a frame whose middle lifts | a door-sized panel in a doorway, sliding up as it opens (running/blocking/walking) |
+| Lift (`platform_ai`) | a deck with sloped sides and a lamp | a lift-sized deck with bevelled sides and a lamp that lights while it runs, in a shaft |
+| Switch | a box with green and red lights | a panel on the back wall with two lamps |
+| Teleporter (`tp2_ai`) | a round pad seen at an angle | a round pad with a rim that glows while it teleports |
+
+**Rule: things keep their own size.** Doors and lifts no longer span the hall. Each stands in a
+doorway or shaft its own size, and *frame* walls close the rest of the hall. The depth layer
+enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet
+designed still use the voxel extrusion as a placeholder, listed in BACKLOG.md.
 
 ---
 
