@@ -1,3 +1,4 @@
 [submodule "sim"]
 	path = sim
 	url = https://github.com/jrodimusprime/weAbUSE.git
+	branch = depth-hooks

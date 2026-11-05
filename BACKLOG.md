@@ -4,7 +4,7 @@ The loop takes the first unchecked task of the current milestone. See README.md 
 
 ## M2: Depth mode, 3D gameplay (current)
 
-- [ ] T1 WEaBuse hooks: `g.apart?.(shot, target)` in weapons.js hitAt and game.js explode (blast source set by detonate); WEaBuse regress passes; submodule on branch `depth-hooks`.
+- [x] T1 WEaBuse hooks: `g.apart?.(shot, target)` in weapons.js hitAt and game.js explode (blast source set by detonate); WEaBuse regress passes; submodule on branch `depth-hooks`.
 - [ ] T2 LANE 160: rebuild levels 0 and 1; tests follow LANE.
 - [ ] T3 `client/depth.js`: kinds and depths of objects, player depth movement, enemy steering, shot depths, `apart`, `touchesPlayer` / `hurtPlayer` / behaviour / `updatePlayer` / `tick` wrappers. Node tests.
 - [ ] T4 Scene and renderer: models placed in depth (wall, floor, item spin, full-hall stretch), shots at their depth.
