@@ -13,7 +13,7 @@ import * as B from './bsp2d.mjs';
 import { lightRange } from '../sim/web/src/lighting.js';
 
 export const SCALE = 2;
-export const LANE = 64; // half the lane's depth, in Quake units
+export const LANE = 160; // half the lane's depth, in Quake units (M2: wide enough to move across)
 
 // Quake's clipping hulls (gl_model.c Mod_LoadBrushModel / bspfile.h)
 export const HULLS = [

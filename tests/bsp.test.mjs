@@ -7,6 +7,7 @@ import { buildLevel } from '../content/build.mjs';
 import { simTileSolid } from '../content/level-input.mjs';
 import { loadBSP, CONTENTS_SOLID, CONTENTS_EMPTY } from '../engine/bsp.js';
 import { pointContents, boxInSolid } from '../engine/trace.js';
+import { LANE } from '../content/compile.mjs';
 
 const built = await buildLevel(0);
 const m = loadBSP(built.bytes);
@@ -61,7 +62,7 @@ test('the world is solid exactly where the simulation is', () => {
     for (let px = 0; px < input.width; px += 3) {
       const solid = simTileSolid(input, px, py);
       if (away.some(([dx, dy]) => simTileSolid(input, px + dx, py + dy) !== solid)) continue; // too close to an edge
-      for (const Y of [-60, 0, 60]) {
+      for (const Y of [1 - LANE, 0, LANE - 1]) {
         const c = pointContents(m, [2 * px + 1, Y, -2 * py - 1]);
         if ((c === CONTENTS_SOLID) !== solid) assert.fail(`pixel (${px}, ${py}) depth ${Y}: sim ${solid ? 'solid' : 'open'}, BSP ${c}`);
       }
@@ -72,8 +73,8 @@ test('the world is solid exactly where the simulation is', () => {
 });
 
 test('outside the lane and the level is solid', () => {
-  assert.equal(pointContents(m, [100, 70, -200]), CONTENTS_SOLID);
-  assert.equal(pointContents(m, [100, -70, -200]), CONTENTS_SOLID);
+  assert.equal(pointContents(m, [100, LANE + 6, -200]), CONTENTS_SOLID);
+  assert.equal(pointContents(m, [100, -LANE - 6, -200]), CONTENTS_SOLID);
   assert.equal(pointContents(m, [-100, 0, -200]), CONTENTS_SOLID);
   assert.equal(pointContents(m, [100, 0, 100]), CONTENTS_SOLID);
 });
@@ -94,6 +95,6 @@ test('brush model *1 holds the front caps, each over solid', () => {
     assert.ok(s.planeback, 'faces out of the lane (-Y)');
     const c = s.verts.reduce((a, v) => [a[0] + v[0] / s.verts.length, a[2] + v[2] / s.verts.length], [0, 0]);
     // a hair inside the lane behind the cap's centre is solid (corners of slope pieces can be thin, so use the centroid)
-    assert.equal(pointContents(m, [c[0], -63, c[1]]), CONTENTS_SOLID, `cap ${i} at ${c}`);
+    assert.equal(pointContents(m, [c[0], 1 - LANE, c[1]]), CONTENTS_SOLID, `cap ${i} at ${c}`);
   }
 });
