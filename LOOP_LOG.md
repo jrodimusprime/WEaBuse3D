@@ -248,3 +248,7 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Fixes on the way: spriteColours on an empty frame; one ant kit per tint, not per frame; turret colours
   pulled to the sprite's grey-green (the body lift had made them tan).
 - Tests: every ant state builds a whole, finite, closed model; turret and crack in every state. 58/58.
+
+## 2026-11-05 · sound on/off button
+- Jared: "can you add a button to turn off audio". A "Sound: on/off" button in the bottom panel uses WEaBuse's
+  Audio.setUserMuted (it also cuts sounds already playing); the choice is kept in localStorage (`weabuse3d.muted`).

@@ -233,6 +233,18 @@ function watchStep() {
 }
 
 const stop = (e) => e.currentTarget.blur(); // (or Space, the jump, would press the button again)
+// sound on or off (WEaBuse's Audio.setUserMuted also silences what is already playing); remembered in this browser
+const muteBtn = document.getElementById('mute');
+const MUTE_KEY = 'weabuse3d.muted';
+const setMuted = (on) => {
+  g.audio.setUserMuted(on);
+  muteBtn.textContent = on ? 'Sound: off' : 'Sound: on';
+  try { localStorage.setItem(MUTE_KEY, on ? '1' : '0'); } catch { /* private mode */ }
+};
+let startMuted = false;
+try { startMuted = localStorage.getItem(MUTE_KEY) === '1'; } catch { /* private mode */ }
+setMuted(startMuted);
+muteBtn.addEventListener('click', (e) => { stop(e); setMuted(!g.audio.userMuted); });
 document.getElementById('watch').addEventListener('click', (e) => { stop(e); finished = null; setMsg(''); startWatch(); });
 document.getElementById('restart').addEventListener('click', async (e) => {
   stop(e);
