@@ -53,7 +53,7 @@ simulation and does not write the game logic again.
 The gameplay stays on the **lane**, the plane where the 2D game happened. Everything
 around it becomes real geometry: walls with thickness, a back wall, baked light and shadow,
 and cameras that can go anywhere, including first person. A second, later mode
-([M8](#m8-depth-mode-stretch)) lets the player leave the lane.
+([M9](#m9-depth-mode-stretch)) lets the player leave the lane.
 
 ---
 
@@ -87,7 +87,6 @@ Every gameplay change cites the Abuse source (`cop.cpp player_move`), as in WEaB
 | Abuse SDL port `src/sdlport/*` | GPLv2+ | Compatible (we do not need it). |
 | Abuse data `data/*` (art, levels, Lisp) | Public domain | Free to use, convert, redistribute. |
 | Abuse `data/sfx/*`, `data/music/*` (Bobby Prince) | Redistribution permission granted to Debian | **Open question.** WEaBuse already ships them. Check before shipping, and keep them replaceable. |
-| ericw-tools (`qbsp`, `vis`, `light`) | GPLv2+ | Build-time only. Never shipped to the browser. |
 | **Quake game data** (`pak0.pak`, `pak1.pak`, id's models, textures, sounds, maps) | **Proprietary** | **Never used, never committed, never downloaded by any script.** CI fails if a `.pak` file or a known id asset hash appears anywhere in the tree. |
 
 We use Quake's engine and none of its content or look. The game should look and sound like
@@ -124,7 +123,7 @@ modules on **WebGL2**, with **no build step** (the same rule as WEaBuse).
 | Particles | `r_part.c` | Sparks, smoke, blood |
 | Sound spatialisation | `snd_dma.c` (`S_Spatialize`) on Web Audio | 3D positioned Abuse sounds |
 | Console, cvars, commands | `console.c`, `cvar.c`, `cmd.c` | Debugging, cheats, camera modes, test hooks |
-| Point-contents / hull traces | `world.c`, `sv_move.c` | Only in [depth mode](#m8-depth-mode-stretch), ported to fixed point |
+| Point-contents / hull traces | `world.c`, `sv_move.c` | Only in [depth mode](#m9-depth-mode-stretch), ported to fixed point |
 
 **What we do not port:** networking, the QuakeC VM (`pr_*.c`), the software renderer,
 `Host_Frame`'s variable timestep, and anything that reads pak files.
@@ -152,7 +151,7 @@ movement, enemies and weapons are exactly WEaBuse's, against the same tile grid.
 world is real but has **no say in the rules**. This keeps every level playable as designed,
 keeps every existing winning run valid, and makes the 2D game a perfect oracle.
 
-**Depth mode (stretch, [M8](#m8-depth-mode-stretch)).** The lane is several tiles deep.
+**Depth mode (stretch, [M9](#m9-depth-mode-stretch)).** The lane is several tiles deep.
 The player and enemies move in X and Y, collide with the BSP through ported Quake hull
 traces, and the levels are searched again for winning runs. It is a different game, and it
 only starts once lane mode is finished.
@@ -187,8 +186,8 @@ person is turned into that angle, so the recorded input does not depend on the c
           │          particles + Web Audio spatialisation + console   (WebGL2)    │
           └──────────────────────────────────────────────────────────────────────┘
 
- offline content build (Node + ericw-tools, reproducible):
-   Abuse .spe level ──spe2map──▶ .map ──qbsp/vis/light──▶ .bsp
+ offline content build (Node, our own compiler, reproducible):
+   Abuse .spe level ──2D BSP of tile outlines, extruded──▶ BSP2 (+ clip hulls, lightmaps)
    Abuse .spe art   ──tiles/sprites──▶ textures, .spr, voxel .mdl
 ```
 
@@ -202,7 +201,7 @@ WEaBuse3D/
   sim/              git submodule → WEaBuse (the simulation; no DOM, no GL)
   engine/           Quake-derived renderer, models, particles, sound, console (ES modules)
   client/           cameras, interpolation, input → tick input, HUD, menus
-  content/          offline compilers: spe2map, tile textures, sprites → spr/mdl, lights
+  content/          offline compilers: level → BSP2, tile textures, sprites → spr/mdl, lights
   web/              index.html (import map, no build step) + compiled content
   tools/            headless runner, regress, search (from WEaBuse), loop driver, screenshots
   tests/            unit, determinism, oracle, golden images, fuzz
@@ -213,23 +212,31 @@ WEaBuse3D/
 
 ## Turning 2D maps into 3D
 
-The content compiler `content/spe2map.mjs` reads a level with WEaBuse's own parser
-(`level.js`: foreground map, background map, objects, lights, ambient areas) and writes a
-standard Quake `.map` file. ericw-tools compile it to **BSP2**. BSP2 is needed because Abuse
-levels outgrow BSP29's index limits. Any `.map` also opens in TrenchBroom, for inspecting
-or hand-tweaking a level.
+The content compiler `content/` reads a level with WEaBuse's own parser (`level.js`:
+foreground map, background map, objects, lights, ambient areas) and compiles it to a
+standard Quake **BSP2** file with **our own JavaScript BSP compiler**. BSP2 is used because
+Abuse levels outgrow BSP29's index limits.
 
-**Coordinates.** Abuse pixel `(x, y)`, y down, becomes Quake `(X = x, Z = −y)`, with depth
-along `Y`. Start at **1 pixel = 1 Quake unit**. That should make the cop roughly Quake-player
-sized, which M3 confirms. Tile sizes are read from the art, as the original does
-(`loader2.cpp`: `f_wid`/`f_hi` from the first tile).
+*Why not ericw-tools?* It was the first plan, but running downloaded native binaries is
+not allowed in the AI loop's sandbox. An Abuse level is also an easy case for a compiler:
+every shape is a convex tile outline pushed out along the depth axis, so a **2D BSP**
+of the outlines, extruded, is the whole 3D BSP. The compiler stays in JavaScript,
+deterministic and byte-for-byte reproducible, with no native dependency. Writing a `.map`
+for TrenchBroom remains a nice-to-have.
+
+**Coordinates.** Abuse pixel `(x, y)`, y down, becomes Quake `(X = 2x, Z = −2y)`, with depth
+along `Y`. The scale is **1 pixel = 2 Quake units**. The cop is 29 px tall and 12 px wide
+(WEaBuse `BODY_H`, `HALF_W`), so at that scale it is 58 × 24 units, close to Quake's 56 × 32
+player hull. Quake's standard hulls, gravity, speeds and jump then fit without retuning.
+A 30 × 15 px foreground tile becomes 60 × 30 units. Tile sizes are read from the art, as the
+original does (`loader2.cpp`: `f_wid`/`f_hi` from the first tile).
 
 | Abuse | Quake world | Detail |
 | --- | --- | --- |
 | Solid foreground tile | Brush slab spanning `Y ∈ [−W, +W]` | Tile art on the front face. Side and top faces use a texture derived from the tile's edge pixels. |
 | Sloped tile (boundary polygon) | Extruded convex brushes from the tile's boundary outline | The same outline the simulation collides with, so the visible and solid shapes match. |
 | Non-solid foreground tile (decor) | Thin detail brush or decal near the back of the lane | `func_detail`, kept out of the BSP structure. |
-| Background map | Back wall at `Y = +W`, textured with background tiles | Parallax becomes real depth. Option to push it back by the level's parallax rate (decided in M3 by screenshots). |
+| Background map | Back wall at `Y = +W`, textured with background tiles | Parallax becomes real depth. Option to push it back by the level's parallax rate (decided in M4 by screenshots). |
 | Near side | Open in Classic/Chase, a generated darkened wall in First person | A cvar picks which. Front-wall brushes go in their own brush model so they can be hidden. |
 | Light sources | `light` entities (radius → `light`/`wait`) | Baked, so the 3D geometry casts real shadows. |
 | Dimmer switches, lights toggled by switches | Switchable lightstyles (`style` 32+) | Driven from simulation state each frame. |
@@ -253,10 +260,10 @@ pinned tool versions.
 
 ## Turning sprites into 3D
 
-1. **Sprites first (M4).** Each Abuse animation frame becomes a Quake sprite frame,
+1. **Sprites first (M5).** Each Abuse animation frame becomes a Quake sprite frame,
    oriented in the lane plane in Classic mode and facing the camera in the others.
    Abuse's per-frame x/y offsets carry over, so sprites sit where the 2D game draws them.
-2. **Voxel models (M6).** Each sprite frame is extruded into voxels. Every opaque pixel
+2. **Voxel models (M7).** Each sprite frame is extruded into voxels. Every opaque pixel
    becomes a column whose depth comes from a simple rule (a fixed thickness, rounded toward
    the edges by distance to the silhouette). The voxels are greedy-meshed into an alias
    model frame with palette-index skins. Animations keep Abuse's frame sequences and timings.
@@ -285,7 +292,7 @@ Rules for everything under `sim/`, enforced by lint and tests:
    bit. Use **integer lookup tables**, as Abuse itself does (`lisp/trig.cpp`: `sin_table[360]`,
    `atan_table[1662]`, used by `lisp_sin` and `lisp_atan2`). `Math.sqrt`, `+ − × ÷` on doubles and `Math.imul` are exactly specified
    and allowed. Today WEaBuse's `behaviors.js`, `weapons.js` and `game.js` call
-   `Math.atan2`, `sin` and `cos` about 20 times, so replacing them is the first task (M1).
+   `Math.atan2`, `sin` and `cos` about 20 times, so replacing them is the first task (M2).
 4. **One random source.** Only the seeded PRNG inside the simulation state (WEaBuse's
    `g.rand`, the original's LCG). No `Math.random`, `Date.now`, `performance.now`, or
    iteration over anything with unstable order. Effects in the presentation layer get their
@@ -336,7 +343,7 @@ a human at each milestone gate. There are three loops: one **builds**, one **pla
 
 ### Loop 1: the build loop (agents writing code)
 
-A driver, `tools/agent-loop.sh` (written in M0), runs Claude Code headless (`claude -p`)
+A driver, `tools/agent-loop.sh` (written in M1), runs Claude Code headless (`claude -p`)
 in iterations, or an interactive session uses `/loop`. Each iteration does the following:
 
 1. **Orient.** Read `CLAUDE.md`, this README's current milestone, the last entries of
@@ -403,14 +410,28 @@ most promising, and it found winning runs for all 22 levels.
 Each milestone has **exit criteria**, which are tests, not opinions. The loop does not
 start the next milestone until they pass and a human has signed off.
 
-### M0: Skeleton
+### M0: First walk
+Level 0 compiled into a Quake BSP, and you can walk around in it in the browser.
+- `content/`: level 0 read with WEaBuse's own parser, tile shapes extruded, compiled by our
+  JavaScript BSP compiler into **BSP2** with textures (Abuse tiles, Abuse palette), clip hulls
+  and baked lightmaps (Abuse's light formula).
+- `engine/`: BSP2 loader, `SV_RecursiveHullCheck` and the player walk physics ported from
+  Quake, deterministic angle tables, and a WebGL2 world renderer.
+- `client/`: first-person walking (pointer-lock mouse look, WASD, jump) on a fixed 15 Hz tick,
+  with interpolated drawing.
+- **Exit:** the build is byte-for-byte reproducible. The compiled world is solid exactly where
+  the simulation's tiles are solid. A scripted walk never enters a wall and gives the same hash
+  twice in Node and in Chrome. Screenshots of level 0 have been checked. A human walks around
+  level 0.
+
+### M1: Skeleton
 - Repo, `CLAUDE.md`, `BACKLOG.md`, `LOOP_LOG.md`, `tools/agent-loop.sh`, pre-commit hooks
   (lint, licence scan, fast tests), CI (GitHub Actions).
 - `ref/` fetch script for abuse-0.8, id's Quake GPL source and WebQuake (git-ignored).
-- WEaBuse added as the `sim/` submodule. Headless runner works from this repo.
+- WEaBuse added as the `sim/` submodule (done in M0). Headless runner works from this repo.
 - **Exit:** `npm test` runs WEaBuse's 22-level regression from this repo and passes.
 
-### M1: Determinism hardening (work done in WEaBuse, which benefits too)
+### M2: Determinism hardening (work done in WEaBuse, which benefits too)
 - Split the simulation from presentation in WEaBuse.
 - Replace `Math.atan2`, `sin` and `cos` in the simulation with integer tables ported from Abuse.
 - `stateHash()`, the canonical tick-input format, and conversion of the existing runs to it.
@@ -418,40 +439,40 @@ start the next milestone until they pass and a human has signed off.
 - Re-search any levels whose runs drift (expected, since angles move by up to a degree).
 - **Exit:** layers 2, 3, 5 and **6 (cross-browser)** pass on all 22 levels.
 
-### M2: Engine core
+### M3: Engine core
 - WebGL2 context, console, cvars, commands, and the main loop (fixed 15 Hz tick, display-rate frames).
 - BSP2 loader, PVS, frustum culling, surfaces, lightmap atlas, lightstyles, the palette and
   colormap shader, and a free-fly camera.
 - Tested on a **home-made test map** (our own brushes and textures, nothing from id).
 - **Exit:** unit tests for the loaders; golden images of the test map; 60 fps on the reference laptop.
 
-### M3: Map compiler
-- `spe2map`, tile textures (palette-index), slopes from boundary polygons, back wall, lights
-  and lightstyles, brush models for doors and lifts, ericw-tools pinned and scripted.
+### M4: Map compiler
+- The level compiler for all levels: tile textures (palette-index), slopes from boundary polygons, back wall, lights
+  and lightstyles, brush models for doors and lifts, all 22 levels.
 - **Exit:** layer 8 passes on all 22 levels. You can free-fly every level in the browser.
 
-### M4: Lane mode is a game
+### M5: Lane mode is a game
 - The simulation drives the world. Objects drawn as sprites. Classic camera. Input.
   Statbar HUD. Doors and lifts follow the simulation. Switchable lights work.
 - **Exit:** layers 1–7 and 9 pass. **The Demo button plays all 22 levels in 3D.**
   A human finishes level 0 by hand.
 
-### M5: Cameras
+### M6: Cameras
 - Chase (default) and First person, with the aim angle mapped from mouse look and
   turn-around. Camera collision against the BSP (presentation only). Near-wall handling per camera.
 - **Exit:** golden images per camera. Runs recorded in each camera replay the same
   in the others and in 2D WEaBuse.
 
-### M6: Looks
+### M7: Looks
 - Voxel models from sprites, dynamic lights, particles, and Abuse's effects in 3D.
 - **Exit:** golden images updated on purpose. Performance budget met on all levels.
 
-### M7: Sound, music, menus, mobile, deploy
+### M8: Sound, music, menus, mobile, deploy
 - `S_Spatialize`-style 3D audio on Web Audio, music (if the licence question is settled),
   title and menus, touch controls, GitHub Pages.
 - **Exit:** a human plays through. CI deploys on green.
 
-### M8: Depth mode (stretch)
+### M9: Depth mode (stretch)
 - Lane depth per level, simulation movement in X and Y with 16.16 fixed-point Quake hull
   traces, 3D enemy steering, and the search re-solving each level.
 - **Exit:** the search wins every level in depth mode, and layers 2–7 pass for depth mode.
@@ -462,16 +483,16 @@ start the next milestone until they pass and a human has signed off.
 
 | Risk | Mitigation |
 | --- | --- |
-| Removing `Math.atan2` and the rest changes aim by up to 1°, so recorded runs drift | Expected. Re-search drifted levels (M1). It is a one-time cost. |
-| ericw-tools is a native dependency | Pin a version, run it in CI and in a script. Fallback: our own grid-to-BSP compiler. Abuse levels are axis-aligned grids, which is the easiest case. |
-| Levels too big for BSP limits | BSP2. Split very large levels into brush groups. Measure in M3. |
+| Removing `Math.atan2` and the rest changes aim by up to 1°, so recorded runs drift | Expected. Re-search drifted levels (M2). It is a one-time cost. |
+| Our own BSP compiler has bugs a mature one would not | Tests check every level: structure, reproducibility, and that it is solid exactly where the simulation is. |
+| Levels too big for BSP limits | BSP2. Split very large levels into brush groups. Measure in M4. |
 | Some sprite-art scenes look wrong extruded (for example signs or decor meant to be seen flat) | Per-tile and per-sprite overrides table in `content/overrides.json`, reviewed visually. |
 | First person hides threats behind the player | Chase is the default. First person gets a rear-view strip or radar if playtests ask for it. |
 | Safari WebGL2 or Web Audio quirks | Layer 6 runs WebKit, and layer 9 runs on SwiftShader. Check real Safari at each gate. |
-| Bobby Prince sfx/music licence | Confirm before M7. Keep audio swappable. |
+| Bobby Prince sfx/music licence | Confirm before M8. Keep audio swappable. |
 | The simulation submodule and WEaBuse drift apart | Pin the commit. Bumping it is a task that must pass all layers. |
 
-**Open questions for the human** (to answer at the M0 gate):
+**Open questions for the human** (to answer at the M1 gate):
 - ~~Repo name and hosting~~: settled, public at
   [github.com/jrodimusprime/WEaBuse3D](https://github.com/jrodimusprime/WEaBuse3D).
 - Should a new camera mode or depth mode ever change Abuse's rules (for example, enemies that

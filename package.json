@@ -1,0 +1,11 @@
+{
+  "name": "weabuse3d",
+  "private": true,
+  "type": "module",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "build:maps": "node content/build.mjs",
+    "test": "node --test tests/",
+    "serve": "python3 -m http.server 8001"
+  }
+}
