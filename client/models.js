@@ -566,7 +566,7 @@ const ramp = (p) => {
   const x = Math.min(0.999, Math.max(0, p)) * (FIRE.length - 1), i = Math.floor(x), f = x - i;
   return FIRE[i].map((v, k) => v + (FIRE[i + 1][k] - v) * f);
 };
-const unitBlob = () => built('fx:blob', () => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 6, 10, [1, 1, 1]).done());
+const unitBlob = () => built('fx:blob', () => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 10, 16, [1, 1, 1]).done());
 const unitRing = () => built('fx:ring', () => new Mesh().torus([0, 0, 0], 1, 0.12, 20, 5, [1, 1, 1]).done());
 const unitSpark = () => built('fx:spark', () => new Mesh().box([0, 0, 0], [1, 0.25, 0.25], [1, 1, 1]).done());
 const smokeBlob = () => built('fx:smoke', () => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 5, 8, [0.32, 0.31, 0.3]).done());
@@ -612,6 +612,20 @@ function fireball(s, ctx, size) {
   return out;
 }
 
+// A fire bomb's flame (weapons.js fireBombTick: one every tick it burns, where the 2D game draws EXPLODE1):
+// tongues of fire licking up from the floor, not an explosion each, or they stack into a white-out
+function flame(s, ctx) {
+  const { e, img } = s, p = fxProgress(e);
+  const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h)];
+  const out = [];
+  for (let k = 0; k < 4; k++) {
+    const a = fxRand(e, k) * Math.PI * 2, r = 6 + 8 * fxRand(e, k + 5), h = 10 + 26 * p + 10 * fxRand(e, k + 9);
+    const w = (5 + 4 * fxRand(e, k + 2)) * (1 - p * 0.6);
+    out.push({ mesh: tinted(unitBlob(), ramp(0.15 + p * 0.7 + k * 0.05)), basis: scaled(w, w * 1.9), offset: [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, c[2] + h], additive: true, bright: 1, glowAmt: 0.55 * (1 - p) + 0.08 });
+  }
+  return out;
+}
+
 function ringBurst(s, ctx, rgb) {
   const { e, img } = s, p = fxProgress(e);
   const c = [2 * (s.x + img.w / 2), ctx.depthOf(e), -2 * (s.y + img.h / 2)];
@@ -647,7 +661,7 @@ function puff(s, ctx, rgb) {
 }
 
 const FX = {
-  EXPLODE1: (s, c) => fireball(s, c, 46), EXPLODE4: (s, c) => fireball(s, c, 36), EXPLODE6: (s, c) => fireball(s, c, 30), EXPLODE8: (s, c) => fireball(s, c, 40),
+  EXPLODE1: (s, c) => (s.e.flame ? flame(s, c) : fireball(s, c, 46)), EXPLODE4: (s, c) => fireball(s, c, 36), EXPLODE6: (s, c) => fireball(s, c, 30), EXPLODE8: (s, c) => fireball(s, c, 40),
   EXPLODE2: (s, c) => ringBurst(s, c, [1, 0.75, 0.25]), EXPLODE3: (s, c) => ringBurst(s, c, [1, 0.3, 0.12]),
   EXPLODE5: (s, c) => flash(s, c, [0.85, 0.9, 1]), EXPLODE7: (s, c) => flash(s, c, [0.7, 0.85, 1]),
   SMALL_DARK_CLOUD: (s, c) => puff(s, c, [0.18, 0.18, 0.19]), SMALL_LIGHT_CLOUD: (s, c) => puff(s, c, [0.42, 0.42, 0.44]), CLOUD: (s, c) => puff(s, c, [0.5, 0.5, 0.55]),

@@ -40,7 +40,9 @@ export function atmosphere(g, depth, scene, { lane, time, eye, muzzle }) {
     const e = s.e;
     if (!e || !s.offset) continue;
     const t = e.type || '';
-    if (/^EXPLODE[1468]$/.test(t)) {
+    if (e.flame) { // a fire bomb's flame: a flickering orange light, one for the lot nearby
+      if (!dyn.some((d) => d.src === 'flame' && Math.abs(d.pos[0] - s.offset[0]) < 120)) dyn.push({ src: 'flame', pos: s.offset, radius: 230, rgb: [1, 0.5, 0.15], intensity: 1.1 + 0.25 * Math.sin(time / 45 + s.offset[0]) });
+    } else if (/^EXPLODE[1468]$/.test(t)) {
       const n = e.def.states.get(e.state)?.length || 1, p = n > 1 ? (Math.floor(e.frame) % n) / (n - 1) : 0.5;
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 420, rgb: [1, 0.55 - 0.3 * p, 0.2 - 0.15 * p], intensity: 2.6 * (1 - p) });
     } else if (/^EXPLODE[2357]$/.test(t)) {
@@ -70,6 +72,11 @@ export function atmosphere(g, depth, scene, { lane, time, eye, muzzle }) {
     else if (b.kind === 'rocket') dyn.push({ pos, radius: 200, rgb: [1, 0.6, 0.25], intensity: 1.4 });
     else if (b.kind === 'plasma') dyn.push({ pos, radius: 140, rgb: [0.4, 0.85, 1], intensity: 1.3 });
     else if (b.kind === 'acid') dyn.push({ pos, radius: 120, rgb: [0.4, 1, 0.3], intensity: 1.1 });
+    else if (b.kind === 'disc') dyn.push({ pos, radius: 170, rgb: [0.55, 0.78, 1], intensity: 1.3 });
+    else if (b.kind === 'beam' && !b.pending) { // the line's middle, the plasma's fading with it
+      const mid = [b.x + b.ox, b.y + b.oy].map((v) => v / 2), plasma = b.style === 'plasma';
+      dyn.push({ pos: [2 * mid[0], d, -2 * mid[1]], radius: plasma ? 200 : 130, rgb: plasma ? [1, 0.45, 1] : [0.75, 0.8, 1], intensity: plasma ? 1.4 * Math.max(0.2, (b.life || 1) / 5) : 1.2 });
+    }
   }
   // the nearest first, then the brightest
   const dist = (p) => (p[0] - eye[0]) ** 2 + (p[1] - eye[1]) ** 2 + (p[2] - eye[2]) ** 2;

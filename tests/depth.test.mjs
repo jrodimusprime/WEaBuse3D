@@ -287,3 +287,24 @@ test('level 2: the player walks onto the trap door by the wall, at any depth acr
     d.uninstall();
   }
 });
+
+// A Jared rule: turrets fire three times as often in 3D, where most of their shots cross the hall wide of the
+// player ("the turent lasers arent as dangerous as they shoot through the whole room ... speed them up").
+test('a track gun fires three times as often in 3D as in the plane', async () => {
+  const { behaviors } = await import('../sim/web/src/behaviors.js');
+  const count = async (on) => {
+    const g = await createGame();
+    g.audio.muted = true;
+    await g.start(levelFile(2));
+    const d = new Depth(g, LANE); if (on) d.install();
+    const t = g.entities.find((e) => e.ai === 'track_ai');
+    t.links = []; g.player.x = t.x - 60; g.player.y = t.y + 80;
+    let shots = 0;
+    for (let i = 0; i < 150; i++) { const n = g.projs.length; behaviors[t.ai](t, g); shots += g.projs.length - n; g.projs.length = 0; }
+    d.uninstall();
+    return shots;
+  };
+  const flat = await count(false), deep = await count(true);
+  assert.ok(flat >= 3, `${flat} shots in the plane`);
+  assert.equal(deep, flat * 3);
+});

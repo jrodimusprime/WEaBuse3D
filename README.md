@@ -349,6 +349,16 @@ doorway, shaft or hole its own size, and *frame* walls close the rest of the hal
 enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet
 designed still use the voxel extrusion as a placeholder, listed in BACKLOG.md.
 
+**Weapons in 3D, in Quake's style.** What flies is no longer the 2D game's pixels: each shot has a designed
+model on its course through the hall (`client/shots.js`: a finned rocket with a burning exhaust, a ribbed
+tumbling grenade, a spinning frisbee with a glowing rim, plasma and saber lines, glowing enemy bolts), and
+Quake-style particles (`client/particles.js`, after Quake's R_RocketTrail and R_ParticleExplosion): fire turning
+to smoke behind a rocket, smoke behind a grenade, a burst of embers cooling through Quake's ramp and a flash and
+smoke for each explosion, tongues of fire where a fire bomb burns, sparks and dust where a shot strikes. What
+burns lights the room. The gun in the hands is held like a Quake view model, all of it in front of the eye,
+canted so the gloved hands show: three-jointed fingers round the grip and the barrel, knuckle armour, armoured
+forearms; the guns have bevelled bodies, round barrels, sights, ports and vents (`client/viewmodel.js`).
+
 **Ladders through floors.** In Abuse a ladder often runs up through a solid floor tile, and the climber
 passes through it. In 3D that floor is a slab across the hall, so the climber went up into solid floor and
 could end up inside walls. Now, like a Quake ladder shaft, the map leaves the floor a ladder passes through
@@ -679,3 +689,12 @@ apply here too and are listed in WEaBuse's README.
   1 / rate, where that is further), anchored on the picture Abuse shows behind that window, so the city slides
   by slowly as you pass. It is lit by Abuse's own lamps but not by the hall's flashes, and hazed. Jared: "the
   images in the window appear too near ... takes away from the atmosphere", then "may be too far".
+- **The weapons are the original's.** WEaBuse simplified them (the fire bomb a grenade, plasma, frisbee and saber
+  one plasma bolt, the player's rockets not locking on, one's own blasts hurting). In 3D they work as Abuse 0.8's
+  source has them (sim `Game.originalWeapons`, on here, off in WEaBuse, whose recorded runs used its own): the
+  fire bomb runs along the floor burning, plasma and the saber are lines traced at once, the frisbee steers to
+  the aim, rockets lock on to what they can see, and one's own blasts spare one. Jared: "make sure they align in
+  functionality and damage" (`tests/weapons.test.mjs`).
+- **Track guns fire three times as often.** Across the hall most of a turret's shots go wide, so the track guns
+  (not the spray guns, which already sweep a shot every tick or two) fire three times as often as in Abuse.
+  Jared: "the turent lasers arent as dangerous as they shoot through the whole room ... speed them up".

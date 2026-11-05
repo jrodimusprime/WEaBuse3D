@@ -571,6 +571,26 @@ export class Depth {
 // so that, in a game with the depth layer on, the layer knows whose behaviour is
 // running (for contact damage and spawns) and gives that object's new shots a course.
 let wrapped = false;
+// Turrets fire TURRET_RATE times as often in 3D (a Jared rule): in the plane every shot came at the player,
+// but across the hall most of a turret's shots cross the room wide of them, and turrets lost their bite
+// (Jared: "the turent lasers arent as dangerous as they shoot through the whole room, maybe just speed them
+// up heaps so they shoot more"). Their own timers run down faster: the track gun's gap between shots and its
+// pause between bursts (behaviors.js trackGun).
+const TURRET_RATE = 3;
+// (not the spray guns: they already sweep a shot every tick or two, and faster still they pinned a climber on
+// level 2's ladder by its three, each hit a flinch that stops the keys)
+const TURRETS = new Set(['track_ai']);
+function quickTurret(e) {
+  const a = e.a, extra = TURRET_RATE - 1;
+  if (!a || e.dead) return;
+  if (e.ai === 'spray_gun_ai') { if (a.t !== undefined) a.t += extra; return; }
+  if (a.fireLeft > 0) a.fireLeft = Math.max(0, a.fireLeft - extra);
+  if (a.contLeft > 0) {
+    a.contLeft = Math.max(0, a.contLeft - extra);
+    if (a.contLeft === 0) a.burstLeft = e.lv?.burst_total ?? 3; // (as trackGun does when its pause runs out)
+  }
+}
+
 function wrapBehaviors() {
   if (wrapped) return;
   wrapped = true;
@@ -581,7 +601,7 @@ function wrapBehaviors() {
       if (!d) return fn(e, g);
       const n = g.projs.length;
       d.cur = e;
-      try { return name === 'ant_ai' && d.wallRun(e) ? true : fn(e, g); } finally { d.cur = null; d.adopt(n, e); }
+      try { return name === 'ant_ai' && d.wallRun(e) ? true : fn(e, g); } finally { d.cur = null; d.adopt(n, e); if (TURRETS.has(name)) quickTurret(e); }
     };
   }
 }

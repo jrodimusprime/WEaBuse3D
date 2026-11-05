@@ -141,6 +141,30 @@ export class Mesh {
     return this;
   }
 
+  // a closed n-sided tube from point a to point b, radius r0 at a and r1 at b (a finger bone, a forearm)
+  segment(a, b, r0, r1, n, rgb) {
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(...d) || 1, f = d.map((v) => v / l);
+    const u0 = Math.abs(f[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    let u = [f[1] * u0[2] - f[2] * u0[1], f[2] * u0[0] - f[0] * u0[2], f[0] * u0[1] - f[1] * u0[0]];
+    const ul = Math.hypot(...u); u = u.map((v) => v / ul);
+    const w = [f[1] * u[2] - f[2] * u[1], f[2] * u[0] - f[0] * u[2], f[0] * u[1] - f[1] * u[0]];
+    const ring = (p, r, i) => { const t = (i / n) * Math.PI * 2, c = Math.cos(t) * r, s = Math.sin(t) * r; return [p[0] + u[0] * c + w[0] * s, p[1] + u[1] * c + w[1] * s, p[2] + u[2] * c + w[2] * s]; };
+    return this.inside([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], () => {
+      for (let i = 0; i < n; i++) {
+        this.quad(ring(a, r0, i), ring(b, r1, i), ring(b, r1, i + 1), ring(a, r0, i + 1), rgb);
+        if (r0 > 0) this.tri(a, ring(a, r0, i), ring(a, r0, i + 1), rgb);
+        if (r1 > 0) this.tri(b, ring(b, r1, i + 1), ring(b, r1, i), rgb);
+      }
+    });
+  }
+
+  // a chain of segments through points [[x, y, z, r], ...], with a ball at each joint (a finger, a tail)
+  chain(pts, n, rgb, joints = true) {
+    for (let i = 0; i + 1 < pts.length; i++) this.segment(pts[i], pts[i + 1], pts[i][3], pts[i + 1][3], n, rgb);
+    if (joints) for (let i = 1; i < pts.length; i++) { const r = pts[i][3]; this.ellipsoid(pts[i].slice(0, 3), [r, r, r], 3, n, rgb); }
+    return this;
+  }
+
   done() { return { data: new Float32Array(this.v), count: this.v.length / 9 }; }
 }
 

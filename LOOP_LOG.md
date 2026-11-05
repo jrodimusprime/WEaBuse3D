@@ -449,3 +449,19 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   on, and the depth layer took that for being in the hole and undid every step. A hole in the floor now holds
   only a player over it by their centre with their feet 8 px in; coming down onto the floor round it away from
   the opening, the floor holds at its top. Test: walks onto it at four depths. 89/89 tests.
+
+## Weapons in Quake's style, the gun hand, turrets (2026-11-06)
+- Jared: the gun effects are "too pixel art" and should look like Quake's; "the plaers gun hand also looks really
+  low quality"; turrets "arent as dangerous as they shoot through the whole room ... speed them up heaps".
+- Shots: client/shots.js models (rocket, grenade, disc, beams, bolts) replace the recorded 2D pixels;
+  client/particles.js trails and bursts (Quake ramps), drawn as soft additive glows and a new soft smoke pass
+  in the renderer. Fire bomb flames (sim tags them) get their own smaller look and one light, not an
+  explosion's each (they stacked into a white-out). Fireballs smoother (10x16). Rockets lock on only in line
+  of sight (fire_object 3 can_see): one dived into the floor at a jugger on the storey below.
+- The gun hand: the guns were built from 16 units behind the grip and the near plane is 4: the back of each
+  was cut off and the rest filled the corner. Now drawn at 0.6, 18 units out, canted 24 degrees, barrel in 5;
+  new hands (segment/chain primitives in engine/mesh.js), brown leather gloves, all seven guns redesigned.
+- Turrets: track guns fire 3x in 3D (4 -> 12 shots in 10 s). Spray guns left alone: sped up, the three by
+  level 2's ladder pinned a climber (each hit a flinch). 90/90 tests.
+- Not yet: the right hand on the grip sits just below the frame; the frisbee's glow is blobby; Jared's
+  "level 2 elevator ... cut in half" not reproduced (his picture came through as an old one).

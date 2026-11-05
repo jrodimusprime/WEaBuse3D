@@ -185,14 +185,16 @@ void main() { vUv = uv; vCol = col; vPos = pos; gl_Position = mvp * vec4(pos, 1.
 const GLOW_FS = `#version 300 es
 precision highp float;
 in vec2 vUv; in vec4 vCol; in vec3 vPos;
-uniform vec3 eyePos; uniform vec4 haze;
+uniform vec3 eyePos; uniform vec4 haze; uniform int smoke;
 out vec4 color;
 void main() {
   float r = dot(vUv, vUv);
   if (r > 1.0) discard;
   float f = (1.0 - r) * (1.0 - r);
   float fog = exp(-length(vPos - eyePos) * haze.a);
-  color = vec4(vCol.rgb * vCol.a * f * fog, 1.0);
+  // smoke (client/particles.js): a soft puff over what is behind it, fading into the haze; else a glow, added
+  if (smoke == 1) color = vec4(mix(haze.rgb, vCol.rgb, fog), vCol.a * (1.0 - r));
+  else color = vec4(vCol.rgb * vCol.a * f * fog, 1.0);
 }`;
 
 // The Quake look (Jared: "stick to a strict colour palette like quake did ... to add grittyness"):
@@ -259,7 +261,7 @@ export class Renderer {
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    this.glowProg = program(gl, GLOW_VS, GLOW_FS, ['mvp', 'eyePos', 'haze']);
+    this.glowProg = program(gl, GLOW_VS, GLOW_FS, ['mvp', 'eyePos', 'haze', 'smoke']);
     this.glowBuf = gl.createBuffer();
     this.glowVao = vao(gl, this.glowBuf, [[0, 3, 0], [1, 2, 12], [2, 4, 20]], 36);
     this.haze = [0.03, 0.03, 0.045, 0.00045];
@@ -511,7 +513,7 @@ export class Renderer {
 
   draw(view, width, height, opts = {}) {
     const gl = this.gl;
-    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [], glows = [], dyn = [], eye = view.eye } = opts;
+    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [], glows = [], smoke = [], dyn = [], eye = view.eye } = opts;
     gl.viewport(0, 0, width, height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -593,7 +595,7 @@ export class Renderer {
     if (viewmodel.length) passes.push(viewmodel);
     for (let pass = 0; pass < passes.length; pass++) {
       const list = passes[pass];
-      if (pass === 1) { this.drawGlows(sprites, glows, mvp, viewM, eye, mode); gl.clear(gl.DEPTH_BUFFER_BIT); }
+      if (pass === 1) { this.drawGlows(sprites, glows, mvp, viewM, eye, mode, smoke); gl.clear(gl.DEPTH_BUFFER_BIT); }
       if (!list.length && (pass === 1 || !boxes.length)) continue;
       shared(this.model);
       for (const s of list) {
@@ -632,17 +634,43 @@ export class Renderer {
         gl.drawArrays(gl.TRIANGLES, 0, o / 9);
       }
     }
-    if (passes.length === 1) this.drawGlows(sprites, glows, mvp, viewM, eye, mode);
+    if (passes.length === 1) this.drawGlows(sprites, glows, mvp, viewM, eye, mode, smoke);
     gl.bindVertexArray(null);
   }
 
   // Glowing things, added to what is behind them: additive parts of models (fireballs, beams, tracers)
   // and halos (billboards, soft round light) at light sources. Depth tested, not written.
-  drawGlows(sprites, glows, mvp, view, eye, mode) {
+  drawGlows(sprites, glows, mvp, view, eye, mode, smoke = []) {
     const gl = this.gl;
     const add = sprites.filter((s) => s.additive);
-    if (!add.length && !glows.length) return;
+    if (!add.length && !glows.length && !smoke.length) return;
     gl.enable(gl.BLEND);
+    // smoke first, over what is behind it (soft alpha discs, depth tested, not written), then the glows added
+    const quads = (list) => {
+      const R = [view[0], view[4], view[8]], U = [view[1], view[5], view[9]];
+      const d = new Float32Array(list.length * 6 * 9);
+      let o = 0;
+      for (const q of list) {
+        const corner = (a, b) => { d.set([q.pos[0] + (R[0] * a + U[0] * b) * q.size, q.pos[1] + (R[1] * a + U[1] * b) * q.size, q.pos[2] + (R[2] * a + U[2] * b) * q.size, a, b, ...q.rgb, q.intensity ?? 1], o); o += 9; };
+        corner(-1, -1); corner(1, -1); corner(1, 1); corner(-1, -1); corner(1, 1); corner(-1, 1);
+      }
+      gl.useProgram(this.glowProg.prog);
+      gl.uniformMatrix4fv(this.glowProg.u.mvp, false, mvp);
+      gl.uniform3fv(this.glowProg.u.eyePos, eye);
+      gl.uniform4fv(this.glowProg.u.haze, mode === 'abuse' ? this.haze : [0, 0, 0, 0]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.glowBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, d, gl.STREAM_DRAW);
+      gl.bindVertexArray(this.glowVao);
+      gl.drawArrays(gl.TRIANGLES, 0, list.length * 6);
+    };
+    gl.depthMask(false);
+    if (smoke.length) {
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(this.glowProg.prog);
+      gl.uniform1i(this.glowProg.u.smoke, 1);
+      quads(smoke);
+      gl.uniform1i(this.glowProg.u.smoke, 0);
+    }
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.depthMask(false);
     if (add.length) {
@@ -668,24 +696,9 @@ export class Renderer {
       }
       gl.uniform1i(this.model.u.glow, 0);
     }
-    if (glows.length) {
-      // camera-facing quads: the view's right and up are the first two rows of the view matrix
-      const R = [view[0], view[4], view[8]], U = [view[1], view[5], view[9]];
-      const d = new Float32Array(glows.length * 6 * 9);
-      let o = 0;
-      for (const q of glows) {
-        const corner = (a, b) => { d.set([q.pos[0] + (R[0] * a + U[0] * b) * q.size, q.pos[1] + (R[1] * a + U[1] * b) * q.size, q.pos[2] + (R[2] * a + U[2] * b) * q.size, a, b, ...q.rgb, q.intensity ?? 1], o); o += 9; };
-        corner(-1, -1); corner(1, -1); corner(1, 1); corner(-1, -1); corner(1, 1); corner(-1, 1);
-      }
-      gl.useProgram(this.glowProg.prog);
-      gl.uniformMatrix4fv(this.glowProg.u.mvp, false, mvp);
-      gl.uniform3fv(this.glowProg.u.eyePos, eye);
-      gl.uniform4fv(this.glowProg.u.haze, mode === 'abuse' ? this.haze : [0, 0, 0, 0]);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.glowBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, d, gl.STREAM_DRAW);
-      gl.bindVertexArray(this.glowVao);
-      gl.drawArrays(gl.TRIANGLES, 0, glows.length * 6);
-    }
+    gl.blendFunc(gl.ONE, gl.ONE);
+    // camera-facing quads: the view's right and up are the first two rows of the view matrix
+    if (glows.length) quads(glows);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);

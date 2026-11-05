@@ -34,8 +34,10 @@ import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
 import { placeScene, frameBoxes } from './place.js';
 { const a = new URLSearchParams(location.search).get('ant'); placeScene.antVariant = a === null ? undefined : Number(a); } // ?ant=0..7 (7, Xeno with Mandible's pincers, is the default)
-import { viewModel } from './viewmodel.js';
+import { viewModel, VIEW_SCALE, VIEW_HOLD } from './viewmodel.js';
 import { atmosphere } from './atmosphere.js';
+import { ShotFx } from './particles.js';
+import { shotParts } from './shots.js';
 import { JumpAssist } from './controls.js';
 
 const params = new URLSearchParams(location.search);
@@ -111,7 +113,7 @@ setMsg('');
 // ---- the view: Quake's viewangles, in degrees (pitch + is down, yaw 0 is +X = Abuse's right) ----
 let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 0);
 if (params.has('depth')) depth.pd = Number(params.get('depth'));
-if (params.has('weapon')) { g.giveAllWeapons(); g.selectWeapon(params.get('weapon')); } // review: every weapon, this one in hand
+if (params.has('weapon')) { g.giveAllWeapons(); for (const w of g.player.owned) g.player.ammo[w] = 99; g.selectWeapon(params.get('weapon')); } // review: every weapon, loaded, this one in hand
 const holdFire = params.has('fire'); // review: the trigger held while ?still steps run
 if (params.has('effect')) { // review: an effect in front of the player, at a frame of its animation
   const fx = g.effect(params.get('effect'), g.player.x + Number(params.get('fxd') || 70), g.player.y - 20);
@@ -150,6 +152,7 @@ if (params.has('look')) {
 // ---- input ----
 const held = new Set();
 const jumpAssist = new JumpAssist();
+const shotFx = new ShotFx();
 addEventListener('keydown', (e) => {
   held.add(e.code);
   if (e.code === 'F2') { renderer.brightness = renderer.brightness >= 2 ? 1 : renderer.brightness + 0.5; e.preventDefault(); }
@@ -316,22 +319,33 @@ function frame(now) {
   if (!lookEye && !g.player.dead) {
     const cy = Math.cos(rad(yaw)), sy = Math.sin(rad(yaw)), cp = Math.cos(rad(pitch)), sp = Math.sin(rad(pitch));
     const F = [cp * cy, cp * sy, -sp], L = [-sy, cy, 0], U = [sp * cy, sp * sy, cp];
-    const basis = new Float32Array([...F, ...L, ...U]);
+    const S = VIEW_SCALE, V = [...F, ...L, ...U].map((v) => v * S);
+    const held = (R) => { const o = new Float32Array(9); for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) o[c * 3 + r] = V[r] * R[c * 3] + V[3 + r] * R[c * 3 + 1] + V[6 + r] * R[c * 3 + 2]; return o; };
+    const basis = held(VIEW_HOLD);
     const run = Math.min(1, Math.abs(g.player.vx || 0) / 135 + Math.abs(depth.pv) / 270);
     // a part that turns (the frisbee's disc) turns about its own vertical axis, inside the view
-    const turned = (a) => { const c = Math.cos(a), n = Math.sin(a); return new Float32Array([F[0] * c + L[0] * n, F[1] * c + L[1] * n, F[2] * c + L[2] * n, -F[0] * n + L[0] * c, -F[1] * n + L[1] * c, -F[2] * n + L[2] * c, ...U]); };
+    const turned = (a) => { const c = Math.cos(a), n = Math.sin(a); const R = VIEW_HOLD, T = [c, n, 0, -n, c, 0, 0, 0, 1], M = new Float32Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) M[i * 3 + j] = R[j] * T[i * 3] + R[3 + j] * T[i * 3 + 1] + R[6 + j] * T[i * 3 + 2]; return held(M); };
     vm = viewModel(g, palette, { fired, run, t: now }).map((q) => ({
       mesh: q.mesh, basis: q.spin === undefined ? basis : turned(q.spin), bright: q.bright || 1, flash: q.flash,
-      skin: q.bright && q.bright > 1.2 ? 0 : 0.85, skinScale: 1 / 10, // Quake-style skin on the gun, not on what glows
+      skin: q.skin ?? (q.bright && q.bright > 1.2 ? 0 : 0.85), skinKind: q.skinKind || 0, skinScale: q.skinScale || 1 / 10, // Quake-style skin on the gun (leather on the gloves), not on what glows
       offset: [0, 1, 2].map((k) => eye[k] + F[k] * q.at[0] + L[k] * q.at[1] + U[k] * q.at[2]),
     }));
     if (fired) muzzle = [0, 1, 2].map((k) => eye[k] + F[k] * 90 + L[k] * -8 - U[k] * 4);
   }
+  // the shots in flight, in 3D, and their trails, bursts and sparks (client/shots.js, client/particles.js)
+  const shotAt = (b, x, y) => {
+    const d = b.d0 === undefined ? depth.pd : Math.max(-LANE, Math.min(LANE, b.d0 + Math.hypot(x - b.sx, y - b.sy) * b.ratio));
+    return [2 * x, d, -2 * y];
+  };
+  for (const q of shotParts(g, shotAt, now)) scene.sprites.push(q);
+  shotFx.update(g, shotAt, (e) => depth.depthOf(e) ?? depth.pd, Math.max(0, (now - (shotFx.lastT ?? now)) / 1000));
+  shotFx.lastT = now;
+  const fx = shotFx.draws();
   const atmo = atmosphere(g, depth, scene, { lane: LANE, time: now, eye, muzzle });
   renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
     mode: 'abuse', front: true, caps: false, fovY,
     sprites: solo ? scene.sprites.filter((s) => s.e === lookTarget) : [...(lookEye ? scene.sprites : scene.sprites.filter((s) => !s.player)), ...atmo.draws], // the camera is inside the cop
-    glows: solo ? [] : atmo.glows, dyn: solo ? [] : atmo.dyn, eye,
+    glows: solo ? [] : [...atmo.glows, ...fx.glows], smoke: solo ? [] : fx.smoke, dyn: solo ? [] : atmo.dyn, eye,
     world: !solo,
     viewmodel: vm,
     boxes: scene.boxes, red: g.redRamp || 0,

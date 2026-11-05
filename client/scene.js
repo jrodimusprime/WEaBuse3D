@@ -10,6 +10,7 @@
 // which never runs, so it is cleared by the caller after drawing instead).
 import { isHiddenInPlay } from '../sim/web/src/behaviors.js';
 import { WEAPONS, drawProjectiles } from '../sim/web/src/weapons.js';
+import { SHOT_KINDS } from './shots.js';
 
 const MIDDLE_DRAW = new Set(['exp_draw', 'middle_draw']); // game.js
 const POWER_STATES = new Set(['stopped', 'running', 'start_run_jump', 'run_jump', 'run_jump_fall', 'end_run_jump']); // game.js
@@ -68,6 +69,7 @@ export function collectScene(g) {
   // projectiles: weapons.js drawProjectiles, one shot at a time through a recorder, so each piece knows its shot
   const cx = Math.floor(g.cam.x), cy = Math.floor(g.cam.y);
   for (const b of g.projs) {
+    if (SHOT_KINDS.has(b.kind)) continue; // designed in 3D (client/shots.js), not the 2D game's pixels
     const recorder = {
       draw: (img, x, y, { flip = false } = {}) => sprites.push({ img, x: x + cx, y: y + cy, flip, bright: 1, id: 'proj', shot: b }),
       rect: (x, y, w, h, idx) => boxes.push({ x: x + cx, y: y + cy, w, h, idx, shot: b }),
