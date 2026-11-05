@@ -300,7 +300,7 @@ state:
 | Lift (`platform_ai`) | a deck with sloped sides and a lamp | a lift-sized deck with bevelled sides and a lamp that lights while it runs, in a shaft |
 | Switch | a box with green and red lights | a panel on the back wall with two lamps |
 | Teleporter (`tp2_ai`) | a round pad seen at an angle | a round pad with a rim that glows while it teleports |
-| Alien ant (`ant_ai`) | a xenomorph-like ant in 20 states: hanging pod, dropping, running, pouncing, leaping, spitting, walking the ceiling, flinching, dying | an articulated model: a long domed head with a jaw, ribbed torso and abdomen, dorsal spines, a ten-segment whip tail with a blade, digitigrade legs placed by two-bone IK, clawed forearms; posed from its state and frame, turning toward the player. Hanging, it is a cocoon not yet hatched: a leathery, veined egg on a resin stalk, sealed by four lips with an ember in the seam; it stays where it hangs and only breathes, and leaves a torn husk on the ceiling when it hatches |
+| Alien ant (`ant_ai`) | a xenomorph-like ant in 20 states: hanging pod, dropping, running, pouncing, leaping, spitting, walking the ceiling, flinching, dying | an articulated model: a long domed head with a jaw, ribbed torso and abdomen, dorsal spines, a ten-segment whip tail with a blade, digitigrade legs placed by two-bone IK, clawed forearms; posed from its state and frame, turning toward the player. Hanging, it is a cocoon not yet hatched: a leathery, veined egg on a resin stalk, sealed by four lips with an ember in the seam; it stays where it hangs and only breathes, and leaves a torn husk on the ceiling when it hatches. On a side wall (a Jared rule) it is posed as on the ceiling, turned a quarter, feet gripping the wall |
 | Turret (`spray_gun_ai`) | an armoured camo sphere whose shell splits to show a gun ball that turns through 24 aims | a hemisphere on the wall whose halves part; inside, the ball's gun port follows the turret's aim, tilted across the hall at the player |
 | Trap door (`strap_door_ai`) | a floor hatch with hazard chevrons that slides into its housing | a hatch its own size in a hole its own size, sliding under the floor; the floor around it holds |
 
@@ -617,3 +617,13 @@ apply here too and are listed in WEaBuse's README.
   with the same reach: the life of each bullet is cut to the fewest ticks that cover the original distance
   (`client/depth.js` `quicken`, after weapons.js sgun_ai). Jared: "player bullet speeds dont feel right,
   needs to be faster". Each bullet is drawn as a glowing tracer along its path through 3D.
+- **Ants run up the side walls.** Abuse's ants leap to the roof; in 3D the hall also has side walls, so an
+  ant running at the player may leap onto the nearer one, cling there up to 40 px up and scuttle along it
+  towards the player, spit from it, then spring off at the player (when the player is under it, when it is
+  shot, when its way is blocked, or after under three seconds). Jared: "can they also do one where they jump
+  on the walls?". It lives in the depth layer (`client/depth.js` `wallRun`), so the simulation, and WEaBuse,
+  are unchanged; its chances come from the tick and the ant, not the simulation's random numbers.
+- **Packs spread across the hall.** The depth layer brings enemies in on their own flank of the player
+  (up to 90 units either side, narrowing to the player's depth within 110 px), and keeps enemies near each
+  other apart across the hall, so a pack does not come in single file. Jared: "the creatures also tend to
+  spawn in a straight line ... they should be spaced out more".

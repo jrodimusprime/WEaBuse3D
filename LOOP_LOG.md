@@ -315,3 +315,17 @@ depth until it drops. When it hatches the creature falls out and a torn husk, li
 stays on the ceiling (presentation only, per level). The model test's "hanging is a whole ant" became "hanging is a
 cocoon" (the spec changed); new tests: the cocoon keeps its depth (fails without the fix), the husk is closed parts.
 Review: ?pose=hanging>landing switches state a second later. 59/59 tests; checked by screenshot solo and in level 1.
+
+## Ants run up the side walls; packs spread across the hall
+Jared asked whether the aliens could jump onto the walls as well as the roof (option 1, the hall's side walls, 3D
+only, approved), and noted that on level 1 the creatures come "in a straight line ... they should be spaced out more".
+- Wall run (client/depth.js wallRun, a Jared rule): a running ant 60-240 px from the player may leap (6 ticks) onto
+  the nearer side wall, up to 40 px up, cling and scuttle along it at 5 px a tick, spit (ceil_fire, then ant.cpp's
+  fire_at_player aim), and spring off at the player: its own jump, aimed to land at the player, crossing the hall at
+  22 units a tick. Chances come from spread(tickCount, id), not g.rand, so the simulation's random numbers are its own.
+  The model poses it as on the ceiling, rolled a quarter, feet on the wall. Review: &onwall=1|-1.
+- Spacing: the cause was afterTick steering every enemy to the player's exact depth. Each now aims at its own flank
+  (spread(id) * 90 units, narrowing within 110 px of the player) and pairs within 30 px in the plane are pushed
+  apart to 44 units. Level 1's five ants over the bridge: before, all at depth 0; now from about -60 to +66.
+- Tests: the wall run (leap, cling at LANE-18, 16+ px up, spring, lands within 40 px of the player, repeats exactly);
+  the pack spreads over 60 units. 61/61. Checked by screenshot on both walls.

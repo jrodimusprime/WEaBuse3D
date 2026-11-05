@@ -80,6 +80,60 @@ test('an ant still in its cocoon on the ceiling stays where it hangs', async () 
   assert.equal(ant.depth, -100, 'it does not slide across the hall towards the player');
 });
 
+// an ant running at the player on level 1's floor (it starts in its cocoon; this puts it down running)
+const runningAnt = async () => {
+  await g.start(levelFile(1));
+  g.freshRun();
+  const d = new Depth(g, LANE); d.install();
+  const ant = g.entities.find((e) => e.type === 'ANT_ROOF' && e.x === 1922);
+  while (!g.solidAt(ant.x, ant.y + 1)) ant.y++;
+  ant.a.st = 'running'; ant.setState('stopped'); ant.dir = 1;
+  let fy = ant.y - 5; while (!g.solidAt(ant.x + 150, fy + 1)) fy++;
+  put(ant.x + 150, fy); d.pd = -80;
+  return { d, ant };
+};
+
+test('an ant runs up a side wall of the hall, scuttles along it and springs off at the player (a Jared rule)', async () => {
+  const runs = [];
+  for (let run = 0; run < 3; run++) {
+    const seen = new Set();
+    const { d, ant } = await runningAnt();
+    g.god = true;
+    let floorY = ant.y, onWall = null, landed = null;
+    for (let i = 0; i < 1200 && !landed; i++) {
+      g.update(STEP);
+      if (ant.w) seen.add(ant.w.phase);
+      if (ant.w?.phase === 'cling' && !onWall) onWall = { depth: ant.depth, up: floorY - ant.y };
+      if (ant.wSpring) seen.add('spring');
+      if (seen.has('spring') && !ant.wSpring && ant.a.st !== 'jump') landed = { dx: ant.x - g.player.x, depth: ant.depth };
+    }
+    g.god = false;
+    assert.deepEqual([...seen].sort(), ['cling', 'leap', 'spring']);
+    assert.ok(onWall && Math.abs(onWall.depth) === LANE - 18, `on the wall: ${onWall?.depth}`);
+    assert.ok(onWall.up >= 16, `up the wall: ${onWall.up} px`);
+    assert.ok(landed && Math.abs(landed.dx) < 40, `landed at the player, not past them: ${landed?.dx}`);
+    assert.ok(Math.abs(landed.depth - d.pd) < 100, `came off the wall across the hall at the player: ${landed.depth}`);
+    runs.push(stateHash(g) + ':' + Math.round(ant.depth * 1000));
+  }
+  assert.equal(runs[1], runs[2], 'the wall run repeats exactly'); // (the first warms up what freshRun does not reset)
+});
+
+test('a pack of ants spreads across the hall instead of coming in single file', async () => {
+  await g.start(levelFile(1));
+  g.freshRun();
+  const d = new Depth(g, LANE); d.install();
+  g.god = true;
+  const pack = g.entities.filter((e) => e.type === 'ANT_ROOF' && e.y === 270); // the five over the bridge
+  assert.equal(pack.length, 5);
+  let fy = 280; while (!g.solidAt(2120, fy + 1)) fy++;
+  put(2120, fy); d.pd = 0;
+  steps(300, (i) => { if (i % 4 === 0) for (const a of pack) if (a.links[0]) a.links[0].aistate = 1; });
+  g.god = false;
+  const depths = pack.filter((a) => !a.dead && a.state !== 'hanging').map((a) => a.depth);
+  assert.ok(depths.length >= 4, 'they dropped');
+  assert.ok(Math.max(...depths) - Math.min(...depths) > 60, `spread across the hall: ${depths.map(Math.round)}`);
+});
+
 test("a shot hits what is at its depth and misses what is not", async () => {
   const d = await fresh();
   const who = find('WHO');

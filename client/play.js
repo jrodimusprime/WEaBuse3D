@@ -21,7 +21,7 @@
 //   ?fire=1             review: hold the trigger while ?still steps run
 //   ?effect=TYPE&frame=N&fxd=px  review: an effect (EXPLODE1...) frozen at a frame, fxd px ahead
 //   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0); STATE>NEXT
-//   switches to NEXT a second later
+//   switches to NEXT a second later; &onwall=1|-1 puts an ant on the back or front side wall
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
 //                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
@@ -119,6 +119,11 @@ if (params.has('look')) {
       const [first, then] = params.get('pose').split('>');
       e.setState(first); e.frame = Number(params.get('frame') || 0);
       if (then) setTimeout(() => { e.setState(then); e.frame = 0; }, 1000);
+    }
+    if (params.has('onwall')) { // review only: an ant clinging to a side wall (1 the back, -1 the front), as the depth layer's wall run has it
+      const side = Number(params.get('onwall')) < 0 ? -1 : 1;
+      e.w = { phase: 'cling', t: 1, side, d0: 0, y0: e.y, h: 0 };
+      e.depth = side * (LANE - 18);
     }
     const img = g.spriteOf(e);
     const ang = (Number(params.get('ang') || 0) * Math.PI) / 180, dist = Number(params.get('dist') || 160);

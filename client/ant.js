@@ -225,7 +225,10 @@ export function antModel(s, ctx) {
   const n = e.def.states.get(e.state)?.length || 1;
   const fr = (Math.floor(e.frame) % n) / Math.max(1, n);
   const P = pose(e, t, fr);
-  const ceiling = e.state === 'top_walk' || e.state === 'ceil_fire' || e.state === 'hanging';
+  // on a side wall of the hall (the depth layer's wall run, a Jared rule): posed as on the ceiling, turned a
+  // quarter so its feet grip the wall; leaping onto it, it turns as it goes
+  const w = e.w, wallK = !w ? 0 : w.phase === 'cling' ? 1 : (w.t / 6) * (w.t / 6) * (3 - (2 * w.t) / 6);
+  const ceiling = !w && (e.state === 'top_walk' || e.state === 'ceil_fire' || e.state === 'hanging');
 
   // where: its anchor in the level (feet, or the ceiling it clings to), and its depth across the hall
   const ox = s.flip ? img.w - img.xcfg - 1 : img.xcfg;
@@ -234,12 +237,12 @@ export function antModel(s, ctx) {
   // facing: along the hall (its direction), turned a little towards the player across it
   const p = ctx.g.player;
   const across = Math.max(-0.6, Math.min(0.6, Math.atan2(ctx.pd - d, Math.max(40, Math.abs(2 * (p.x - e.x))))));
-  let yaw = (e.dir > 0 ? 0 : Math.PI) + (e.dir > 0 ? across : -across);
+  let yaw = (e.dir > 0 ? 0 : Math.PI) + (e.dir > 0 ? across : -across) * (1 - wallK);
   if (e.state === 'turn_around') yaw += Math.PI * (1 - fr);
   // the body's own lean (rearing, flinching, falling head-first, hanging head-down)
   const pitch = -P.rear * 0.9 + (P.splay ? 0.35 : 0) + (P.curl ? 1.4 : 0);
   const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const roll = ceiling ? Math.PI : 0, cr = Math.cos(roll), sr = Math.sin(roll);
+  const roll = ceiling ? Math.PI : w ? w.side * (e.dir > 0 ? 1 : -1) * (Math.PI / 2) * wallK : 0, cr = Math.cos(roll), sr = Math.sin(roll);
   const flat = 1 - 0.65 * P.flat;
   // model -> world: scale (flatten), pitch about Y, roll about X (upside down), yaw about Z
   const toWorld = (v) => {
@@ -248,7 +251,7 @@ export function antModel(s, ctx) {
     [y, z] = [y * cr - z * sr, y * sr + z * cr];
     return [x * cy - y * sy, x * sy + y * cy, z];
   };
-  const base = [ax, d, ceiling ? top : feet];
+  const base = w ? [ax, d + w.side * 18 * wallK, feet + (-2 * (e.y - 15) - feet) * wallK] : [ax, d, ceiling ? top : feet];
   const W = (v) => add(base, toWorld(v));
   const out = [];
   const bright = P.pale ? 1.8 : 1;

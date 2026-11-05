@@ -33,8 +33,15 @@
 // game.js explode). With the layer off, the game is exactly WEaBuse's.
 //
 // Deterministic: only + - * / and Math.sqrt, on state the simulation and the
-// recorded input decide.
+// recorded input decide (an ant's spit from the wall aims as the simulation's
+// own antSpit does).
+//
+// One move is the layer's own (a Jared rule): an ant runs up the side walls of
+// the hall. Besides Abuse's leap to the roof, an ant running at the player
+// may leap onto the nearer side wall, cling there and scuttle along it towards
+// the player, spit from it, and spring off it at the player. See wallRun.
 import { behaviors } from '../sim/web/src/behaviors.js';
+import { enemyFire } from '../sim/web/src/weapons.js';
 
 const KIND_BY_TYPE = {
   SWITCH_BALL: 'wall', POINTER: 'wall', RESTART_POSITION: 'wall', // on the back wall: a target, a sign, a save terminal
@@ -48,6 +55,10 @@ const KIND_BY_AI = {
   tp2_ai: 'floor', spring_ai: 'floor',
 };
 const STEER = { flyer_ai: 8, ant_ai: 4 }; // how fast enemies cross the hall, units per tick (15 a second)
+// the ants' wall run, in ticks (15 a second) and pixels: the leap onto the wall, the longest cling, the
+// least time between runs, the highest it climbs, how far off the wall its body is (units), its spring
+const FLANK = 90, FLANK_NEAR = 110, SPACING = 44; // units, pixels, units (see afterTick)
+const WALL_LEAP = 6, WALL_CLING = 40, WALL_COOL = 90, WALL_UP = 40, WALL_OFF = 18, SPRING_STEER = 22;
 
 export const PLAYER_HALF = 16; // half the player's depth (Quake's hull)
 export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px tall)
@@ -288,15 +299,39 @@ export class Depth {
   }
 
   // After each 15 Hz tick: enemies close in across the hall; shots that reach a side wall stop there.
+  // Each enemy closes in on its own flank of the player (FLANK: up to that far either side, by its id),
+  // narrowing to the player's own depth as it comes within FLANK_NEAR pixels along the hall, so a pack
+  // spreads across the hall rather than coming in single file. And enemies close together in the plane
+  // keep SPACING apart across it (Jared: "they should be spaced out more").
   afterTick() {
-    const g = this.g, p = g.player;
+    const g = this.g, p = g.player, pack = [];
     for (const e of g.entities) {
       if (e.dead || this.kind(e) !== 'enemy') continue;
+      if (e.w) continue; // an ant on a wall: wallRun has it
       const d = this.depthOf(e);
       if (Math.abs(e.x - p.x) > 320 || Math.abs(e.y - p.y) > 220) continue;
       if (e.ai === 'ant_ai' && (e.state === 'hanging' || e.state === 'hiding')) continue; // a cocoon stays where it hangs
-      const s = STEER[e.ai] || 4, lim = this.lane - 24;
-      let nd = d + Math.max(-s, Math.min(s, this.pd - d));
+      if (e.wSpring && e.a?.st !== 'jump') e.wSpring = false;
+      const s = e.wSpring ? SPRING_STEER : STEER[e.ai] || 4;
+      const ax = Math.abs(e.x - p.x), flank = e.wSpring ? 0 : spread(e.id ?? 0, 17) * FLANK * (ax >= FLANK_NEAR ? 1 : ax / FLANK_NEAR);
+      const want = this.pd + flank;
+      e.depth = d + Math.max(-s, Math.min(s, want - d));
+      pack.push(e);
+    }
+    // spacing: each pair close in the plane is pushed apart across the hall (in the order of the level's objects)
+    for (let i = 0; i < pack.length; i++) {
+      for (let j = i + 1; j < pack.length; j++) {
+        const a = pack[i], b = pack[j];
+        if (Math.abs(a.x - b.x) > 30 || Math.abs(a.y - b.y) > 30) continue;
+        const gap = b.depth - a.depth, need = SPACING - Math.abs(gap);
+        if (need <= 0) continue;
+        const push = Math.min(need / 2, 6), dir = gap > 0 || (gap === 0 && (a.id ?? 0) < (b.id ?? 0)) ? 1 : -1;
+        a.depth -= dir * push; b.depth += dir * push;
+      }
+    }
+    const lim = this.lane - 24;
+    for (const e of pack) {
+      let nd = e.depth;
       if (nd > lim) nd = lim;
       if (nd < -lim) nd = -lim;
       for (const z of this.zones()) { // enemies pass doorways and shafts at the opening too
@@ -314,6 +349,87 @@ export class Depth {
       }
     }
     this.lastShot = null;
+  }
+
+  // ---- the ants' wall run (a Jared rule: 3D only) ----
+
+  // An ant's tick, before its own behaviour: true when the wall run has it (its behaviour does not run).
+  // Running at the player on the floor, now and then it leaps onto the nearer side wall of the hall
+  // (e.w.phase 'leap'), clings there a little way up and scuttles along it towards the player, spitting
+  // ('cling'), then springs off it at the player: its own jump, crossing the hall fast (e.wSpring). It
+  // springs when the player is under it, when it is shot (the dodge flag the hit sets), when its way along
+  // is blocked, or when it has clung long enough.
+  wallRun(e) {
+    const g = this.g, p = g.player, a = e.a, w = e.w;
+    if (e.hp <= 0) { e.w = null; return false; } // dying: its behaviour sees to that
+    if (!w) {
+      if (e.wcd > 0) { e.wcd--; return false; }
+      return this.wallStart(e);
+    }
+    const dx = p.x - e.x, wallD = w.side * (this.lane - WALL_OFF);
+    w.t++;
+    if (w.phase === 'leap') {
+      const f = w.t / WALL_LEAP, k = f * f * (3 - 2 * f);
+      e.depth = w.d0 + (wallD - w.d0) * k;
+      e.y = w.y0 - Math.round(w.h * k);
+      if (w.t >= WALL_LEAP) { w.phase = 'cling'; w.t = 0; e.setState('top_walk'); }
+      return true;
+    }
+    // on the wall
+    e.depth = wallD;
+    if (e.state === 'ceil_fire') { // spitting
+      if (!e.nextPicture()) { this.spit(e); e.setState('top_walk'); }
+      return true;
+    }
+    if (a.dodge || w.t > WALL_CLING || Math.abs(dx) < 56) return this.spring(e);
+    if ((dx < 0 && e.dir > 0) || (dx > 0 && e.dir < 0)) { e.dir = -e.dir; return true; }
+    if (w.t > 4 && Math.abs(dx) < 180 && this.chance(e, 9) < 0.12) { e.setState('ceil_fire'); return true; }
+    const nx = e.x + e.dir * 5;
+    if (!g.solidAt(nx, e.y) && !g.solidAt(nx, e.y - 31) && g.sees(e.x, e.y - 15, nx, e.y - 15)) { e.x = nx; e.nextPicture(); }
+    else return this.spring(e);
+    return true;
+  }
+
+  // a number in [0, 1) for this ant on this tick (not the simulation's random numbers, which stay its own)
+  chance(e, salt) { return (spread(this.g.tickCount || 0, (e.id ?? 0) * 31 + salt) + 1) / 2; }
+
+  wallStart(e) {
+    const g = this.g, p = g.player, a = e.a;
+    if (a.st !== 'running' || (e.state !== 'running' && e.state !== 'stopped')) return false;
+    const dx = p.x - e.x, dy = p.y - e.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) > 240 || Math.abs(dy) > 60) return false;
+    if (this.chance(e, 5) >= 0.08) return false;
+    if (!g.solidAt(e.x, e.y + 1) || this.zonesAt(e.x, e.y).length) return false; // on the floor, not in a doorway or shaft
+    let h = 0; // as high as the room allows, up to WALL_UP
+    while (h < WALL_UP && !g.solidAt(e.x, e.y - h - 32)) h++;
+    if (h < 16) return false;
+    const d0 = this.depthOf(e);
+    e.w = { phase: 'leap', t: 0, side: d0 >= 0 ? 1 : -1, d0, y0: e.y, h };
+    e.vx = 0; e.vy = 0;
+    e.setState('run_jump');
+    g.sound('antslash', e.x, e.y);
+    return true;
+  }
+
+  spring(e) {
+    const a = e.a, dx = this.g.player.x - e.x;
+    e.w = null; e.wcd = WALL_COOL; e.wSpring = true;
+    a.dodge = 0;
+    if (dx) e.dir = dx > 0 ? 1 : -1;
+    e.vx = e.dir * Math.max(2, Math.min(14, Math.trunc(Math.abs(dx) / 9))); e.vy = -5; // at the player, not past them (it flies about 9 ticks from the wall)
+    e.setState('run_jump'); a.st = 'jump'; // its own jump (ant_ai 'jump') carries it down
+    return true;
+  }
+
+  // ant.cpp fire_at_player, as the simulation's antSpit: from 15 px ahead and up, at where the player will be
+  spit(e) {
+    const g = this.g, p = g.player;
+    const fx = e.x + e.dir * 15, fy = e.y - 15;
+    const tx = p.x + (p.vx / 15) * 8, ty = p.y - 15 + (p.vy / 15) * 2;
+    if (!g.sees(e.x, e.y - 15, fx, fy) || !g.sees(fx, fy, tx, ty)) return;
+    let angle = (Math.atan2(fy - ty, tx - fx) * 180) / Math.PI;
+    if (angle < 0) angle += 360;
+    enemyFire(g, e.aitype, fx, fy, angle);
   }
 
   // ---- installing it into a Game ----
@@ -371,7 +487,7 @@ function wrapBehaviors() {
       if (!d) return fn(e, g);
       const n = g.projs.length;
       d.cur = e;
-      try { return fn(e, g); } finally { d.cur = null; d.adopt(n, e); }
+      try { return name === 'ant_ai' && d.wallRun(e) ? true : fn(e, g); } finally { d.cur = null; d.adopt(n, e); }
     };
   }
 }
