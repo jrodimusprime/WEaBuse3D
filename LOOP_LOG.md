@@ -252,3 +252,17 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 ## 2026-11-05 · sound on/off button
 - Jared: "can you add a button to turn off audio". A "Sound: on/off" button in the bottom panel uses WEaBuse's
   Audio.setUserMuted (it also cuts sounds already playing); the choice is kept in localStorage (`weabuse3d.muted`).
+
+## 2026-11-05 · six scarier ant designs to choose from
+- Jared: "do some more ant textures and designs to make them scarier front on.... give me 6 designs that are
+  rendered so i can choose which is coolest".
+- `engine/detail.js` organicSkin (cellular chitin with dark veins, mottled), a second skin in the model shader
+  (`skinKind` 1); all ant parts wear it.
+- `client/ant.js` designs 1-6 (`?ant=N`; 0 is the earlier one): 1 Xeno (glossy black dome, ridges, silver teeth,
+  a shooting inner jaw), 2 Mandible (broad head, huge curved pincers that clamp, red compound eyes, spikes),
+  3 Maw (head opens in four petals round a ring of teeth and a glowing throat), 4 Horned (ram horns, crest, slit
+  yellow eyes, fangs), 5 Skull (bone-white skull, dark sockets with red pinpricks, exposed ribs), 6 Hive (eight
+  orange eyes, fangs dripping acid, bristles). Body colours per design, mixed with the ant's tint.
+- Renders front-on and three-quarter, spitting, in `docs/ant-designs.png` (review options `?amb=N`, `?ant=N`).
+  The first renders were from behind (front is ang=180 for that ant); redone.
+- Tests: every design in every state builds a whole, closed model. 58/58.

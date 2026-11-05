@@ -51,3 +51,26 @@ export function metalSkin() {
   }
   return out;
 }
+
+// An organic skin for creatures: chitin cells with dark veins between them (cellular noise: the gap
+// between the nearest and second-nearest cell centre), mottled, with a fine grain.
+export function organicSkin() {
+  const N = DETAIL_SIZE, out = new Uint8Array(N * N), C = 16, n = N / C;
+  const centre = (i, j) => { const ii = ((i % n) + n) % n, jj = ((j % n) + n) % n; return [i * C + hash(ii, jj, 21) * C, j * C + hash(ii, jj, 22) * C]; };
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const ci = Math.floor(x / C), cj = Math.floor(y / C);
+      let d1 = Infinity, d2 = Infinity;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const [cx, cy] = centre(ci + di, cj + dj);
+        const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+      }
+      const vein = Math.min(1, (d2 - d1) / 3.5); // 0 on a vein, 1 inside a cell
+      let v = 0.55 + 0.4 * vein + 0.12 * (1 - d1 / C);
+      v *= 0.82 + 0.25 * noise(x, y, 32, 23) + 0.08 * noise(x, y, 4, 24);
+      out[y * N + x] = Math.max(0, Math.min(255, Math.round(v * 190)));
+    }
+  }
+  return out;
+}

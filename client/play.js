@@ -31,6 +31,7 @@ import { collectScene } from './scene.js';
 import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
 import { placeScene, frameBoxes } from './place.js';
+placeScene.antVariant = Number(new URLSearchParams(location.search).get('ant') || 0); // ?ant=1..6: the ant designs to choose from
 import { viewModel } from './viewmodel.js';
 import { atmosphere } from './atmosphere.js';
 import { JumpAssist } from './controls.js';
@@ -283,7 +284,7 @@ function frame(now) {
   const ex = prev.x + (p.x - prev.x) * a, ey = prev.y + (p.y - prev.y) * a;
   const eye = lookEye || [2 * ex, prev.d + (depth.pd - prev.d) * a, -2 * (ey - EYE)];
   const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
-  renderer.setAbuseLights(g.level.lights, g.ambient, g.lightsOn);
+  renderer.setAbuseLights(g.level.lights, params.has('amb') ? Number(params.get('amb')) : g.ambient, g.lightsOn); // ?amb=N: review lighting
   const scene = placeScene(collectScene(g), depth, LANE, now, g, palette);
   const fired = g.player.justFired;
   g.player.justFired = false; // game.js render clears it after drawing the flash

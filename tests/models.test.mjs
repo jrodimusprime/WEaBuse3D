@@ -126,7 +126,8 @@ test('level 1: the alien ant in every state, turrets and cracks, all closed part
   const c1 = { ...ctx, depthOf: (e) => d1.depthOf(e) ?? 0, zoneOf: (e) => d1.zoneOf(e), padOf: (e) => d1.padOf(e), pd: 0 };
   const ant = g.entities.find((e) => e.type === 'ANT_ROOF');
   assert.ok(designed(ant));
-  for (const state of ant.def.states.keys()) {
+  for (let V = 0; V <= 6; V++) for (const state of ant.def.states.keys()) {
+    c1.antVariant = V;
     ant.setState(state);
     for (const frame of [0, 3]) {
       ant.frame = frame;
@@ -134,10 +135,10 @@ test('level 1: the alien ant in every state, turrets and cracks, all closed part
       if (!img) continue;
       const parts = design({ e: ant, img, x: ant.x - img.xcfg, y: ant.y - img.h + 1, flip: ant.dir < 0 }, c1);
       if (state === 'hiding') { assert.equal(parts.length, 0); continue; }
-      assert.ok(parts.length > 20, `${state}: a whole ant (${parts.length} parts)`);
+      assert.ok(parts.length > 20, `design ${V} ${state}: a whole ant (${parts.length} parts)`);
       for (const q of parts) {
         assert.ok(q.offset.every(Number.isFinite) && [...q.basis].every(Number.isFinite), `${state}: finite pose`);
-        assert.ok(volume(q.mesh) > 0, `${state}: closed parts`);
+        assert.ok(volume(q.mesh) > 0, `design ${V} ${state}: closed parts`);
       }
     }
   }
