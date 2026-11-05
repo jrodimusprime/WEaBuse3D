@@ -465,3 +465,9 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   level 2's ladder pinned a climber (each hit a flinch). 90/90 tests.
 - Not yet: the right hand on the grip sits just below the frame; the frisbee's glow is blobby; Jared's
   "level 2 elevator ... cut in half" not reproduced (his picture came through as an old one).
+
+## Teleporters, quieter (2026-11-06)
+- Jared: "the flashy lights of the room teleporters is too bright make it opaque and subtle". A running pad's
+  disc flickered up to 4.4x bright and a solid white column strobed on and off every 80 ms, under a strong blue
+  room light. Now the disc is a solid pale blue that brightens with a slow soft pulse (1.15-1.35), the column
+  is a faint steady haze, and the room light is a soft 0.4 within 130 units. Screenshot before and after.

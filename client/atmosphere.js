@@ -49,7 +49,9 @@ export function atmosphere(g, depth, scene, { lane, time, eye, muzzle }) {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 180, rgb: t === 'EXPLODE3' ? [1, 0.35, 0.15] : [0.7, 0.85, 1], intensity: 1.2 });
     } else if (e.ai === 'lava_ai') {
       if (!dyn.some((d) => d.src === 'lava' && Math.abs(d.pos[0] - s.offset[0]) < 200)) dyn.push({ src: 'lava', pos: [s.offset[0], 0, s.offset[2] + 20], radius: 240, rgb: [1, 0.35, 0.08], intensity: 1 + 0.2 * Math.sin(time / 300 + s.offset[0]) });
-    } else if ((e.ai === 'tp2_ai' && e.state === 'running') || e.ai === 'tele_beam_ai') {
+    } else if (e.ai === 'tp2_ai' && e.state === 'running') { // a teleporter pad at work: a soft, steady blue
+      if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], s.offset[1], s.offset[2] + 30], radius: 130, rgb: [0.5, 0.75, 1], intensity: 0.4 });
+    } else if (e.ai === 'tele_beam_ai') {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], s.offset[1], s.offset[2] + 40], radius: 200, rgb: [0.5, 0.8, 1], intensity: 1.2 });
     } else if (e.ai === 'restart_ai') {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], lane - 40, s.offset[2]], radius: 150, rgb: e.aistate >= 1 ? [0.5, 0.7, 1] : [0.45, 0.9, 0.45], intensity: 0.8 });

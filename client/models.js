@@ -210,8 +210,9 @@ function wallSwitch(s, ctx) {
 
 // ---- teleporters (teleport.lsp, tp2_ai) ----
 // The sprite is a round pad seen at an angle, with a rim, crackling while it
-// teleports. In 3D: a round pad on the floor at its spot, with a rim, a glowing
-// disc and, while it runs, a column of light.
+// teleports. In 3D: a round pad on the floor at its spot, with a rim and a pale
+// disc that, while it runs, brightens with a slow, soft pulse under a faint haze
+// of light (Jared: the flashing was "too bright make it opaque and subtle").
 function teleporter(s, ctx) {
   const { e, img } = s;
   const pad = ctx.g.solids.find((q) => q.e === e);
@@ -228,12 +229,12 @@ function teleporter(s, ctx) {
   const x = 2 * e.x, top = pad ? -2 * pad.y0 - 10 : -2 * e.y;
   const d = ctx.depthOf(e);
   const running = e.state === 'running';
-  const flick = running ? 1.2 + 0.8 * Math.abs(Math.sin(ctx.time / 60)) : 1;
+  const pulse = 0.5 + 0.5 * Math.sin(ctx.time / 450);
   return [
     { mesh: parts.base, basis: I3, offset: [x, d, top] },
-    { mesh: parts.rim, basis: I3, offset: [x, d, top], bright: 1.3 },
-    { mesh: parts.disc, basis: I3, offset: [x, d, top], bright: running ? 2.2 * flick : 1.1 },
-    ...(running && Math.floor(ctx.time / 80) % 2 ? [{ mesh: parts.beam, basis: I3, offset: [x, d, top], bright: 1.6 }] : []),
+    { mesh: parts.rim, basis: I3, offset: [x, d, top], bright: 1.1 },
+    { mesh: parts.disc, basis: I3, offset: [x, d, top], bright: running ? 1.15 + 0.2 * pulse : 0.95 },
+    ...(running ? [{ mesh: parts.beam, basis: I3, offset: [x, d, top], additive: true, glowAmt: 0.05 + 0.04 * pulse }] : []),
   ];
 }
 
