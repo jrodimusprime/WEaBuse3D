@@ -152,6 +152,42 @@ void main() {
   color = vec4(vCol.rgb * vCol.a * f * fog, 1.0);
 }`;
 
+// The Quake look (Jared: "stick to a strict colour palette like quake did ... to add grittyness"):
+// the scene is drawn small, at about Quake's resolution, then every pixel is snapped to the nearest
+// colour of Quake's 256-colour palette and scaled up with hard edges.
+const POST_VS = `#version 300 es
+layout(location=0) in vec2 pos;
+out vec2 vUv;
+void main() { vUv = pos * 0.5 + 0.5; gl_Position = vec4(pos, 0.0, 1.0); }`;
+const POST_FS = `#version 300 es
+precision highp float;
+in vec2 vUv;
+uniform sampler2D scene; uniform sampler2D lut; uniform int on;
+out vec4 color;
+void main() {
+  vec3 c = clamp(texture(scene, vUv).rgb, 0.0, 1.0);
+  if (on == 0) { color = vec4(c, 1.0); return; }
+  vec3 q = floor(c * 31.0 + 0.5);
+  color = vec4(texture(lut, vec2((q.r + 32.0 * q.b + 0.5) / 1024.0, (q.g + 0.5) / 32.0)).rgb, 1.0);
+}`;
+
+// For every colour on a 32-step grid, the nearest colour of a 768-byte palette (weighted for the eye).
+export function paletteLut(pal) {
+  const out = new Uint8Array(1024 * 32 * 4);
+  for (let g = 0; g < 32; g++) for (let b = 0; b < 32; b++) for (let r = 0; r < 32; r++) {
+    const R = (r * 255) / 31, G = (g * 255) / 31, B = (b * 255) / 31;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < 256; i++) {
+      const dr = R - pal[i * 3], dg = G - pal[i * 3 + 1], db = B - pal[i * 3 + 2];
+      const d = 3 * dr * dr + 4 * dg * dg + 2 * db * db;
+      if (d < bd) { bd = d; best = i; }
+    }
+    const o = (g * 1024 + b * 32 + r) * 4;
+    out[o] = pal[best * 3]; out[o + 1] = pal[best * 3 + 1]; out[o + 2] = pal[best * 3 + 2]; out[o + 3] = 255;
+  }
+  return out;
+}
+
 export class Renderer {
   constructor(gl) {
     this.gl = gl;
@@ -170,6 +206,13 @@ export class Renderer {
     this.glowBuf = gl.createBuffer();
     this.glowVao = vao(gl, this.glowBuf, [[0, 3, 0], [1, 2, 12], [2, 4, 20]], 36);
     this.haze = [0.03, 0.03, 0.045, 0.00045];
+    this.post = program(gl, POST_VS, POST_FS, ['scene', 'lut', 'on']);
+    this.postBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.postBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
+    this.postVao = vao(gl, this.postBuf, [[0, 2, 0]], 8);
+    this.quake = false; // palette and low resolution, once setQuakePalette has been called
+    this.lines = 400; // about how many lines tall the scene is drawn (Quake: 200 to 480)
     this.dyn = [];
     this.brightness = 1;
     this.lightTex = gl.createTexture();
@@ -300,6 +343,40 @@ export class Renderer {
     this.frameVao ??= vao(gl, this.frameBuf, [[0, 3, 0], [1, 2, 12], [2, 2, 20], [3, 1, 28]], 32);
   }
 
+  // Turns on the Quake look with this palette (768 bytes).
+  setQuakePalette(pal) {
+    const gl = this.gl;
+    this.lutTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.lutTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1024, 32, 0, gl.RGBA, gl.UNSIGNED_BYTE, paletteLut(pal));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    this.quake = true;
+  }
+
+  // the offscreen target the scene is drawn into, at w x h
+  target(w, h) {
+    const gl = this.gl;
+    if (this.fbo && this.fbo.w === w && this.fbo.h === h) return this.fbo;
+    if (this.fbo) { gl.deleteFramebuffer(this.fbo.fb); gl.deleteTexture(this.fbo.tex); gl.deleteRenderbuffer(this.fbo.depth); }
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const depth = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return (this.fbo = { fb, tex, depth, w, h });
+  }
+
   // the texture index of a miptex by name (e.g. "fg123"), or null
   textureNamed(name) { const i = this.textureInfo.findIndex((t) => t.name === name); return i < 0 ? null : i; }
 
@@ -329,6 +406,27 @@ export class Renderer {
   // view) or {eye, target} (look at). opts: mode ('lightmap' | 'abuse'), which
   // of 'front'/'caps' to show, fovY, sprites and boxes (client/scene.js), red flash.
   frame(view, width, height, opts = {}) {
+    if (!this.quake) return this.draw(view, width, height, opts);
+    const gl = this.gl;
+    const k = Math.max(1, Math.round(height / this.lines));
+    const t = this.target(Math.max(1, Math.floor(width / k)), Math.max(1, Math.floor(height / k)));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
+    this.draw(view, t.w, t.h, opts);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, width, height);
+    gl.disable(gl.DEPTH_TEST);
+    gl.useProgram(this.post.prog);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t.tex);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.lutTex);
+    gl.uniform1i(this.post.u.scene, 0); gl.uniform1i(this.post.u.lut, 1); gl.uniform1i(this.post.u.on, this.paletteOn === false ? 0 : 1);
+    gl.bindVertexArray(this.postVao);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindVertexArray(null);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.enable(gl.DEPTH_TEST);
+  }
+
+  draw(view, width, height, opts = {}) {
     const gl = this.gl;
     const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true, viewmodel = [], glows = [], dyn = [], eye = view.eye } = opts;
     gl.viewport(0, 0, width, height);

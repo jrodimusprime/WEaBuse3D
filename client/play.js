@@ -56,6 +56,11 @@ const [bspBuf, palBuf] = await Promise.all([
 const world = loadBSP(new Uint8Array(bspBuf));
 const renderer = new Renderer(gl);
 renderer.load(world, new Uint8Array(palBuf));
+// the Quake look: Quake's palette (from LibreQuake, BSD licence) and about Quake's resolution; F4 toggles it
+if (new URLSearchParams(location.search).get('quake') !== '0') {
+  fetch('palettes/quake.lmp').then((r) => r.arrayBuffer()).then((b) => renderer.setQuakePalette(new Uint8Array(b))).catch(() => {});
+}
+addEventListener('keydown', (e) => { if (e.code === 'F4') { renderer.quake = !renderer.quake && !!renderer.lutTex; e.preventDefault(); } });
 
 // ---- progress: the levels passed in this browser, so any of them can be played again ----
 const LEVELS = 22;

@@ -58,3 +58,8 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
    not done until it lights the room (client/atmosphere.js) and its glowing parts glow (additive parts).
 9. **Controls must feel like Quake's.** A press must never be lost to a bump: jumps are buffered and allowed
    just after leaving the ground (client/controls.js); test movement on slopes, steps and edges.
+10. **Quake's palette and resolution.** Every frame is drawn at about Quake's resolution (~400 lines) and
+    snapped to Quake's 256-colour palette (web/palettes/quake.lmp, from LibreQuake under BSD; never id's
+    pak files). Design colours as if picking from Quake's ramps: earthy browns, greys, muted greens and
+    the few fullbright reds, oranges and yellows for things that glow. Avoid pure, saturated primaries.
+    Abuse's art keeps its shapes and is drawn through the same palette.

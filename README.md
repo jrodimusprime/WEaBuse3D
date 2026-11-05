@@ -113,6 +113,7 @@ Every gameplay change cites the Abuse source (`cop.cpp player_move`), as in WEaB
 | Abuse SDL port `src/sdlport/*` | GPLv2+ | Compatible (we do not need it). |
 | Abuse data `data/*` (art, levels, Lisp) | Public domain | Free to use, convert, redistribute. |
 | Abuse `data/sfx/*`, `data/music/*` (Bobby Prince) | Redistribution permission granted to Debian | **Open question.** WEaBuse already ships them. Check before shipping, and keep them replaceable. |
+| Quake's 256-colour palette (`web/palettes/quake.lmp`), from LibreQuake | BSD 3-clause | Notice in `licenses/`. Taken from LibreQuake's free data, not from id's. |
 | **Quake game data** (`pak0.pak`, `pak1.pak`, id's models, textures, sounds, maps) | **Proprietary** | **Never used, never committed, never downloaded by any script.** CI fails if a `.pak` file or a known id asset hash appears anywhere in the tree. |
 
 We use Quake's engine and none of its content or look. The game should look and sound like
@@ -310,7 +311,9 @@ on top of it every lamp of the level has a fixture and a halo on the wall (some 
 lightstyle patterns), and whatever burns or shines lights the room with coloured dynamic light: the
 muzzle flash, explosions (cooling from orange to red), red player tracers, rockets, plasma, acid, lava,
 teleporters and beams, save screens, exit rings (`client/atmosphere.js`, 16 nearest lights a frame).
-A haze darkens the distance. Guns, drones, lifts, doors and hatches wear a Quake-style metal skin
+A haze darkens the distance. **The Quake look:** each frame is drawn at about Quake's resolution and
+snapped to Quake's 256-colour palette (from LibreQuake, BSD), so Abuse's art and the 3D models share one
+gritty, banded palette (F4 toggles it). Guns, drones, lifts, doors and hatches wear a Quake-style metal skin
 (`engine/detail.js`: grain, brushed streaks, panel seams, rivets, scratches), projected along each
 model's own axes. Explosions are designed too: swelling, cooling fireballs throwing sparks
 and leaving smoke, spreading rings and white-blue flashes, all glowing additively.

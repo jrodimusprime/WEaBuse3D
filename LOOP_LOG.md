@@ -205,3 +205,13 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   scratches). The model shader projects it triplanar in model space (no UVs; it stays on the moving gun)
   and multiplies it in (`skin`, `skinScale` per draw). On guns, the drone hull, lifts, doors, hatches.
 - `npm test` 57/57.
+
+## 2026-11-05 · Quake's palette and resolution
+- Jared: "stick to a strict colour palate like quake did and distance rendering also to add grittyness ...
+  perhaps use the exact same colour scheme quake used while keeping the sprites in the same design as abuse".
+- Quake's palette comes from LibreQuake (lq1/gfx/palette.lmp, BSD 3-clause; the same 256 colours, index 255
+  = 159,91,83). It is not taken from id's paks (CLAUDE.md hard rule). Licence in `licenses/`.
+- Renderer: the scene is drawn into an offscreen target ~400 lines tall, then a post pass snaps each pixel
+  to the nearest palette colour via a 32x32x32 lookup (`paletteLut`, eye-weighted distance, 36 ms to
+  build) and scales it up with hard edges. F4 toggles it; `?quake=0` turns it off. The walk page gets it too.
+- CLAUDE.md rule 10. Screenshots compared with it off and on.
