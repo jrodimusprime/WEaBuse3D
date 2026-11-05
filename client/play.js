@@ -17,13 +17,16 @@
 //   ?still=N            step N simulation steps with no input, then hold
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
+//   ?solo=1             with ?look: draw only that object, on black (for checking models)
+//   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
+//                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
 import { loadBSP } from '../engine/bsp.js';
 import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
 import { collectScene } from './scene.js';
 import { createStatbar } from './statbar.js';
 import { Depth, EYE } from './depth.js';
-import { placeScene } from './place.js';
+import { placeScene, frameBoxes } from './place.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -57,12 +60,33 @@ const statbar = await createStatbar(g, document.getElementById('statbar'));
 const LANE = Number(world.entities[0]._abuse_lane || 160);
 const depth = new Depth(g, LANE);
 depth.install();
+const palette = new Uint8Array(palBuf);
+renderer.setFrames(frameBoxes(depth, LANE, g, renderer));
 if (params.has('at')) { const [x, y] = params.get('at').split(',').map(Number); g.teleportPlayer(x, y); }
 setMsg('');
 
 // ---- the view: Quake's viewangles, in degrees (pitch + is down, yaw 0 is +X = Abuse's right) ----
 let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 0);
 if (params.has('depth')) depth.pd = Number(params.get('depth'));
+let lookEye = null, lookTarget = null;
+const solo = params.has('solo');
+if (params.has('look')) {
+  const e = g.entities.filter((q) => q.type === params.get('look'))[Number(params.get('n') || 0)];
+  if (e) {
+    lookTarget = e;
+    const img = g.spriteOf(e);
+    const ang = (Number(params.get('ang') || 0) * Math.PI) / 180, dist = Number(params.get('dist') || 160);
+    const k = depth.kind(e);
+    const tz = -2 * (e.y - (img?.h || 20) / 2), tx = 2 * e.x, ty = k === 'wall' ? LANE - 6 : depth.depthOf(e) ?? 0;
+    // in front means from the middle of the hall for things on the wall, from along the hall otherwise
+    const ex = k === 'wall' ? tx + dist * Math.sin(ang) : tx - dist * Math.cos(ang);
+    const ey = k === 'wall' ? ty - dist * Math.cos(ang) : ty + dist * Math.sin(ang);
+    const ez = tz + Number(params.get('up') || 30);
+    lookEye = [ex, ey, ez];
+    yaw = (Math.atan2(ty - ey, tx - ex) * 180) / Math.PI;
+    pitch = (-Math.atan2(tz - ez, Math.hypot(tx - ex, ty - ey)) * 180) / Math.PI;
+  }
+}
 
 // ---- input ----
 const held = new Set();
@@ -105,8 +129,13 @@ function feedInput() {
   const p = g.player;
   const onLadder = g.ladders.some((l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5 && p.y >= l.y0 && p.y <= l.y1);
   g.keys.clear();
-  if (along > 0.25) g.keys.add('ArrowRight');
-  if (along < -0.25) g.keys.add('ArrowLeft');
+  // On a ladder, like a 3D shooter: walking forward looking up climbs, looking down descends
+  // (backward reverses). While climbing that way the walk along the hall is left out.
+  const climb = onLadder && fwd !== 0 && Math.abs(pitch) > 20 ? (pitch < 0 ? fwd : -fwd) : 0;
+  if (climb > 0) g.keys.add('ArrowUp');
+  if (climb < 0) g.keys.add('ArrowDown');
+  if (!climb && along > 0.25) g.keys.add('ArrowRight');
+  if (!climb && along < -0.25) g.keys.add('ArrowLeft');
   if (held.has('Space')) g.keys.add(onLadder ? 'ArrowUp' : 'Space'); // Space jumps, or climbs a ladder
   if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
   if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
@@ -197,14 +226,15 @@ function frame(now) {
   // the eye, between the last two steps
   const a = acc / STEP, p = g.player;
   const ex = prev.x + (p.x - prev.x) * a, ey = prev.y + (p.y - prev.y) * a;
-  const eye = [2 * ex, prev.d + (depth.pd - prev.d) * a, -2 * (ey - EYE)];
+  const eye = lookEye || [2 * ex, prev.d + (depth.pd - prev.d) * a, -2 * (ey - EYE)];
   const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
   renderer.setAbuseLights(g.level.lights, g.ambient, g.lightsOn);
-  const scene = placeScene(collectScene(g), depth, LANE, now);
+  const scene = placeScene(collectScene(g), depth, LANE, now, g, palette);
   g.player.justFired = false; // game.js render clears it after drawing the flash
   renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
     mode: 'abuse', front: true, caps: false, fovY,
-    sprites: scene.sprites.filter((s) => !s.player), // the camera is inside the cop
+    sprites: solo ? scene.sprites.filter((s) => s.e === lookTarget) : lookEye ? scene.sprites : scene.sprites.filter((s) => !s.player), // the camera is inside the cop
+    world: !solo,
     boxes: scene.boxes, red: g.redRamp || 0,
   });
   g.updateHud();

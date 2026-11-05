@@ -2,7 +2,26 @@
 
 The loop takes the first unchecked task of the current milestone. See README.md › Milestones.
 
-## M2: Depth mode, 3D gameplay (current)
+## M2b: Designed models, fitted doors and lifts, shooter ladders (current)
+
+- [x] Rules in CLAUDE.md (3D conversion rules) and README.
+- [x] `engine/mesh.js` model kit (boxes, hexahedra, lathes, cylinders, ellipsoids, tori; outward normals; sprite colours).
+- [x] Designed models: WHO drone, doors (sdoor_ai), lift (platform_ai), switches, teleporters.
+- [x] Fitted doors and lifts: doorway and shaft zones with frame walls, enforced by the depth layer; touching zones share an opening.
+- [x] Ladders: forward while looking up climbs, looking down descends.
+- [x] Tests: designed parts closed, door panel rises with the door's state, door- and lift-sized zones, level 0 still finished under the 3D rules.
+- [ ] Human plays level 0 and judges the models.
+
+## Models awaiting design (drawn by the voxel placeholder until designed; CLAUDE.md rule 6)
+
+Level 0 and 1 objects still on the placeholder, roughly in the order a player meets them:
+HEALTH (heart), weapon/ammo icons (MBULLET_ICON*, GRENADE_ICON*, ROCKET_ICON2, FBOMB_ICON1), POWER_FAST,
+POINTER (sign), SWITCH_BALL, SPRING, FORCE_FIELD, TP_DOOR, HIDDEN_WALL* and HIDDEN_WALL_2x2/3FLR/3WAL,
+LAVA, TRAP_DOOR2/3, BOLDER, SPRAY_GUN (dome turret), ANT_ROOF / HIDDEN_ANT (alien ant), ANT_CRACK,
+NEXT_LEVEL / NEXT_LEVEL_TOP (exits), TELE_BEAM, effects (explosions, smoke, sparks), projectiles
+(rockets, grenades, plasma), and the cop himself (only seen in Watch and model review).
+
+## M2: Depth mode, 3D gameplay (done; human sign-off pending)
 
 - [x] T1 WEaBuse hooks: `g.apart?.(shot, target)` in weapons.js hitAt and game.js explode (blast source set by detonate); WEaBuse regress passes; submodule on branch `depth-hooks`.
 - [ ] T2 LANE 160: rebuild levels 0 and 1; tests follow LANE.

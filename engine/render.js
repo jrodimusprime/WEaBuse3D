@@ -122,6 +122,8 @@ export class Renderer {
   load(model, palette) {
     const gl = this.gl;
     this.palette = palette;
+    this.textureInfo = model.textures.map((t) => ({ name: t.name, w: t.width, h: t.height }));
+    this.frameGroups = [];
     this.textures = model.textures.map((t) => {
       const tex = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -204,6 +206,36 @@ export class Renderer {
     this.triangles = data.length / 24;
   }
 
+  // Frame walls (doorways, lift shafts): boxes [{min, max, tex}] in units, textured like the
+  // world (world-anchored, a texel per 2 units) and lit the same way. Replaces any earlier set.
+  setFrames(boxes) {
+    const gl = this.gl;
+    const byTex = new Map();
+    for (const b of boxes) { if (!byTex.has(b.tex)) byTex.set(b.tex, []); byTex.get(b.tex).push(b); }
+    const data = [];
+    this.frameGroups = [];
+    for (const [k, list] of byTex) {
+      const t = this.textureInfo[k], first = data.length / 8;
+      for (const { min: a, max: b } of list) {
+        const v = (x, y, z, s, tt, sh) => data.push(x, y, z, s / t.w, tt / t.h, 0, 0, sh);
+        const q = (p, uv, sh) => { for (const i of [0, 1, 2, 0, 2, 3]) v(...p[i], ...uv(p[i]), sh); };
+        const xs = [a[0], b[0]], ys = [a[1], b[1]], zs = [a[2], b[2]];
+        for (const x of xs) q([[x, ys[0], zs[0]], [x, ys[1], zs[0]], [x, ys[1], zs[1]], [x, ys[0], zs[1]]], (p) => [p[1] / 2, -p[2] / 2], 0.84);
+        for (const y of ys) q([[xs[0], y, zs[0]], [xs[1], y, zs[0]], [xs[1], y, zs[1]], [xs[0], y, zs[1]]], (p) => [p[0] / 2, -p[2] / 2], 0.95);
+        q([[xs[0], ys[0], zs[1]], [xs[1], ys[0], zs[1]], [xs[1], ys[1], zs[1]], [xs[0], ys[1], zs[1]]], (p) => [p[0] / 2, p[1] / 2], 1);
+        q([[xs[0], ys[0], zs[0]], [xs[1], ys[0], zs[0]], [xs[1], ys[1], zs[0]], [xs[0], ys[1], zs[0]]], (p) => [p[0] / 2, p[1] / 2], 0.72);
+      }
+      this.frameGroups.push({ tex: this.textures[k], first, count: data.length / 8 - first });
+    }
+    this.frameBuf ??= gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.frameBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+    this.frameVao ??= vao(gl, this.frameBuf, [[0, 3, 0], [1, 2, 12], [2, 2, 20], [3, 1, 28]], 32);
+  }
+
+  // the texture index of a miptex by name (e.g. "fg123"), or null
+  textureNamed(name) { const i = this.textureInfo.findIndex((t) => t.name === name); return i < 0 ? null : i; }
+
   // Abuse's lights for mode 'abuse': the level's light list, the ambient level, and whether lights are on.
   setAbuseLights(list, ambient, on = true) {
     const d = this.lightData;
@@ -231,7 +263,7 @@ export class Renderer {
   // of 'front'/'caps' to show, fovY, sprites and boxes (client/scene.js), red flash.
   frame(view, width, height, opts = {}) {
     const gl = this.gl;
-    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0 } = opts;
+    const { mode = 'lightmap', front = true, caps = false, fovY = 73.74, sprites = [], boxes = [], red = 0, world = true } = opts;
     gl.viewport(0, 0, width, height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -273,17 +305,21 @@ export class Renderer {
     gl.bindTexture(gl.TEXTURE_2D, this.lightmap);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindVertexArray(this.worldVao);
-    for (const g of this.groups) {
+    for (const g of world ? this.groups : []) {
       if ((g.kind === 'front' && !front) || (g.kind === 'caps' && !caps)) continue;
       gl.bindTexture(gl.TEXTURE_2D, g.tex);
       gl.drawArrays(gl.TRIANGLES, g.first, g.count);
+    }
+    if (world && this.frameGroups.length) {
+      gl.bindVertexArray(this.frameVao);
+      for (const g of this.frameGroups) { gl.bindTexture(gl.TEXTURE_2D, g.tex); gl.drawArrays(gl.TRIANGLES, g.first, g.count); }
     }
 
     // objects
     if (sprites.length || boxes.length) {
       shared(this.model);
       for (const s of sprites) {
-        const m = cachedModel(s.img, this.palette, s.flip, !!s.flat);
+        const m = s.mesh || cachedModel(s.img, this.palette, s.flip, !!s.flat);
         if (!m.count) continue;
         let gpu = this.models.get(m);
         if (!gpu) {

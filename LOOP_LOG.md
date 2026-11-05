@@ -116,3 +116,24 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   an across-the-hall autopilot reaches the exit, no deaths, lowest health 86). Screenshots: the wide
   hall with ammo spread across the floor, the flyers at their depths, a switch on the back wall, a
   teleporter pad on the floor, the lift and doors spanning the hall.
+
+## 2026-11-05 · M2b designed models, fitted doors and lifts, shooter ladders
+- Jared: the drones looked like pancake versions of themselves; doors did not open; lifts and doors spanned
+  the whole hall; ladders should climb like a 3D shooter's. All four are now CLAUDE.md "3D conversion rules".
+- Read the sprites first (contact sheet). WHO is a flat hovercraft whose narrower frames are it turning; a
+  door's middle block lifts; the lift is a bevelled deck with a lamp; the switch is a box with two lamps;
+  TELE2 is a round pad. Designs in `client/models.js` follow those, built with `engine/mesh.js`, coloured
+  from each sprite (`spriteColours`: body/main/dark/light/vivid), posed from state (door openness from
+  running/blocking/walking, the lift lamp on aistate 3, the switch lamps from aistate, the teleporter beam
+  while running).
+- Doors had looked closed when open: the open frame stretched across the hall still filled it. Fitted doors
+  fix that: the panel slides up into the lintel.
+- Fitted doors and lifts (depth.js zones): a door is 96 units across in a doorway; a lift is 120 deep in a
+  shaft over its run between its two stops (a tile scan failed, since the deck sits flush in its floor).
+  Frame walls are drawn (renderer.setFrames, textured with the wall tile above) and enforced (walking in
+  beside the opening is undone, depth is clamped inside, shots die at frames, enemies keep to openings).
+  Bugs found and fixed: zones were rebuilt when any object died (now once per level); a double door got
+  two different openings (touching zones now share one).
+- `?look=TYPE&ang&dist&up&solo=1` model review view (rule 7). Screenshots checked solo and in the level.
+- `npm test` 29/29: designed parts closed (divergence volume > 0), door panel rises with state, door- and
+  lift-sized zones, level 0 finished under the 3D rules with an autopilot that lines up with the openings.

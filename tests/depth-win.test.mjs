@@ -1,8 +1,8 @@
 // Level 0 can be finished under the 3D rules: the recorded 2D run, replayed
 // with the depth layer on and an autopilot that walks across the hall to
-// whatever the run is about to use (a switch on the wall, a pad, an item),
-// still reaches the exit. So every switch, teleporter and pickup it needs is
-// reachable in 3D.
+// whatever the run is about to use (a switch on the wall, a pad, an item) and
+// lines up with each doorway and lift shaft it passes, still reaches the exit.
+// So every switch, teleporter, pickup, door and lift it needs works in 3D.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -36,6 +36,11 @@ test('level 0 is finished under the 3D rules', async () => {
         if (k !== 'wall' && k !== 'floor' && k !== 'item') continue;
         const dist = Math.abs(e.x - p.x) + Math.abs(e.y - p.y);
         if (dist < best) { best = dist; target = k === 'wall' ? LANE - 30 : d.depthOf(e); }
+      }
+      // line up with a doorway or a shaft ahead (the frame walls let the player through only there)
+      for (const z of d.zones()) {
+        if (p.x + 60 < z.x0 || p.x - 60 > z.x1 || p.y + 40 < z.y0 || p.y - 70 > z.y1) continue;
+        target = z.c;
       }
       d.movePlayer(target === null ? 0 : Math.max(-1, Math.min(1, (target - d.pd) / 20)), STEP);
       ppo.applyAction(g, act, face);

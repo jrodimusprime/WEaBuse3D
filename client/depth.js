@@ -11,8 +11,16 @@
 //   item   at a spot: health, ammo, power-ups.
 //   enemy  moves across the hall toward the player: flyers, ants.
 //   fx     an effect or anything spawned, at the depth of whatever made it.
-//   full   spans the hall: doors, walls, force fields, lifts, lava, boulders,
+//   door   a door its own size, in a doorway: frame walls close the rest of
+//          the hall there (3D conversion rule 3).
+//   lift   a lift its own size, in a shaft with walls around it.
+//   full   spans the hall: breakable walls, force fields, lava, boulders,
 //          exits, sensors and logic. The simulation alone decides these.
+//
+// Doors and lifts make *zones*: rectangles in the plane where the hall is
+// closed except for the opening. The player can only be in a zone at the
+// opening's depth (walking in beside it is undone), enemies keep to it, and
+// shots that reach a frame wall stop there.
 //
 // It works through the simulation's own seams: touchesPlayer (pickups,
 // teleporters, contact), pressed('action') asked by an object's behaviour
@@ -29,6 +37,7 @@ import { behaviors } from '../sim/web/src/behaviors.js';
 const KIND_BY_TYPE = { SWITCH_BALL: 'wall', POINTER: 'wall' };
 const KIND_BY_AI = {
   flyer_ai: 'enemy', ant_ai: 'enemy',
+  sdoor_ai: 'door', platform_ai: 'lift',
   hp_up: 'item', weapon_icon_ai: 'item', fast_ai: 'item', fly_power_ai: 'item', sneaky_power_ai: 'item', health_power_ai: 'item',
   switcher_ai: 'wall', switch_once_ai: 'wall', spray_gun_ai: 'wall', crack_ai: 'wall',
   tp2_ai: 'floor', spring_ai: 'floor',
@@ -38,6 +47,9 @@ const STEER = { flyer_ai: 8, ant_ai: 4 }; // how fast enemies cross the hall, un
 export const PLAYER_HALF = 16; // half the player's depth (Quake's hull)
 export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px tall)
 const REACH = 72; // how far from the back wall a wall switch can be used
+const DOOR_HALF = 48; // a doorway is 96 units across the hall
+const LIFT_HALF = 60; // a lift is as deep as it is wide: 120 units
+const HALF_W = 6, BODY_H = 29; // the player's box in the plane (game.js)
 const SPEED = 270; // the player across the hall, units a second (Abuse's run: 9 px a tick = 270 units/s)
 const ACCEL = 2400;
 
@@ -73,6 +85,7 @@ export class Depth {
   depthOf(e) {
     const k = this.kind(e);
     if (k === 'full') return null;
+    if (k === 'door' || k === 'lift') return this.zoneOf(e)?.c ?? 0;
     if (k === 'wall') return this.lane - 10;
     if (e.depth === undefined) e.depth = spread(e.id ?? Math.round(e.x), Math.round(e.y)) * (this.lane - 48);
     return e.depth;
@@ -81,6 +94,7 @@ export class Depth {
   // half of how deep an object is (floor pads are as deep as they are wide)
   halfDepth(e) {
     const k = this.kind(e);
+    if (k === 'door' || k === 'lift') return this.zoneOf(e)?.h ?? DOOR_HALF;
     if (k === 'floor') return 2 * ((this.g.spriteOf(e)?.w || 20) / 2);
     if (k === 'item') return 14;
     return 18;
@@ -100,6 +114,7 @@ export class Depth {
     const k = this.kind(e);
     if (k === 'full') return true;
     if (k === 'wall') return this.pd >= this.lane - PLAYER_HALF - REACH;
+    if (k === 'door' || k === 'lift') { const z = this.zoneOf(e); return !z || Math.abs(this.pd - z.c) <= z.h - PLAYER_HALF + 1; }
     return Math.abs(this.depthOf(e) - this.pd) < this.halfDepth(e) + PLAYER_HALF;
   }
 
@@ -140,6 +155,73 @@ export class Depth {
     }
   }
 
+  // ---- doorways and shafts ----
+
+  // The zones of the current level, made once per level from its doors and lifts.
+  zones() {
+    const g = this.g;
+    if (this._zonesFor === g.level) return this._zones;
+    this._zonesFor = g.level;
+    const out = [];
+    for (const e of g.entities) {
+      const k = this.kind(e);
+      if (k === 'door') {
+        const r = g.rectOf(e);
+        if (!r) continue;
+        const h = DOOR_HALF;
+        out.push({ e, kind: k, x0: r.x0 - 2, x1: r.x1 + 2, y0: r.y0, y1: r.y1, h, c: spread(e.id ?? 0, 7) * (this.lane - h - 24) });
+      } else if (k === 'lift') {
+        const r = g.deckRect(e);
+        if (!r) continue;
+        // the shaft: the deck's run between its stops (its first two links, platform.lsp),
+        // with room above the top stop for a rider standing on it
+        const stops = [e.y, ...e.links.slice(0, 2).map((l) => l.y)];
+        const above = e.y - r.y0, below = r.y1 - e.y;
+        const y0 = Math.min(...stops) - above - BODY_H - 2, y1 = Math.max(...stops) + below;
+        const xs = [e.x, ...e.links.slice(0, 2).map((l) => l.x)];
+        const x0 = r.x0 + Math.min(...xs) - e.x, x1 = r.x1 + Math.max(...xs) - e.x;
+        const h = LIFT_HALF;
+        out.push({ e, kind: k, x0, x1, y0, y1, h, c: spread(e.id ?? 0, 11) * (this.lane - h - 24) });
+      }
+    }
+    // Doorways and shafts that touch (a double door, a door beside a shaft) share one opening,
+    // or no depth would get through both: each group takes the opening of its first member.
+    const near = (a, b) => a.x0 - 40 <= b.x1 && b.x0 - 40 <= a.x1 && a.y0 - 40 <= b.y1 && b.y0 - 40 <= a.y1;
+    for (let i = 0; i < out.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (!near(out[i], out[j])) continue;
+        const h = Math.min(out[i].h, out[j].h);
+        out[i].c = out[j].c;
+        out[i].c = Math.max(-this.lane + h + 24, Math.min(this.lane - h - 24, out[i].c));
+        break;
+      }
+    }
+    this._zones = out;
+    return out;
+  }
+
+  zoneOf(e) { return this.zones().find((z) => z.e === e) || null; }
+
+  // the zones the player's box overlaps, standing at (x, y)
+  zonesAt(x, y) {
+    return this.zones().filter((z) => x + HALF_W >= z.x0 && x - HALF_W <= z.x1 && y >= z.y0 && y - BODY_H <= z.y1);
+  }
+
+  // the depths the player may take inside zone z: the opening, less the player's own half
+  openFor(z) { return [z.c - z.h + PLAYER_HALF, z.c + z.h - PLAYER_HALF]; }
+
+  // After the simulation moves the player: inside a zone they must be at its opening.
+  // Coming in beside the opening is undone (the frame wall stops them).
+  enforce() {
+    const p = this.g.player;
+    const bad = this.zonesAt(p.x, p.y).find((z) => { const [a, b] = this.openFor(z); return this.pd < a - 0.01 || this.pd > b + 0.01; });
+    if (!bad) { this._legal = { x: p.x, y: p.y }; return; }
+    const L = this._legal;
+    if (!L) return;
+    p.x = L.x; p.vx = 0;
+    if (this.zonesAt(p.x, p.y).includes(bad)) { p.y = L.y; p.vy = 0; }
+  }
+
   // ---- moving ----
 
   // The player across the hall, one simulation step: `wish` in [-1, 1].
@@ -152,6 +234,12 @@ export class Depth {
     const lim = this.lane - PLAYER_HALF;
     if (this.pd > lim) { this.pd = lim; this.pv = 0; }
     if (this.pd < -lim) { this.pd = -lim; this.pv = 0; }
+    // in a doorway or a shaft, the frame walls stop the move across
+    for (const z of this.zonesAt(p.x, p.y)) {
+      const [a, b] = this.openFor(z);
+      if (this.pd < a) { this.pd = a; this.pv = 0; }
+      if (this.pd > b) { this.pd = b; this.pv = 0; }
+    }
   }
 
   // After each 15 Hz tick: enemies close in across the hall; shots that reach a side wall stop there.
@@ -165,10 +253,19 @@ export class Depth {
       let nd = d + Math.max(-s, Math.min(s, this.pd - d));
       if (nd > lim) nd = lim;
       if (nd < -lim) nd = -lim;
+      for (const z of this.zones()) { // enemies pass doorways and shafts at the opening too
+        if (e.x < z.x0 || e.x > z.x1 || e.y < z.y0 || e.y > z.y1 + 30) continue;
+        nd = Math.max(z.c - z.h + 18, Math.min(z.c + z.h - 18, nd));
+      }
       e.depth = nd;
     }
     for (const b of g.projs) {
-      if (b.d0 !== undefined && !b.dead && b.kind === 'bullet' && Math.abs(this.shotDepth(b)) >= this.lane - 1) b.dead = true;
+      if (b.d0 === undefined || b.dead) continue;
+      const sd = this.shotDepth(b);
+      if (b.kind === 'bullet' && Math.abs(sd) >= this.lane - 1) { b.dead = true; continue; }
+      for (const z of this.zones()) { // a shot that reaches a frame wall stops there
+        if (b.x >= z.x0 && b.x <= z.x1 && b.y >= z.y0 && b.y <= z.y1 && (sd < z.c - z.h || sd > z.c + z.h)) { b.dead = true; break; }
+      }
     }
     this.lastShot = null;
   }
@@ -190,8 +287,8 @@ export class Depth {
       if (c && self.kind(c) !== 'full' && Math.abs(self.depthOf(c) - self.pd) > self.halfDepth(c) + PLAYER_HALF + 8) return;
       return proto.hurtPlayer.call(this, amount);
     };
-    g.updatePlayer = function (dt) { const n = this.projs.length; proto.updatePlayer.call(this, dt); self.adopt(n, 'player'); };
-    g.tick = function () { proto.tick.call(this); self.afterTick(); };
+    g.updatePlayer = function (dt) { const n = this.projs.length; proto.updatePlayer.call(this, dt); self.adopt(n, 'player'); self.enforce(); };
+    g.tick = function () { proto.tick.call(this); self.afterTick(); self.enforce(); };
     g.spawn = function (type, x, y) {
       const e = proto.spawn.call(this, type, x, y);
       if (e) {
