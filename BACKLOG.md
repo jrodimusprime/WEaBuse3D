@@ -65,7 +65,7 @@ indicator lamps and the boulder; docs/level2-models.png.) (Done since: the alien
 
 ## Later (found during M0, not needed for its gate)
 
-- Decor tiles that are partly transparent over a non-blank background (common in level 14): draw the decor as its own see-through layer just in front of the back wall, with the background behind it. Today the decor tile is drawn opaque, so transparent pixels show as palette colour 0 (black).
+- [x] Decor tiles that are partly transparent over a non-blank background (common in level 14): their see-through pixels now show the background, with its parallax (windows onto the background, 2026-11-05).
 - Port R_MarkLeaves / R_RecursiveWorldNode with frustum culling. Today every face is drawn every frame.
 - Cross-runtime check in Firefox and WebKit (Playwright). Chrome = Node is done.
 - Palette + colormap shader (Abuse's own light tables) in place of the RGB multiply.

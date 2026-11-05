@@ -90,6 +90,8 @@ let finished = null;
 g.nextLevel = (n) => { finished = n; g.transitioning = true; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } }; // (a watched run passes nothing)
 g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
 await g.start(levelFile(level));
+// the level's background, seen out of the windows (Abuse's parallax layer, at its own scroll rate)
+renderer.setBackdrop({ w: g.level.bgW, h: g.level.bgH, map: g.level.bgmap, tile: (n) => g.assets.backTile(n), rate: g.level.bgRate, view: [320, 200] });
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));
 const LANE = Number(world.entities[0]._abuse_lane || 160);

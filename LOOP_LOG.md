@@ -358,3 +358,19 @@ Jared: "OK so do level 002 now" (and, during it, "add a godmode button").
 - Tests: levels 0, 1 and 2 are finished under the 3D rules (the recorded runs with the autopilot); level 2's objects
   all designed and closed in every state; a jugger shoves only from its depth (fails without the gate) and one
   standing guard stays put. 67/67. Screenshots solo (docs/level2-models.png) and in the level.
+
+## Windows onto the background (the cityscapes)
+Jared: "in the original game you can see out windows on most levels to see cityscapes etc as they strobe past.
+ensure the same functionality is there". Before: the back wall painted the background where a cell had no
+foreground, fixed to the wall (no parallax), and see-through foreground pixels drew black.
+- engine/render.js: foreground textures keep colour 0 as see-through (alpha); lane-wall faces are grouped by wall
+  (+1 back, -1 front); the world shader shows the background (`backdrop`) on background faces and through
+  see-through texels. The background is the level's bgmap (an R16UI map of atlas slots, nearest texels) on a
+  plane at lane / rate behind the wall, per axis, seen along the eye ray: from the hall's middle it equals
+  WEaBuse's 2D parallax (bg = x - cam * (1 - rate), cam centred on a 320 x 200 view). Integer samplers always get
+  units 6 and 7 and a stand-in texture (unbound, they clash with unit 0 and the draw fails).
+- client/play.js hands the level's background to the renderer. No map rebuild needed.
+- Found where it matters by replaying the recorded runs in 2D and counting the background pixels the 2D view
+  shows: most on levels 2, 4, 9, 11, 16. Screenshots: level 2's sky and sun behind its window frames, level 4's
+  and 16's city skylines, level 14's grilles, level 1's frames (the background shifts behind them between two
+  spots). docs/windows.png. 67/67 tests.

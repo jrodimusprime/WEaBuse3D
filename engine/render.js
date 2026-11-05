@@ -79,10 +79,35 @@ const WORLD_FS = `#version 300 es
 precision highp float;
 in vec2 vUv; in vec2 vLuv; in vec3 vPos; in float vShade;
 uniform sampler2D tex; uniform sampler2D lightmap; uniform float brightness; uniform int mode; uniform float red;
+// windows onto the level's background (Abuse's parallax layer): win is +1 on the back wall, -1 on the front wall,
+// 0 elsewhere; bgFace: this face shows the background everywhere (no foreground there), else only where its
+// foreground tile is see-through
+uniform int win; uniform int bgFace; uniform int bgOn;
+uniform highp usampler2D bgMap; uniform sampler2D bgAtlas;
+uniform vec4 bgInfo; // map width, height (tiles), tile width, height (pixels)
+uniform vec4 bgRate; // x rate, y rate, the lane's half depth, atlas columns
+uniform vec2 bgShift; // where the 2D view's camera puts the background: (view / 2) * (1 - rate)
 ${ABUSE_LIGHT}
+// What the background shows through point P of a lane wall. Abuse draws it at camera * rate: in 3D that is a
+// plane behind the wall at lane / rate (x and y each their own), seen along the ray from the eye. From the middle
+// of the hall this is exactly the 2D parallax; walking past a window, the city behind it slides by slower.
+vec3 backdrop(vec3 P) {
+  float wall = float(win) * bgRate.z, dy = P.y - eyePos.y;
+  float tx = (wall / bgRate.x - eyePos.y) / dy, ty = (wall / bgRate.y - eyePos.y) / dy;
+  vec2 q = vec2(eyePos.x + (P.x - eyePos.x) * tx, eyePos.z + (P.z - eyePos.z) * ty);
+  vec2 px = vec2(q.x * 0.5 * bgRate.x, -q.y * 0.5 * bgRate.y) + bgShift;
+  vec2 tile = bgInfo.zw;
+  ivec2 cell = ivec2(mod(floor(px / tile), bgInfo.xy)); // the map repeats, as Abuse's does
+  int slot = int(texelFetch(bgMap, cell, 0).r), cols = int(bgRate.w);
+  ivec2 local = ivec2(mod(px, tile));
+  return texelFetch(bgAtlas, ivec2((slot % cols) * int(tile.x), (slot / cols) * int(tile.y)) + local, 0).rgb;
+}
 out vec4 color;
 void main() {
-  vec3 albedo = texture(tex, vUv).rgb, c = albedo;
+  vec4 texel = texture(tex, vUv);
+  vec3 albedo = texel.rgb;
+  if (win != 0 && bgOn == 1 && (bgFace == 1 || texel.a < 0.5)) albedo = backdrop(vPos);
+  vec3 c = albedo;
   if (mode == 0) c *= texture(lightmap, vLuv).r;
   else if (mode == 1) c = abuseLit(c, vec2(vPos.x / 2.0, -vPos.z / 2.0));
   c = c * vShade * brightness + dynLight(albedo, vPos);
@@ -195,7 +220,7 @@ export function paletteLut(pal) {
 export class Renderer {
   constructor(gl) {
     this.gl = gl;
-    this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient']);
+    this.world = program(gl, WORLD_VS, WORLD_FS, ['mvp', 'tex', 'lightmap', 'brightness', 'mode', 'red', 'lights', 'nLights', 'ambient', 'win', 'bgFace', 'bgOn', 'bgMap', 'bgAtlas', 'bgInfo', 'bgRate', 'bgShift']);
     const atmo = ['dynPos', 'dynCol', 'nDyn', 'eyePos', 'haze'];
     this.world.u = { ...this.world.u, ...uniforms(gl, this.world.prog, atmo) };
     this.model = program(gl, MODEL_VS, MODEL_FS, ['mvp', 'basis', 'offset', 'brightness', 'mode', 'bright', 'red', 'lights', 'nLights', 'ambient', 'glow', 'glowAmt', 'skin', 'skin2', 'skin3', 'skinKind', 'skinAmt', 'skinScale', ...atmo]);
@@ -256,9 +281,10 @@ export class Renderer {
       const tex = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, tex);
       const rgba = new Uint8Array(t.width * t.height * 4);
+      const seeThrough = t.name.startsWith('fg'); // a foreground tile's colour 0 is see-through (the background shows)
       for (let i = 0; i < t.width * t.height; i++) {
         const c = t.pixels[i] * 3;
-        rgba[i * 4] = palette[c]; rgba[i * 4 + 1] = palette[c + 1]; rgba[i * 4 + 2] = palette[c + 2]; rgba[i * 4 + 3] = 255;
+        rgba[i * 4] = palette[c]; rgba[i * 4 + 1] = palette[c + 1]; rgba[i * 4 + 2] = palette[c + 2]; rgba[i * 4 + 3] = seeThrough && !t.pixels[i] ? 0 : 255;
       }
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, t.width, t.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
       gl.generateMipmap(gl.TEXTURE_2D);
@@ -293,6 +319,7 @@ export class Renderer {
     // Which faces are which: the near wall of the lane (seen only from inside)
     // and the caps (brush model *1, seen only from outside).
     const lane = Number(model.entities[0]?._abuse_lane || 64);
+    this.lane = lane;
     const capModel = model.models[1];
     const kindOf = (s, i) => {
       if (capModel && i >= capModel.firstface && i < capModel.firstface + capModel.numfaces) return 'caps';
@@ -301,15 +328,17 @@ export class Renderer {
     };
     // vertices, grouped by kind and texture (BuildSurfaceDisplayList, fans as triangles)
     const groups = new Map();
+    // on a lane wall (the back wall +1, the front wall -1): windows onto the background
+    const winOf = (s) => (Math.abs(s.plane.normal[1]) === 1 && Math.abs(s.plane.dist) === lane ? Math.sign(s.plane.normal[1] * s.plane.dist) : 0);
     model.surfaces.forEach((s, i) => {
-      const key = `${kindOf(s, i)}|${s.texinfo.miptex}`;
+      const key = `${kindOf(s, i)}|${s.texinfo.miptex}|${winOf(s)}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(s);
     });
     const data = [];
     this.groups = [];
     for (const [key, list] of [...groups].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-      const [kind, k] = key.split('|');
+      const [kind, k, w] = key.split('|');
       const first = data.length / 8;
       const t = model.textures[k];
       for (const s of list) {
@@ -325,7 +354,7 @@ export class Renderer {
         };
         for (let i = 1; i + 1 < s.verts.length; i++) { vert(s.verts[0]); vert(s.verts[i]); vert(s.verts[i + 1]); }
       }
-      this.groups.push({ kind, tex: this.textures[k], first, count: data.length / 8 - first });
+      this.groups.push({ kind, tex: this.textures[k], first, count: data.length / 8 - first, win: Number(w), bgFace: t.name.startsWith('bg') ? 1 : 0 });
     }
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -393,6 +422,37 @@ export class Renderer {
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return (this.fbo = { fb, tex, depth, w, h });
+  }
+
+  // The level's background (Abuse's parallax layer), seen through the windows of the lane walls:
+  // { w, h, map (tile numbers, w x h), tile (n -> {w, h, pix} in the palette), rate: {xmul, xdiv, ymul, ydiv}, view: [w, h] }
+  setBackdrop(bg) {
+    if (this.backdrop) { this.gl.deleteTexture(this.backdrop.map); this.gl.deleteTexture(this.backdrop.atlas); }
+    this.backdrop = bg && bg.w && bg.h ? this.makeBackdrop(bg) : null;
+  }
+  makeBackdrop(bg) {
+    const gl = this.gl;
+    const ids = [...new Set(bg.map)], slot = new Map(ids.map((n, i) => [n, i]));
+    const first = ids.map((n) => bg.tile(n)).find(Boolean);
+    if (!first) return null;
+    const tw = first.w, th = first.h, cols = Math.ceil(Math.sqrt(ids.length)), rows = Math.ceil(ids.length / cols);
+    const atlas = new Uint8Array(cols * tw * rows * th * 4), W = cols * tw;
+    ids.forEach((n, i) => {
+      const t = bg.tile(n), ox = (i % cols) * tw, oy = Math.floor(i / cols) * th;
+      for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+        const v = t && x < t.w && y < t.h ? t.pix[y * t.w + x] : 0, o = ((oy + y) * W + ox + x) * 4;
+        atlas[o] = this.palette[v * 3]; atlas[o + 1] = this.palette[v * 3 + 1]; atlas[o + 2] = this.palette[v * 3 + 2]; atlas[o + 3] = 255;
+      }
+    });
+    const make = (fn) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); fn(); for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v); return t; };
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    const map = make(() => gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16UI, bg.w, bg.h, 0, gl.RED_INTEGER, gl.UNSIGNED_SHORT, Uint16Array.from(bg.map, (n) => slot.get(n))));
+    const atl = make(() => gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, rows * th, 0, gl.RGBA, gl.UNSIGNED_BYTE, atlas));
+    const rx = bg.rate.xmul / (bg.rate.xdiv || 1), ry = bg.rate.ymul / (bg.rate.ydiv || 1);
+    return {
+      map, atlas: atl, info: [bg.w, bg.h, tw, th], rate: [Math.max(0.05, rx), Math.max(0.05, ry), this.lane, cols],
+      shift: [(bg.view[0] / 2) * (1 - rx), (bg.view[1] / 2) * (1 - ry)],
+    };
   }
 
   // the texture index of a miptex by name (e.g. "fg123"), or null
@@ -501,12 +561,23 @@ export class Renderer {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.lightmap);
     gl.activeTexture(gl.TEXTURE0);
+    // (the background's samplers always have units of their own and a texture of their type, or the draw fails)
+    this.backdropStandIn ??= this.makeBackdrop({ w: 1, h: 1, map: [0], tile: () => ({ w: 1, h: 1, pix: [0] }), rate: { xmul: 1, xdiv: 1, ymul: 1, ydiv: 1 }, view: [0, 0] });
+    const bd = this.backdrop || this.backdropStandIn;
+    gl.uniform1i(this.world.u.bgOn, this.backdrop ? 1 : 0);
+    gl.uniform1i(this.world.u.bgMap, 6); gl.uniform1i(this.world.u.bgAtlas, 7);
+    gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, bd.map);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, bd.atlas);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform4fv(this.world.u.bgInfo, bd.info); gl.uniform4fv(this.world.u.bgRate, bd.rate); gl.uniform2fv(this.world.u.bgShift, bd.shift);
     gl.bindVertexArray(this.worldVao);
     for (const g of world ? this.groups : []) {
       if ((g.kind === 'front' && !front) || (g.kind === 'caps' && !caps)) continue;
+      gl.uniform1i(this.world.u.win, g.win); gl.uniform1i(this.world.u.bgFace, g.bgFace);
       gl.bindTexture(gl.TEXTURE_2D, g.tex);
       gl.drawArrays(gl.TRIANGLES, g.first, g.count);
     }
+    gl.uniform1i(this.world.u.win, 0);
     if (world && this.frameGroups.length) {
       gl.bindVertexArray(this.frameVao);
       for (const g of this.frameGroups) { gl.bindTexture(gl.TEXTURE_2D, g.tex); gl.drawArrays(gl.TRIANGLES, g.first, g.count); }

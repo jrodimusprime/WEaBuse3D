@@ -328,6 +328,15 @@ gritty, banded palette (F4 toggles it). Guns, drones, lifts, doors and hatches w
 model's own axes. Explosions are designed too: swelling, cooling fireballs throwing sparks
 and leaving smoke, spreading rings and white-blue flashes, all glowing additively.
 
+**Windows onto the background.** Abuse draws each level's background (often a city skyline under a dark or
+cloudy sky) behind its foreground, scrolled at a fraction of the camera's speed (the level's
+`bg_scroll_rate`), so through every window and see-through grille the city strobes past as the player runs.
+In 3D the lane walls are windows wherever Abuse would show the background: cells with no foreground, and the
+see-through pixels of foreground tiles. Through them the renderer shows the background on a plane behind the
+wall at lane / rate (across and up each at their own rate), seen along the ray from the eye: from the middle of
+the hall that is exactly the 2D parallax, and walking past a window the skyline slides by slower than the wall,
+as it does in Abuse (`engine/render.js` `backdrop`, `setBackdrop`; docs/windows.png).
+
 **Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a
 doorway, shaft or hole its own size, and *frame* walls close the rest of the hall. The depth layer
 enforces the frames: you pass only through the opening, and shots stop at them. Objects not yet
