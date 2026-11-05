@@ -1,12 +1,21 @@
-// Abuse in 3D: WEaBuse's simulation runs the game, the 3D engine draws it.
+// Abuse in 3D, from the cop's eyes: WEaBuse's simulation runs the game, the
+// Quake-style engine draws it, and you play it like Quake.
 //
-// URL options:
-//   ?level=0              which level (web/maps/levelNN.bsp must exist)
-//   ?cam=angled|side|first   the camera (F3 cycles)
-//   ?watch=1              play the recorded winning run of the level
-//   ?still=N              screenshots: step N simulation steps with no input, then hold
-//   ?aim=x,y              screenshots: aim at this level pixel
-//   ?at=x,y               screenshots: put the player here
+// The game itself still happens on Abuse's lane (the plane the 2D levels are
+// drawn on): the cop moves left and right, jumps, climbs and aims within it.
+// Quake's controls are projected onto that plane:
+//   - mouse look turns the view freely (pitch and yaw), like Quake;
+//   - W A S D move relative to the view (cl_input.c CL_BaseMove), and the part
+//     of that movement along the lane is Abuse's left or right;
+//   - the aim is where you look, projected onto the lane: the cop fires along it.
+// (The 2.5D cameras, angled and side, live on the branch feature/2.5d.)
+//
+// URL options (screenshots and tests):
+//   ?level=0            which level (web/maps/levelNN.bsp must exist)
+//   ?watch=1            play the recorded winning run of the level
+//   ?still=N            step N simulation steps with no input, then hold
+//   ?yaw=deg&pitch=deg  the view
+//   ?at=x,y             put the player here
 import { loadBSP } from '../engine/bsp.js';
 import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
@@ -19,6 +28,7 @@ const canvas = document.getElementById('view');
 const hudEl = document.getElementById('status');
 const helpEl = document.getElementById('help');
 const msgEl = document.getElementById('msg');
+const lockEl = document.getElementById('lock');
 const setMsg = (html) => { msgEl.innerHTML = html; msgEl.hidden = !html; };
 
 const gl = canvas.getContext('webgl2', { antialias: true });
@@ -41,64 +51,62 @@ g.onEndGame = () => { finished = 'end'; };
 await g.start(levelFile(level));
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));
-if (params.has('at')) { const [x, y] = params.get('at').split(',').map(Number); g.teleportPlayer(x, y); g.cam.x = x - 160; g.cam.y = y - 115; }
+if (params.has('at')) { const [x, y] = params.get('at').split(',').map(Number); g.teleportPlayer(x, y); }
 setMsg('');
 
-// ---- cameras ----
-const CAMS = ['angled', 'side', 'first'];
-let cam = CAMS.includes(params.get('cam')) ? params.get('cam') : 'angled';
-let fpPitch = 0, fpFace = 1, fpTurn = 0; // first person: view pitch (deg, + is down), facing, sideways mouse travel
-const D = 620; // distance of the outside cameras from the lane
+// ---- the view: Quake's viewangles, in degrees (pitch + is down, yaw 0 is +X = Abuse's right) ----
+let yaw = Number(params.get('yaw') || 0), pitch = Number(params.get('pitch') || 0);
+const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px tall)
 
-function view(w, h) {
-  const p = g.player;
-  if (cam === 'first') {
-    const eye = [2 * p.x, 0, -2 * (p.y - 25)];
-    const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI;
-    return { v: { eye, angles: [fpPitch, fpFace > 0 ? 0 : 180, 0] }, front: true, caps: false, fovY };
-  }
-  // Follow Abuse's own camera (its look-ahead and area pans): the centre of its 320x200 view.
-  const cx = g.cam.x + 160, cy = g.cam.y + 100;
-  const target = [2 * cx, 0, -2 * cy];
-  const eye = cam === 'side' ? [target[0], -D, target[2]] : [target[0] - 0.22 * D, -0.92 * D, target[2] + 0.36 * D];
-  return { v: { eye, target }, front: false, caps: true, fovY: 50 };
-}
-
-// ---- input: Abuse's keys reach the game through its own listeners; the mouse is ours ----
-let mouse = null; // canvas pixels
-canvas.addEventListener('mousemove', (e) => {
-  if (document.pointerLockElement === canvas) {
-    fpPitch = Math.max(-80, Math.min(80, fpPitch + e.movementY * 0.15));
-    fpTurn += e.movementX;
-    if (fpTurn * fpFace < -60) { fpFace = -fpFace; fpTurn = 0; } // a flick the other way turns round
-    if (fpTurn * fpFace > 0) fpTurn = 0;
-  }
-  const b = canvas.getBoundingClientRect();
-  mouse = { x: (e.clientX - b.left) * devicePixelRatio, y: (e.clientY - b.top) * devicePixelRatio };
+// ---- input ----
+const held = new Set();
+addEventListener('keydown', (e) => {
+  held.add(e.code);
+  if (e.code === 'F2') { renderer.brightness = renderer.brightness >= 2 ? 1 : renderer.brightness + 0.5; e.preventDefault(); }
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 });
+addEventListener('keyup', (e) => held.delete(e.code));
+addEventListener('blur', () => held.clear());
 canvas.addEventListener('mousedown', (e) => {
-  if (cam === 'first' && document.pointerLockElement !== canvas) canvas.requestPointerLock?.();
+  if (document.pointerLockElement !== canvas) { canvas.requestPointerLock?.(); return; }
   if (e.button === 0) g.mouseDown = true;
   if (e.button === 2) g.rightDown = true;
 });
 addEventListener('mouseup', (e) => { if (e.button === 0) g.mouseDown = false; if (e.button === 2) g.rightDown = false; });
+document.addEventListener('pointerlockchange', () => { lockEl.hidden = document.pointerLockElement === canvas; });
+addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== canvas) return;
+  // in_win.c IN_MouseMove: m_yaw 0.022, m_pitch 0.022, sensitivity 3; cl_pitchup 70, cl_pitchdown 80
+  yaw -= e.movementX * 0.022 * 3;
+  pitch = Math.max(-70, Math.min(80, pitch + e.movementY * 0.022 * 3));
+});
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('wheel', (e) => { e.preventDefault(); g.cycleWeapon(e.deltaY > 0 ? 1 : -1); }, { passive: false });
-addEventListener('keydown', (e) => {
-  if (e.code === 'F3') { cam = CAMS[(CAMS.indexOf(cam) + 1) % CAMS.length]; if (cam !== 'first') document.exitPointerLock?.(); e.preventDefault(); }
-  if (e.code === 'F2') { renderer.brightness = renderer.brightness >= 2 ? 1 : renderer.brightness + 0.5; e.preventDefault(); }
-});
 
-// The aim point, in level pixels: where the pointer meets the lane, or, in
-// first person, straight along the view.
-function aimPoint(w, h) {
+const down = (...codes) => (codes.some((c) => held.has(c)) ? 1 : 0);
+const rad = (d) => (d * Math.PI) / 180;
+
+// Turns this step's Quake input into the keys and aim Abuse's game reads.
+function feedInput() {
+  // keyboard turning, like Quake's arrow keys (cl_yawspeed 140 degrees a second)
+  yaw += (down('ArrowLeft') - down('ArrowRight')) * 140 * STEP;
+  // CL_BaseMove: forward along the view, sideways along its right; only the part along the lane counts
+  const fwd = down('KeyW', 'ArrowUp') - down('KeyS', 'ArrowDown');
+  const side = down('KeyD') - down('KeyA');
+  const along = Math.cos(rad(yaw)) * fwd + Math.sin(rad(yaw)) * side; // forward.x * fwd + right.x * side
   const p = g.player;
-  if (params.has('aim')) { const [x, y] = params.get('aim').split(',').map(Number); return { x, y }; }
-  if (cam === 'first') {
-    const a = (fpPitch * Math.PI) / 180;
-    return { x: p.x + fpFace * 200 * Math.cos(a), y: p.y - 15 + 200 * Math.sin(a) };
-  }
-  return mouse ? renderer.pick(mouse.x, mouse.y, w, h) : null;
+  const onLadder = g.ladders.some((l) => p.x >= l.x0 - 5 && p.x <= l.x1 + 5 && p.y >= l.y0 && p.y <= l.y1);
+  g.keys.clear();
+  if (along > 0.25) g.keys.add('ArrowRight');
+  if (along < -0.25) g.keys.add('ArrowLeft');
+  if (held.has('Space')) g.keys.add(onLadder ? 'ArrowUp' : 'Space'); // Space jumps, or climbs a ladder
+  if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
+  if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
+  // aim: the view direction, projected onto the lane (AngleVectors forward: x = cp*cy, z = -sp)
+  let ax = Math.cos(rad(pitch)) * Math.cos(rad(yaw)), az = -Math.sin(rad(pitch));
+  const len = Math.hypot(ax, az);
+  if (len < 0.2) { ax = p.dir; az = 0; } else { ax /= len; az /= len; }
+  aimAt(g, Math.round(p.x + 200 * ax), Math.round(p.y - EYE - 200 * az));
 }
 
 // ---- the recorded run (Watch) ----
@@ -131,45 +139,60 @@ function watchStep() {
   w.ppo.applyAction(g, w.act, w.face);
   g.update(STEP);
   w.i++;
+  // the view turns to where the cop faces and looks where he aims
+  const want = g.player.dir > 0 ? 0 : 180;
+  const d = ((want - yaw) % 360 + 540) % 360 - 180;
+  yaw += d * 0.12;
+  const a = g.player.aimAngle ?? 0; // degrees, up is positive (lisp_atan2)
+  const up = a > 180 ? a - 360 : a;
+  pitch += (-(Math.abs(up) > 90 ? Math.sign(up) * (180 - Math.abs(up)) : up) - pitch) * 0.12;
 }
 
-// ---- the loop: fixed simulation steps, drawing every frame ----
-let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;
-const started = true;
-if (params.has('watch')) startWatch();
-// (buttons drop focus at once, or Space, Abuse's jump, would press them again)
-document.getElementById('watch').addEventListener('click', (e) => { e.currentTarget.blur(); finished = null; setMsg(''); startWatch(); });
+const stop = (e) => e.currentTarget.blur(); // (or Space, the jump, would press the button again)
+document.getElementById('watch').addEventListener('click', (e) => { stop(e); finished = null; setMsg(''); startWatch(); });
 document.getElementById('restart').addEventListener('click', async (e) => {
-  e.currentTarget.blur();
+  stop(e);
   watch = null; g.demo = false; finished = null; setMsg('');
   await g.start(levelFile(level));
   g.freshRun();
 });
+if (params.has('watch')) startWatch();
 
+// ---- the loop: fixed simulation steps, drawing every frame ----
+let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;
+let prev = { x: g.player.x, y: g.player.y };
 function frame(now) {
   const w = Math.floor(canvas.clientWidth * devicePixelRatio), h = Math.floor(canvas.clientHeight * devicePixelRatio);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   acc += Math.min(0.25, (now - last) / 1000);
   last = now;
-  const aim = aimPoint(w, h);
   while (acc >= STEP) {
     acc -= STEP;
-    if (finished !== null || !started) continue;
-    if (stillSteps === 0) continue;
+    if (finished !== null || stillSteps === 0) continue;
     if (stillSteps > 0) stillSteps--;
+    prev = { x: g.player.x, y: g.player.y };
     if (watch) { watchStep(); continue; }
-    if (aim) aimAt(g, Math.round(aim.x), Math.round(aim.y));
+    feedInput();
     g.update(STEP);
   }
   if (finished !== null && !msgEl.innerHTML) {
+    document.exitPointerLock?.();
     const next = typeof finished === 'number' ? finished : null;
-    setMsg(`<b>${name} complete</b><br><br><a href="?level=${level}&cam=${cam}">Play again</a>${next !== null ? ` · <a href="?level=${next}&cam=${cam}">Level ${next}</a>` : ''}`);
+    setMsg(`<b>${name} complete</b><br><br><a href="?level=${level}">Play again</a>${next !== null ? ` · <a href="?level=${next}">Level ${next}</a>` : ''}`);
   }
-  const vw = view(w, h);
+  // the eye, between the last two steps
+  const a = acc / STEP, p = g.player;
+  const ex = prev.x + (p.x - prev.x) * a, ey = prev.y + (p.y - prev.y) * a;
+  const eye = [2 * ex, 0, -2 * (ey - EYE)];
+  const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
   renderer.setAbuseLights(g.level.lights, g.ambient, g.lightsOn);
   const scene = collectScene(g);
   g.player.justFired = false; // game.js render clears it after drawing the flash
-  renderer.frame(vw.v, w, h, { mode: 'abuse', front: vw.front, caps: vw.caps, fovY: vw.fovY, sprites: cam === 'first' ? scene.sprites.filter((sp) => !sp.player) : scene.sprites, boxes: scene.boxes, red: g.redRamp || 0 });
+  renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
+    mode: 'abuse', front: true, caps: false, fovY,
+    sprites: scene.sprites.filter((s) => !s.player), // the camera is inside the cop
+    boxes: scene.boxes, red: g.redRamp || 0,
+  });
   g.updateHud();
   statbar.draw();
   statbar.fit(innerWidth * 0.5 + 1, innerHeight * 0.14);

@@ -12,6 +12,11 @@
   #help { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: min(720px, 92%); background: rgba(0,0,0,.72); border-top: 1px solid #8a7a5c; border-bottom: 1px solid #8a7a5c; padding: 8px 14px; color: #e8dcc0; pointer-events: none; }
   #msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,.82); border: 1px solid #5a4e3c; padding: 16px 22px; text-align: center; font-size: 13px; }
   #msg a { color: #f0c060; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; pointer-events: none; }
+  #cross::before, #cross::after { content: ''; position: absolute; background: rgba(240, 192, 96, .85); }
+  #cross::before { left: 6px; top: 0; width: 2px; height: 14px; }
+  #cross::after { left: 0; top: 6px; width: 14px; height: 2px; }
+  #lock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); background: rgba(0,0,0,.7); border: 1px solid #5a4e3c; padding: 6px 14px; color: #e8dcc0; pointer-events: none; }
   #panel { flex: none; display: flex; align-items: center; gap: 18px; padding: 8px 12px; background: #0b0a08; border-top: 1px solid #2c261d; }
   #statbar { image-rendering: pixelated; flex: none; cursor: pointer; }
   #info { flex: 1; min-width: 0; color: #9d927f; }
@@ -25,6 +30,8 @@
 <body>
 <div id="stage">
   <canvas id="view"></canvas>
+  <div id="cross"></div>
+  <div id="lock">Click to look around · Esc gives the mouse back</div>
   <div id="help" hidden></div>
   <div id="msg" hidden></div>
 </div>
@@ -33,9 +40,9 @@
   <div id="info">
     <div id="status"></div>
     <div id="controls">
-      <b>A D</b> move · <b>W / Space</b> jump · <b>S / E</b> use (switches, lifts, doors) · <b>mouse</b> aim, fire ·
-      <b>1-7 / wheel</b> weapon · <b>right button</b> power · <b>L</b> lights · <b>G</b> god ·
-      <b>F3</b> camera · <b>F2</b> brightness
+      <b>mouse</b> look and aim · <b>left button / Ctrl</b> fire · <b>W A S D</b> move · <b>&larr; &rarr;</b> turn ·
+      <b>Space</b> jump, climb · <b>E</b> use (switches, lifts, doors), climb down · <b>1-7 / wheel</b> weapon ·
+      <b>right button</b> power · <b>L</b> lights · <b>G</b> god · <b>F2</b> brightness
     </div>
     <div style="margin-top:5px"><button id="watch">Watch the recorded run</button><button id="restart">Restart</button><a href="walk.html">Walk mode</a></div>
   </div>

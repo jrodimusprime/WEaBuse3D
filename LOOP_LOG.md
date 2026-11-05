@@ -85,3 +85,14 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - The game starts at once. The panel below holds the status bar, the status line, the controls, and
   the Watch, Restart and Walk mode buttons (which drop focus, so Space does not press them).
 - Screenshots checked at 1280×720 and 820×640. `npm test` 18/18.
+
+## 2026-11-05 · M1: main is first person (Quake POV); 2.5D kept on feature/2.5d
+- Jared: "you have made it 2.5D which is great... but i want it 3d POV like quake", and keep the 2.5D
+  version as a feature branch. `feature/2.5d` = f7dca70 (angled, side and first-person cameras).
+- `client/play.js` on main is first person only: free Quake mouse look (in_win.c sensitivities, the
+  cl_pitchup/down limits), W A S D relative to the view (CL_BaseMove; the component along the lane
+  becomes ArrowLeft/Right for the sim), arrow keys turn (cl_yawspeed 140), Space jumps or climbs a
+  ladder, E uses or climbs down, the aim is the view direction projected onto the lane. Watch turns
+  the view to the cop's facing and aim. Crosshair and a "click to look around" hint.
+- Screenshots checked: the corridor with the WHO flyers ahead, and the view turned to the side wall.
+  `npm test` 18/18.

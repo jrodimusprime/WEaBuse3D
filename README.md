@@ -7,7 +7,7 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D; F3 changes the camera) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
+**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in first person, like Quake) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
 
 > **Status: M1 is built and waiting for a human to finish level 0.** WEaBuse's simulation runs the
 > game, the Quake-style engine draws it, and every object (the cop, the WHO flyers, lifts, doors,
@@ -22,10 +22,11 @@ npm run serve            # python3 -m http.server 8001, from the repo root
 # open http://localhost:8001/web/
 ```
 
-The page plays level 0 with Abuse's controls: A D or the arrows to move, W, Up or Space to jump,
-S, Down or E to use (switches, lifts, doors), the mouse to aim and fire, 1-7 or the wheel for
-weapons. F3 cycles the camera (angled, side, first person) and F2 the brightness. **Watch the
-recorded run** plays WEaBuse's winning run of the level. `web/walk.html` is the M0 first-person walk.
+The page plays level 0 in first person. Click the view to capture the mouse, look and aim with
+it, fire with the left button, move with W A S D (relative to where you look), jump or climb with
+Space, use switches, lifts and doors with E, change weapons with 1-7 or the wheel. **Watch the
+recorded run** plays WEaBuse's winning run of the level through the cop's eyes. `web/walk.html` is
+the M0 walk. The 2.5D version (angled and side cameras) is on the branch `feature/2.5d`.
 
 ```sh
 npm test                 # compiler, loader, solidity vs the simulation, walk physics, Chrome = Node,
@@ -462,8 +463,10 @@ every object it draws becomes a 3D model built from Abuse's own sprites.
 - `engine/render.js`: Abuse's own light formula (lights, area ambient, dimmer switches, the L key)
   evaluated per pixel in the shader for the world and the models alike; a front cap layer (solid
   tiles' fronts, so the classic camera sees Abuse's tile art); bullets and beams as small boxes.
-- Cameras: **angled** (default: three-quarter view from in front of the lane), **side** (classic)
-  and **first person** (mouse look sets the aim; the near wall closes in). F3 cycles them.
+- **First person, like Quake** (Jared: "I want it 3D POV like Quake"). Mouse look is free in pitch and
+  yaw; W A S D move relative to the view (cl_input.c CL_BaseMove) and the part of the move along the
+  lane drives Abuse's left/right; the aim is the view direction projected onto the lane. The 2.5D
+  cameras (angled and side) are kept on the branch `feature/2.5d`.
 - Abuse's controls, HUD, help messages and voice-overs, sound, death and checkpoints all come
   from the simulation. A **Watch** button plays the recorded winning run of level 0 in 3D.
 - **Exit:** in Node, the recorded run of level 0 replayed through the 3D client's host reaches the
