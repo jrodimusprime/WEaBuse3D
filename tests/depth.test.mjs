@@ -62,6 +62,24 @@ test('enemies close in on the player across the hall', async () => {
   assert.ok(Math.abs(who.depth - d.pd) < before - 50, `${before} -> ${Math.abs(who.depth - d.pd)}`);
 });
 
+test('an ant still in its cocoon on the ceiling stays where it hangs', async () => {
+  await g.start(levelFile(1));
+  g.freshRun();
+  const d = new Depth(g, LANE); d.install();
+  g.update(STEP);
+  const ant = g.entities.find((e) => e.type === 'ANT_ROOF' && e.state === 'hanging');
+  assert.ok(ant, 'a hanging ant on level 1');
+  let fy = ant.y + 2; // on the floor near it, but not under it
+  while (!g.solidAt(ant.x + 160, fy + 1) && fy < ant.y + 200) fy++;
+  put(ant.x + 160, fy);
+  d.depthOf(ant);
+  ant.depth = -100; d.pd = 100;
+  steps(60);
+  assert.equal(ant.state, 'hanging');
+  assert.ok(Math.abs(g.player.x - ant.x - 160) < 20, 'the player stayed beside it');
+  assert.equal(ant.depth, -100, 'it does not slide across the hall towards the player');
+});
+
 test("a shot hits what is at its depth and misses what is not", async () => {
   const d = await fresh();
   const who = find('WHO');

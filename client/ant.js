@@ -3,7 +3,7 @@
 // From its frames (art/ant.spe): a xenomorph-like creature: a long domed head that juts forward with a jaw
 // that opens to spit, a hunched ribbed torso and abdomen with spines on its back, digitigrade hind legs,
 // clawed forearms reaching forward, and a long whip tail curling up behind, ending in a blade. It hangs
-// from the ceiling curled up like a pod (hanging), drops with its limbs splayed (fall_start, falling),
+// from the ceiling as a cocoon not yet hatched (hanging; see THE COCOON), drops with its limbs splayed (fall_start, falling),
 // runs on all fours (running, 10 frames), crouches flat to pounce (landing, pounce_wait), leaps stretched
 // out (start_run_jump, run_jump, run_jump_fall), rears up (jump_up), spits with a flash at its mouth
 // (weapon_fire, fire_wait), walks and spits upside down on the ceiling (top_walk, ceil_fire), turns round
@@ -50,7 +50,7 @@ function kit(e, g, palette, variant = 0) {
     if (V) body = tint ? body.map((v, k) => 0.5 * v + 0.5 * V[k]) : V;
     const dark = variant === 1 || variant === 7 ? [0.1, 0.06, 0.07] : shade(c.dark, 1.8), hi = variant === 1 || variant === 7 ? [0.5, 0.42, 0.44] : shade(c.light, 1.05), bone = [0.8, 0.72, 0.62];
     return {
-      body: boneMesh(body, 0.75), limb: boneMesh(body, 0.55), thin: boneMesh(dark, 0.4), tail: boneMesh(body, 0.7),
+      bodyRgb: body, body: boneMesh(body, 0.75), limb: boneMesh(body, 0.55), thin: boneMesh(dark, 0.4), tail: boneMesh(body, 0.7),
       ball: ballMesh(body), joint: ballMesh(dark), shell: ballMesh(shade(body, 0.85)), hi: ballMesh(hi),
       claw: boneMesh(bone, 0.15), blade: bladeMesh(bone), teeth: boneMesh(bone, 0.3),
       glow: new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 4, 8, [0.55, 1, 0.35]).done(), // acid
@@ -116,6 +116,96 @@ function pose(e, t, f) {
   return P;
 }
 
+// ---- THE COCOON ----
+// Jared: "when the alien is in the roof waiting it is actually a cocoon egg that is not yet hatched". While
+// an ant hangs (ant_ai 'hanging') it is an egg on the ceiling: a splat of dark resin, a stalk and strands
+// holding a leathery, veined shell, sealed at the bottom by four lips with a faint ember glow in the seam.
+// It does not turn or slide towards the player; it only breathes. When it hatches (fall_start) the creature
+// drops out and a torn husk stays on the ceiling, its lips peeled open. World units, Z up, the origin at
+// the ceiling; presentation only.
+const EGG = [[4.5, -11], [10, -15], [15.5, -23], [18, -33], [17.5, -43], [14.5, -51], [9, -56.5], [3.5, -59.4], [0.01, -60]];
+const HUSK = [[4.5, -11], [10, -15], [15.5, -23], [18, -33], [17.5, -42], [15.5, -47]];
+const eggHash = (n, k) => { let h = Math.imul(n + 1, 2654435761) ^ Math.imul(k + 7, 40503); h = Math.imul(h ^ (h >>> 15), 2246822519); return ((h ^ (h >>> 13)) >>> 0) / 4294967296; };
+// a strand from a to b: a thin four-sided taper
+function strand(m, a, b, r0, r1, rgb) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(...d), f = d.map((v) => v / l);
+  let u = Math.abs(f[2]) < 0.9 ? [f[1], -f[0], 0] : [1, 0, 0];
+  const lu = Math.hypot(...u); u = u.map((v) => v / lu);
+  const w = [f[1] * u[2] - f[2] * u[1], f[2] * u[0] - f[0] * u[2], f[0] * u[1] - f[1] * u[0]];
+  const c = (p, r, su, sw) => [p[0] + r * (su * u[0] + sw * w[0]), p[1] + r * (su * u[1] + sw * w[1]), p[2] + r * (su * u[2] + sw * w[2])];
+  return m.hexa([c(a, r0, -1, -1), c(a, r0, 1, -1), c(a, r0, 1, 1), c(a, r0, -1, 1), c(b, r1, -1, -1), c(b, r1, 1, -1), c(b, r1, 1, 1), c(b, r1, -1, 1)], rgb);
+}
+function eggKit(body) {
+  return built(`egg:${body.join()}`, () => {
+    const shell = body.map((v, i) => v * 0.4 + [0.05, 0.05, 0.035][i]); // leathery, browner and darker than the flesh
+    const resin = [0.11, 0.07, 0.05], vein = body.map((v) => v * 0.55), lip = body.map((v, i) => v * 0.7 + [0.06, 0.03, 0.02][i]);
+    const radius = (z) => { for (let i = 1; i < EGG.length; i++) if (z >= EGG[i][1]) { const [r0, z0] = EGG[i - 1], [r1, z1] = EGG[i]; return r0 + ((r1 - r0) * (z - z0)) / (z1 - z0); } return 0; };
+    // the ceiling's resin and the stalk, and strands from the shoulders up to the ceiling
+    const hold = new Mesh().ellipsoid([0, 0, -0.5], [20, 16, 2.6], 3, 10, resin).lathe([0, 0, 0], [[6, -0.5], [3.6, -5], [3.2, -8], [5, -12]], 8, resin);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 + 0.4, b = a + 0.35 * (eggHash(k, 1) - 0.5);
+      const top = [Math.cos(b) * (21 + 6 * eggHash(k, 2)), Math.sin(b) * (19 + 6 * eggHash(k, 2)), -0.5], low = [Math.cos(a) * 12, Math.sin(a) * 12, -18];
+      const mid = [(top[0] + low[0]) * 0.55, (top[1] + low[1]) * 0.55, -12]; // sagging, like resin drawn out
+      strand(strand(hold, low, mid, 0.7, 0.8, resin), mid, top, 0.8, 1.7, resin);
+    }
+    // veins: raised beads winding down the shell
+    const veins = (m, zEnd) => {
+      for (let k = 0; k < 7; k++) {
+        let a = (k / 7) * Math.PI * 2 + eggHash(k, 3);
+        for (let z = -14; z > zEnd; z -= 1.5) {
+          a += 0.08 * Math.sin(z * 0.21 + k * 1.7);
+          const r = radius(z) + 0.15;
+          m.ellipsoid([Math.cos(a) * r, Math.sin(a) * r, z], [0.75, 0.75, 1.3], 3, 5, vein);
+          if (Math.abs(z + 26 + 4 * (k % 3)) < 0.8) { // a branch
+            for (let j = 1; j < 7; j++) { const ab = a + 0.07 * j, zb = z - 1.3 * j, rb = radius(zb) + 0.1; m.ellipsoid([Math.cos(ab) * rb, Math.sin(ab) * rb, zb], [0.55, 0.55, 1], 3, 5, vein); }
+          }
+        }
+      }
+      return m;
+    };
+    const egg = veins(new Mesh().lathe([0, 0, 0], EGG, 14, shell), -52);
+    // four lips sealing the bottom, with dark seams between them
+    const lips = new Mesh();
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; lips.ellipsoid([Math.cos(a) * 5.2, Math.sin(a) * 5.2, -56.5], [6, 6, 3.6], 4, 8, lip); }
+    const seam = new Mesh().box([0, 0, -58.9], [7, 0.45, 0.8], [0.8, 0.25, 0.08]).box([0, 0, -58.9], [0.45, 7, 0.8], [0.8, 0.25, 0.08]);
+    // the husk, torn open: the shell to its widest-but-one ring, its lips peeled back and out, the dark inside, drips of slime
+    const husk = veins(new Mesh().lathe([0, 0, 0], HUSK, 14, shell), -45).ellipsoid([0, 0, -43], [14, 14, 4], 3, 10, [0.04, 0.02, 0.02]);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 + 0.3, r = 15.5, l = 9 + 5 * eggHash(k, 4);
+      const base = [Math.cos(a) * r, Math.sin(a) * r, -47], tip = [Math.cos(a) * (r + l * 0.8), Math.sin(a) * (r + l * 0.8), -47 - l * 0.5];
+      strand(husk, base, tip, 2.4, 0.5, lip);
+    }
+    for (let k = 0; k < 3; k++) { const a = eggHash(k, 5) * 6.28; husk.ellipsoid([Math.cos(a) * 9, Math.sin(a) * 9, -49 - 3 * k], [0.9, 0.9, 3 + 2 * k], 3, 6, [0.32, 0.3, 0.12]); }
+    return { hold: hold.done(), egg: egg.done(), lips: lips.done(), seam: seam.done(), husk: husk.done(), glow: new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 4, 8, [1, 0.35, 0.1]).done() };
+  });
+}
+// where each hatched ant's husk hangs, per level (level object -> Map(entity -> anchor)); presentation only
+const husks = new WeakMap();
+const SHELL = { skin: 0.95, skinKind: 1, skinScale: 1 / 40 }, RESIN = { skin: 0.8, skinKind: 2, skinScale: 1 / 30 };
+function eggParts(e, a, K, t, hatched) {
+  const out = [], c = Math.cos(a.yaw), s = Math.sin(a.yaw);
+  // as wide as the hanging sprite (15 x 32 pixels: 30 x 64 units)
+  const put = (mesh, sx, sy, sz, extra = {}) => (sx *= 0.85, sy *= 0.85, out.push({ mesh, basis: new Float32Array([c * sx, s * sx, 0, -s * sy, c * sy, 0, 0, 0, sz]), offset: [a.x, a.d, a.z], bright: 1, ...extra }));
+  put(K.hold, 1, 1, 1, RESIN);
+  if (hatched) { put(K.husk, 1, 1, 1, SHELL); return out; }
+  const br = 1 + 0.025 * Math.sin(t * 1.6 + a.yaw), pulse = 0.5 + 0.5 * Math.sin(t * 1.6 + a.yaw);
+  put(K.egg, br, br, 1 + 0.4 * (br - 1), SHELL);
+  put(K.lips, br, br, 1, SHELL);
+  put(K.seam, br, br, 1, { bright: 0.35 + 0.45 * pulse });
+  out.push({ mesh: K.glow, basis: new Float32Array([4, 0, 0, 0, 4, 0, 0, 0, 3]), offset: [a.x, a.d, a.z - 59], additive: true, glowAmt: 0.1 + 0.1 * pulse, eggGlow: true });
+  return out;
+}
+// the husks of the ants that have hatched (placeScene draws them; the ant itself may be far away, or dead)
+export function antHusks(ctx) {
+  const m = husks.get(ctx.g.level), out = []; // (a level has a score of ants at most, two draws each)
+  if (!m) return out;
+  for (const [e, a] of m) {
+    if (e.state === 'hanging' || e.state === 'hiding') continue;
+    for (const q of eggParts(e, a, a.K, ctx.time / 1000, true)) out.push({ ...q, e, player: false });
+  }
+  return out;
+}
+
 // The ant's parts: [{mesh, basis, offset, bright, additive?}] in world space.
 // s: the scene sprite (img, x, y, flip, e); ctx: {palette, time, depthOf, g, pd}
 export function antModel(s, ctx) {
@@ -124,6 +214,14 @@ export function antModel(s, ctx) {
   const V = ctx.antVariant ?? DEFAULT_ANT;
   const K = kit(e, ctx.g, ctx.palette, V);
   const t = ctx.time / 1000;
+  if (e.state === 'hanging') { // a cocoon, not yet hatched: it stays where it hangs, and only breathes
+    const ox = s.flip ? img.w - img.xcfg - 1 : img.xcfg;
+    let m = husks.get(ctx.g.level);
+    if (!m) husks.set(ctx.g.level, (m = new Map()));
+    const anchor = { x: 2 * (s.x + ox), d: ctx.depthOf(e), z: -2 * s.y, yaw: eggHash(e.id ?? Math.round(e.x), 9) * Math.PI * 2, K: eggKit(K.bodyRgb) };
+    m.set(e, anchor);
+    return eggParts(e, anchor, anchor.K, t, false);
+  }
   const n = e.def.states.get(e.state)?.length || 1;
   const fr = (Math.floor(e.frame) % n) / Math.max(1, n);
   const P = pose(e, t, fr);

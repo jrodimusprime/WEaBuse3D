@@ -51,6 +51,8 @@ export function atmosphere(g, depth, scene, { lane, time, eye, muzzle }) {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], s.offset[1], s.offset[2] + 40], radius: 200, rgb: [0.5, 0.8, 1], intensity: 1.2 });
     } else if (e.ai === 'restart_ai') {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], lane - 40, s.offset[2]], radius: 150, rgb: e.aistate >= 1 ? [0.5, 0.7, 1] : [0.45, 0.9, 0.45], intensity: 0.8 });
+    } else if (s.eggGlow) { // a cocoon's ember, faint
+      if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 70, rgb: [1, 0.3, 0.1], intensity: 0.15 + 0.1 * Math.sin(time / 640) });
     } else if (e.ai === 'next_level_ai') {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: [s.offset[0], s.offset[1], s.offset[2] + 20], radius: 180, rgb: [1, 0.2, 0.15], intensity: 0.9 });
     }

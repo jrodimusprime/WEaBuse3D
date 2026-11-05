@@ -20,7 +20,8 @@
 //   ?weapon=NAME        review: all weapons, this one in hand (MGUN PGUN GRENADE ROCKET FIREBOMB DFRIS LSABER)
 //   ?fire=1             review: hold the trigger while ?still steps run
 //   ?effect=TYPE&frame=N&fxd=px  review: an effect (EXPLODE1...) frozen at a frame, fxd px ahead
-//   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0)
+//   &pose=STATE&frame=N with ?look: show the object in that state (review only; use with ?still=0); STATE>NEXT
+//   switches to NEXT a second later
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
 //                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
@@ -114,7 +115,11 @@ if (params.has('look')) {
   const e = g.entities.filter((q) => q.type === params.get('look'))[Number(params.get('n') || 0)];
   if (e) {
     lookTarget = e;
-    if (params.has('pose')) { e.setState(params.get('pose')); e.frame = Number(params.get('frame') || 0); } // review only
+    if (params.has('pose')) { // review only; A>B: state A, then B a second later (an ant's cocoon, then its husk)
+      const [first, then] = params.get('pose').split('>');
+      e.setState(first); e.frame = Number(params.get('frame') || 0);
+      if (then) setTimeout(() => { e.setState(then); e.frame = 0; }, 1000);
+    }
     const img = g.spriteOf(e);
     const ang = (Number(params.get('ang') || 0) * Math.PI) / 180, dist = Number(params.get('dist') || 160);
     const k = depth.kind(e);

@@ -304,3 +304,14 @@ The muscle skin has deeper grooves between the fibres, dark grime blotches and d
 strength (was 0.5–0.55). The flesh is a dark blood red (0.44, 0.09, 0.08 from 0.66, 0.15, 0.13), the highlights are
 muted, the creases deeper, the teeth and claws stained, not clean bone, and the muzzle on its back is a dull ember
 at rest that flares only when it fires. Checked by screenshot solo and in level 1; 58/58 tests.
+
+## The ant on the roof is a cocoon
+Jared: "when the alien is in the roof waiting it is actually a cocoon egg that is not yet hatched and should have a
+model as such and should not move following the user as it does now". A hanging ant (ant_ai 'hanging') is now a
+cocoon: a resin splat and stalk with sagging strands, a leathery veined shell (as tall as the 15 x 32 hanging sprite),
+sealed by four lips with a dim ember in the seam that lights the ceiling faintly; it breathes and nothing else. The
+depth layer no longer steers a hanging (or hidden) ant across the hall towards the player, so it stays at its own
+depth until it drops. When it hatches the creature falls out and a torn husk, lips peeled open and slime dripping,
+stays on the ceiling (presentation only, per level). The model test's "hanging is a whole ant" became "hanging is a
+cocoon" (the spec changed); new tests: the cocoon keeps its depth (fails without the fix), the husk is closed parts.
+Review: ?pose=hanging>landing switches state a second later. 59/59 tests; checked by screenshot solo and in level 1.

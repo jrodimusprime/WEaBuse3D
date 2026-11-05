@@ -6,6 +6,7 @@ import '../sim/web/tools/headless.mjs';
 import { createGame, levelFile } from '../client/sim-host.js';
 import { Depth } from '../client/depth.js';
 import { design, designed } from '../client/models.js';
+import { antHusks } from '../client/ant.js';
 import { LANE } from '../content/compile.mjs';
 
 const g = await createGame();
@@ -135,13 +136,20 @@ test('level 1: the alien ant in every state, turrets and cracks, all closed part
       if (!img) continue;
       const parts = design({ e: ant, img, x: ant.x - img.xcfg, y: ant.y - img.h + 1, flip: ant.dir < 0 }, c1);
       if (state === 'hiding') { assert.equal(parts.length, 0); continue; }
-      assert.ok(parts.length > 20, `design ${V} ${state}: a whole ant (${parts.length} parts)`);
+      // hanging, it is a cocoon not yet hatched (Jared): resin, shell, lips, the seam and its glow; no ant
+      if (state === 'hanging') assert.ok(parts.length >= 4 && parts.length < 10 && parts.some((q) => q.eggGlow), `design ${V} hanging: a cocoon (${parts.length} parts)`);
+      else assert.ok(parts.length > 20, `design ${V} ${state}: a whole ant (${parts.length} parts)`);
       for (const q of parts) {
         assert.ok(q.offset.every(Number.isFinite) && [...q.basis].every(Number.isFinite), `${state}: finite pose`);
         assert.ok(volume(q.mesh) > 0, `design ${V} ${state}: closed parts`);
       }
     }
   }
+  // once it has hatched, its torn husk stays on the ceiling where it hung
+  ant.setState('falling');
+  const husk = antHusks(c1).filter((q) => q.e === ant);
+  assert.ok(husk.length >= 2, 'a husk where the cocoon hung');
+  for (const q of husk) assert.ok(volume(q.mesh) > 0 && q.offset.every(Number.isFinite), 'the husk: closed, finite');
   for (const type of ['SPRAY_GUN', 'ANT_CRACK']) {
     const e = g.entities.find((q) => q.type === type);
     for (const state of e.def.states.keys()) {

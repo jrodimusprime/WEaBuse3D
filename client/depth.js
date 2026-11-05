@@ -294,6 +294,7 @@ export class Depth {
       if (e.dead || this.kind(e) !== 'enemy') continue;
       const d = this.depthOf(e);
       if (Math.abs(e.x - p.x) > 320 || Math.abs(e.y - p.y) > 220) continue;
+      if (e.ai === 'ant_ai' && (e.state === 'hanging' || e.state === 'hiding')) continue; // a cocoon stays where it hangs
       const s = STEER[e.ai] || 4, lim = this.lane - 24;
       let nd = d + Math.max(-s, Math.min(s, this.pd - d));
       if (nd > lim) nd = lim;

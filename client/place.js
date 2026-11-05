@@ -10,6 +10,7 @@
 //   enemy, fx and shots at their depth
 import { MODEL_HALF } from '../engine/voxel.js';
 import { design } from './models.js';
+import { antHusks } from './ant.js';
 import { Mesh } from '../engine/mesh.js';
 
 // a unit tracer (0..1 along X, 1 across), stretched by its transform; one per colour
@@ -42,6 +43,7 @@ export function placeScene(scene, depth, lane, timeMs, g, palette) {
     s.offset = [2 * s.x + half - c * half, dep - sn * half, -2 * s.y];
     out.push(s);
   }
+  for (const p of antHusks(ctx)) out.push(p); // the torn cocoons hatched ants leave on the ceiling
   // bullets: one glowing tracer each, along its path since the last tick, through 3D
   const tracers = new Set();
   for (const b of scene.boxes) if (b.shot?.kind === 'bullet') tracers.add(b.shot);
