@@ -297,3 +297,10 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   and jaw are about 3/4 the size. A fleshy cannon grows from the upper back (mount, sinew braces, breech, a ribbed
   barrel forward over the head, the orange glowing muzzle that was on the cover); it kicks and flares on
   weapon_fire / ceil_fire. docs/ant-boxart.png updated.
+
+## The ant: darker and grittier
+Jared: "creature looks great just needs some more dark texture to make it more gritty and less bright holistically".
+The muscle skin has deeper grooves between the fibres, dark grime blotches and dirt specks, laid on at 0.85–0.9
+strength (was 0.5–0.55). The flesh is a dark blood red (0.44, 0.09, 0.08 from 0.66, 0.15, 0.13), the highlights are
+muted, the creases deeper, the teeth and claws stained, not clean bone, and the muzzle on its back is a dull ember
+at rest that flares only when it fires. Checked by screenshot solo and in level 1; 58/58 tests.

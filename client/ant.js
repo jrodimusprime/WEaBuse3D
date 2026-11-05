@@ -34,11 +34,11 @@ const ballMesh = (rgb) => new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 5, 8, rgb).
 const bladeMesh = (rgb) => new Mesh().hexa([[0, -0.15, -0.5], [1, -0.05, -0.1], [1, 0.05, -0.1], [0, 0.15, -0.5], [0, -0.15, 0.5], [1, -0.05, 0.1], [1, 0.05, 0.1], [0, 0.15, 0.5]], rgb).done();
 
 // one kit per tint (ant_draw tints ants by aitype), coloured from that tint of its standing frame
-const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08], [0.66, 0.15, 0.13]];
+const VARIANT_BODY = [null, [0.22, 0.12, 0.13], [0.42, 0.16, 0.08], [0.62, 0.3, 0.28], [0.45, 0.06, 0.05], [0.5, 0.1, 0.08], [0.36, 0.2, 0.12], [0.27, 0.08, 0.08], [0.44, 0.09, 0.08]]; // design 8: dark blood red (Jared: "more gritty and less bright")
 // Jared: "that image on the left hand side is your best bet" (the creature on Abuse's box art): design 8
 export const DEFAULT_ANT = 8;
 // horn: the skin's colour lightened toward bone, so claws, pincers and teeth belong to the same creature
-const horn = (body, k) => body.map((v, i) => Math.min(1, v * 1.35 + k * [0.62, 0.52, 0.42][i]));
+const horn = (body, k) => body.map((v, i) => Math.min(1, v * 1.25 + k * [0.42, 0.34, 0.24][i])); // stained, not clean bone
 function kit(e, g, palette, variant = 0) {
   const tint = g.assets.tintFor(e);
   return built(`${variant}:${tint ? g.assets.tints.ant_draw.indexOf(tint) : 'plain'}`, () => {
@@ -57,8 +57,8 @@ function kit(e, g, palette, variant = 0) {
       silver: boneMesh(variant === 7 ? horn(body, 0.62) : [0.82, 0.84, 0.86], 0.12), white: boneMesh(variant === 7 ? horn(body, 0.45) : [0.86, 0.82, 0.72], 0.6), whiteBall: ballMesh([0.86, 0.82, 0.72]),
       hornClaw: boneMesh(horn(body, 0.5), 0.15),
       // the box-art creature: flesh, pink highlights, dark creases, ivory teeth, dark gums, a tapering cranium
-      flesh: boneMesh(body, 0.7), fleshBall: ballMesh(body), pink: ballMesh(body.map((v, i) => Math.min(1, v * 1.25 + [0.12, 0.1, 0.09][i]))),
-      crease: boneMesh(body.map((v) => v * 0.35), 0.6), cranium: boneMesh(body, 0.45), ivory: boneMesh([0.86, 0.8, 0.68], 0.1),
+      flesh: boneMesh(body, 0.7), fleshBall: ballMesh(body), pink: ballMesh(body.map((v, i) => Math.min(1, v * 1.12 + [0.05, 0.035, 0.03][i]))),
+      crease: boneMesh(body.map((v) => v * 0.25), 0.6), cranium: boneMesh(body, 0.45), ivory: boneMesh([0.58, 0.5, 0.36], 0.1),
       gums: ballMesh([0.3, 0.04, 0.04]), ember: ballMesh([1, 0.55, 0.15]), sinew: boneMesh(body.map((v) => v * 0.8), 0.5), mouth: ballMesh([0.06, 0.01, 0.01]), slit: ballMesh([0.35, 0.05, 0.03]), slitGlow: ballMesh([0.9, 0.25, 0.08]),
       socket: ballMesh([0.03, 0.02, 0.02]), redEye: ballMesh([1, 0.12, 0.06]), orangeEye: ballMesh([1, 0.55, 0.1]), yellowEye: ballMesh([1, 0.85, 0.2]),
       petal: bladeMesh(shade(body, 0.8)), crest: bladeMesh(bone), throat: ballMesh([1, 0.2, 0.08]), acid: ballMesh([0.5, 1, 0.3]),
@@ -173,7 +173,7 @@ export function antModel(s, ctx) {
   // gaunt limbs held high in a spider's crouch, elbows and knees above the body, long-fingered claws; ribs
   // under the skin, a ridge of vertebrae; a long beaded tail of vertebrae arching up and back.
   function boxArt() {
-    const M = { skin: 0.55, skinKind: 2, skinScale: 0.9 }, Mb = { skin: 0.5, skinKind: 2, skinScale: 0.55 };
+    const M = { skin: 0.9, skinKind: 2, skinScale: 0.9 }, Mb = { skin: 0.85, skinKind: 2, skinScale: 0.55 };
     const fb = (a, b, r, mesh = K.flesh) => bone(mesh, a, b, r, M);
     const fball = (c, r, mesh = K.fleshBall) => ball(mesh, c, r, Mb);
     const bob = P.stride ? Math.abs(Math.sin(P.phase)) * 2 : 0;
@@ -228,8 +228,8 @@ export function antModel(s, ctx) {
     const muzzle = add(breech, mul(aimDir, 20 - firing * 2.5));
     fb(breech, muzzle, 2.6, K.sinew);
     for (let i = 1; i <= 3; i++) ball(K.pink, add(breech, mul(aimDir, i * 5)), [1.6, 3, 3], Mb); // ribbing along the barrel
-    lit(K.ember, muzzle, [2, 2.4, 2.4], 2.2);
-    glowBall(K.ember, muzzle, 2.4 + 2.5 * firing, 0.6 + 0.3 * Math.sin(t * 4) + 1.4 * firing);
+    lit(K.ember, muzzle, [2, 2.4, 2.4], 0.55 + 1.7 * firing); // a dull ember at rest, white-hot when it fires
+    glowBall(K.ember, muzzle, 2 + 3 * firing, 0.18 + 0.08 * Math.sin(t * 4) + 1.8 * firing);
     // the tail: sixteen vertebrae, beaded, arching up and back, swaying
     let tp = add(hip, [-8, 0, 2]), ang = Math.PI - 0.55 - P.tailUp * 0.15;
     for (let i = 0; i < 16; i++) {
