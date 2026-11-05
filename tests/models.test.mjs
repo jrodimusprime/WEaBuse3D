@@ -15,7 +15,7 @@ const depth = new Depth(g, LANE);
 depth.install();
 const palette = new Uint8Array(768);
 for (let i = 0; i < 256; i++) for (let c = 0; c < 3; c++) palette[i * 3 + c] = g.assets.palette[i * 4 + c];
-const ctx = { palette, lane: LANE, time: 1234, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e) };
+const ctx = { palette, lane: LANE, time: 1234, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e), padOf: (e) => depth.padOf(e) };
 const spriteFor = (e) => { const img = g.spriteOf(e); return { e, img, x: e.x - img.xcfg, y: e.y - img.h + 1, flip: e.dir < 0 }; };
 const first = (type) => g.entities.find((e) => e.type === type);
 
@@ -91,6 +91,17 @@ test('the exit machine hangs over its own pad', () => {
     assert.equal(pad.type, 'NEXT_LEVEL');
     assert.equal(depth.depthOf(top), depth.depthOf(pad));
     assert.equal(top.x, pad.x);
+    // the machine's parts and the pad's share one vertical axis
+    const imgT = g.spriteOf(top), imgP = g.spriteOf(pad);
+    const mx = design({ e: top, img: imgT, x: top.x - imgT.xcfg, y: top.y - imgT.h + 1 }, ctx)[0].offset[0];
+    const px = design({ e: pad, img: imgP, x: pad.x - imgP.xcfg, y: pad.y - imgP.h + 1 }, ctx)[0].offset[0];
+    assert.equal(mx, px, 'machine and pad on one axis');
+    const beam = g.entities.find((b) => b.type === 'TELE_BEAM' && depth.padOf(b) === pad);
+    if (beam) {
+      const imgB = g.spriteOf(beam);
+      assert.equal(depth.depthOf(beam), depth.depthOf(pad), 'beam at the pad');
+      assert.equal(design({ e: beam, img: imgB, x: beam.x - imgB.xcfg, y: beam.y - imgB.h + 1 }, ctx)[0].offset[0], px, 'beam on the pad axis');
+    }
   }
 });
 

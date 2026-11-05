@@ -379,44 +379,56 @@ function springPad(s, ctx) {
   return [{ mesh: parts.base, basis: I3, offset: [x, d, floor] }, { mesh: parts.top, basis: I3, offset: [x, d, floor + 14 + up], bright: 1.2 }];
 }
 
-// NEXT_LEVEL / NEXT_LEVEL_TOP: the exit, a dark oval pad. A round exit pad with a red glowing ring
-// and a centre that turns slowly; stand on it and press use.
+// NEXT_LEVEL: the exit pad. The sprite is a glossy dark oval disc with a red sheen and a white highlight.
+// In 3D: a dark disc with a bevelled grey rim, a red band set into its top and a grey centre plate.
+// Its middle is the axis the exit machine hangs on (exitAxis), so the two always line up.
+function exitAxis(g, pad) {
+  const r = g.rectOf(pad);
+  return r ? (r.x0 + r.x1 + 1) : 2 * pad.x; // the middle of the pad as drawn, in units
+}
 function exitPad(s, ctx) {
   const parts = built(`exit:${s.e.type}`, () => {
     const c = spriteColours(s.img, ctx.palette);
-    const R = s.img.w - 4;
+    const R = s.img.w - 4, dark = shade(c.dark, 1.8), rim = shade(c.light, 0.55);
     return {
-      base: new Mesh().lathe([0, 0, 0], [[R, 0], [R, 5], [R - 6, 8], [0, 8]], 20, shade(c.body, 1.1)).done(),
-      ring: new Mesh().torus([0, 0, 8], R - 10, 2.5, 20, 5, [0.9, 0.12, 0.08]).done(),
-      core: new Mesh().box([0, 0, 9], [R * 0.45, 3, 0.6], shade(c.light, 0.9)).box([0, 0, 9], [3, R * 0.45, 0.6], shade(c.light, 0.9)).done(),
+      base: new Mesh().lathe([0, 0, 0], [[R, 0], [R, 4], [R - 3, 7], [R - 6, 8], [0, 8]], 24, dark).done(),
+      rim: new Mesh().torus([0, 0, 5], R - 1.5, 1.6, 24, 4, rim).done(),
+      band: new Mesh().torus([0, 0, 8], R - 12, 2.2, 24, 4, [0.6, 0.1, 0.07]).done(),
+      plate: new Mesh().cylinder([0, 0, 8], R * 0.35, 0.8, 16, rim).done(),
     };
   });
-  const x = 2 * (s.x + s.img.w / 2), d = ctx.depthOf(s.e), floor = -2 * (s.y + s.img.h);
+  const x = exitAxis(ctx.g, s.e), d = ctx.depthOf(s.e), floor = -2 * (s.y + s.img.h);
   return [
-    { mesh: parts.base, basis: I3, offset: [x, d, floor] },
-    { mesh: parts.ring, basis: I3, offset: [x, d, floor], bright: 1.6 + 0.5 * Math.sin(ctx.time / 250) },
-    { mesh: parts.core, basis: rotation(ctx.time / 900), offset: [x, d, floor], bright: 1.2 },
+    { mesh: parts.base, basis: I3, offset: [x, d, floor], skin: 0.5, skinScale: 1 / 24 },
+    { mesh: parts.rim, basis: I3, offset: [x, d, floor] },
+    { mesh: parts.band, basis: I3, offset: [x, d, floor], bright: 1.3 },
+    { mesh: parts.plate, basis: I3, offset: [x, d, floor] },
   ];
 }
 
-// TELE_BEAM: a blue column of light that brightens and fades. A beam: a core and a glow, on a base ring.
+// TELE_BEAM: the exit's beam, a translucent blue column of light streaks that brightens and fades (its
+// fade counts 5 to 12 and back). In 3D: it stands on its exit pad's axis and depth (exitAxis, depth.js) up
+// to the machine: a soft blue glow, a brighter core and a few streaks, all added light (additive),
+// pulsing with the fade as in the original.
 function teleBeam(s, ctx) {
-  const parts = built('TELE_BEAM', () => {
-    const c = spriteColours(s.img, ctx.palette);
-    const H = 2 * s.img.h;
-    return {
-      glow: new Mesh().cylinder([0, 0, 0], 12, H, 12, c.light).done(),
-      core: new Mesh().cylinder([0, 0, 0], 5, H, 8, [0.9, 0.97, 1]).done(),
-      base: new Mesh().torus([0, 0, 1], 14, 2, 14, 4, shade(c.light, 0.9)).done(),
-    };
-  });
-  const x = 2 * (s.x + s.img.w / 2), d = ctx.depthOf(s.e), floor = -2 * (s.y + s.img.h);
+  const parts = built('TELE_BEAM', () => ({
+    glow: new Mesh().cylinder([0, 0, 0], 1, 1, 14, [0.45, 0.62, 1]).done(),
+    core: new Mesh().cylinder([0, 0, 0], 1, 1, 10, [0.8, 0.9, 1]).done(),
+    streak: new Mesh().box([0, 0, 0.5], [0.5, 0.5, 0.5], [0.75, 0.88, 1]).done(),
+  }));
+  const pad = ctx.padOf?.(s.e);
+  const x = pad ? exitAxis(ctx.g, pad) : 2 * (s.x + s.img.w / 2), d = ctx.depthOf(s.e);
+  const bottom = -2 * (s.y + s.img.h), h = 2 * s.img.h;
   const f = Math.max(0, Math.min(1, ((s.e.fade ?? 12) - 4) / 8));
-  return [
-    { mesh: parts.base, basis: I3, offset: [x, d, floor], bright: 1.3 },
-    { mesh: parts.glow, basis: I3, offset: [x, d, floor], bright: 1 + 0.6 * f },
-    { mesh: parts.core, basis: I3, offset: [x, d, floor], bright: 1.2 + 1.2 * f },
+  const out = [
+    { mesh: parts.glow, basis: new Float32Array([16, 0, 0, 0, 16, 0, 0, 0, h]), offset: [x, d, bottom], additive: true, glowAmt: 0.12 + 0.18 * f },
+    { mesh: parts.core, basis: new Float32Array([5, 0, 0, 0, 5, 0, 0, 0, h]), offset: [x, d, bottom], additive: true, glowAmt: 0.25 + 0.35 * f },
   ];
+  for (let k = 0; k < 5; k++) { // streaks drifting round the column
+    const a = ctx.time / 700 + k * 1.3, r = 9 + 4 * Math.sin(k * 2.1);
+    out.push({ mesh: parts.streak, basis: new Float32Array([1.2, 0, 0, 0, 1.2, 0, 0, 0, h * (0.5 + 0.4 * ((k * 37) % 10) / 10)]), offset: [x + Math.cos(a) * r, d + Math.sin(a) * r, bottom + 4 + ((k * 17) % 20)], additive: true, glowAmt: 0.35 + 0.4 * f });
+  }
+  return out;
 }
 
 // TP_DOOR (tpd_ai): a camouflaged dome that opens as you come near, showing its red-lit inside;
@@ -640,55 +652,54 @@ const FX = {
 };
 
 
-// NEXT_LEVEL_TOP: the end-of-level teleporter machine, hung above its exit pad (they are linked in the level).
-// The sprite is a grey core with red internals, a ring of arms reaching out and down with green emitter
-// lights at their tips, and a white lens pointing down at the pad. In 3D: that machine, over the pad's own
-// spot (depth.js gives it the pad's depth), its arms turning slowly, the emitters blinking, and a beam of
-// light down to the pad while the player is close.
+// NEXT_LEVEL_TOP: the end-of-level teleporter machine, hung above its exit pad (they are linked in the
+// level). The sprite: a cluster of light grey pods round a ribbed hanger with red showing between them,
+// thin struts reaching out (two up, the rest down) to small emitter heads with green lights, and a white
+// lens at the bottom pointing at the pad. In 3D: that, hung on the pad's own axis (exitAxis) and at the
+// pad's depth (depth.js), so lens and pad line up exactly; the struts turn slowly, the emitters blink, the
+// lens glows. The column of light below it is the exit's own TELE_BEAM.
 function exitMachine(s, ctx) {
   const { e, img } = s;
   const parts = built('NEXT_LEVEL_TOP', () => {
     const c = spriteColours(img, ctx.palette);
-    const grey = shade(c.body, 1.15), dark = shade(c.dark, 1.5);
-    const core = new Mesh()
-      .ellipsoid([0, 0, 0], [20, 20, 26], 7, 12, grey)
-      .cylinder([0, 0, 22], 11, 14, 10, dark).cylinder([0, 0, 36], 6, 40, 8, dark) // cap and the hanger
-      .lathe([0, 0, -40], [[0, 0], [12, 4], [16, 10], [14, 14], [0, 16]], 12, dark);
-    const arms = new Mesh();
-    for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
-      const r0 = 16, r1 = 74, z0 = 6, z1 = -30, w = 3.5;
-      const px = -sa * w, py = ca * w;
-      arms.hexa([
-        [ca * r0 + px, sa * r0 + py, z0 - w], [ca * r1 + px, sa * r1 + py, z1 - w], [ca * r1 - px, sa * r1 - py, z1 - w], [ca * r0 - px, sa * r0 - py, z0 - w],
-        [ca * r0 + px, sa * r0 + py, z0 + w], [ca * r1 + px, sa * r1 + py, z1 + w], [ca * r1 - px, sa * r1 - py, z1 + w], [ca * r0 - px, sa * r0 - py, z0 + w],
-      ], grey);
-      arms.box([ca * r1, sa * r1, z1 - 6], [5, 5, 6], dark); // the emitter head
-    }
+    const grey = shade(c.light, 0.62), mid = shade(c.light, 0.45), dark = shade(c.dark, 2.2), red = [0.55, 0.08, 0.06];
+    const pods = new Mesh()
+      .ellipsoid([0, 0, 6], [15, 15, 18], 7, 12, grey)
+      .ellipsoid([-14, 6, -4], [10, 10, 12], 6, 10, grey).ellipsoid([13, -5, -2], [11, 10, 13], 6, 10, grey)
+      .ellipsoid([3, 12, -8], [9, 8, 10], 5, 10, mid).ellipsoid([-4, -12, 14], [8, 8, 9], 5, 10, mid)
+      .cylinder([0, 0, 20], 7, 16, 10, dark).lathe([0, 0, -30], [[0, 0], [10, 4], [13, 9], [0, 12]], 14, dark);
+    for (let i = 0; i < 6; i++) pods.cylinder([0, 0, 22 + i * 3], 8, 1.2, 10, mid); // the ribbed hanger
+    pods.cylinder([0, 0, 40], 3, 60, 8, dark); // up to the ceiling
+    const inner = new Mesh().ellipsoid([0, 0, 2], [11, 11, 14], 5, 10, red).done(); // red between the pods
+    const struts = new Mesh(), tips = [];
+    const arm = (a, reach, drop) => {
+      const ca = Math.cos(a), sa = Math.sin(a), w = 1.8, px = -sa * w, py = ca * w;
+      const x0 = ca * 12, y0 = sa * 12, z0 = 0, x1 = ca * reach, y1 = sa * reach, z1 = drop;
+      struts.hexa([[x0 + px, y0 + py, z0 - w], [x1 + px, y1 + py, z1 - w], [x1 - px, y1 - py, z1 - w], [x0 - px, y0 - py, z0 - w],
+        [x0 + px, y0 + py, z0 + w], [x1 + px, y1 + py, z1 + w], [x1 - px, y1 - py, z1 + w], [x0 - px, y0 - py, z0 + w]], mid);
+      struts.box([x1, y1, z1 - 4], [4, 4, 5], grey);
+      tips.push([x1, y1, z1 - 9.5]);
+    };
+    arm(0.4, 66, 22); arm(2.9, 62, 18); // two reaching up
+    arm(1.4, 70, -34); arm(2.2, 60, -40); arm(3.9, 72, -30); arm(4.9, 64, -38); arm(5.8, 58, -26);
     const lights = new Mesh();
-    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; lights.box([Math.cos(a) * 74, Math.sin(a) * 74, -43], [2.5, 2.5, 1.5], [0.4, 1, 0.35]); }
-    const red = new Mesh().box([0, -19, 2], [6, 2, 14], [0.9, 0.1, 0.06]).box([0, 19, 2], [6, 2, 14], [0.9, 0.1, 0.06]).box([19, 0, 2], [2, 6, 14], [0.9, 0.1, 0.06]).box([-19, 0, 2], [2, 6, 14], [0.9, 0.1, 0.06]).done();
-    const lens = new Mesh().torus([0, 0, -40], 12, 2.5, 14, 5, [0.95, 0.95, 1]).cylinder([0, 0, -41], 9, 1, 12, [0.85, 0.9, 1]).done();
+    for (const t of tips) lights.box(t, [2, 2, 1.2], [0.35, 0.95, 0.3]);
+    const lens = new Mesh().torus([0, 0, -31], 9, 2, 16, 5, [0.9, 0.92, 0.98]).cylinder([0, 0, -32], 7, 1, 14, [0.85, 0.9, 1]).done();
     const beam = new Mesh().cylinder([0, 0, 0], 1, 1, 12, [0.7, 0.85, 1]).done();
-    return { core: core.done(), arms: arms.done(), lights: lights.done(), red, lens, beam };
+    return { pods: pods.done(), inner, struts: struts.done(), lights: lights.done(), lens, beam };
   });
   const pad = e.links?.[0];
   const d = ctx.depthOf(e);
-  const x = 2 * (s.x + img.w / 2), zc = -2 * (s.y + img.h / 2) + 10;
-  const spin = rotation(ctx.time / 4000);
+  const x = pad ? exitAxis(ctx.g, pad) : 2 * e.x;
+  const zc = -2 * (s.y + img.h / 2) + 10;
+  const spin = rotation(ctx.time / 5000);
   const out = [
-    { mesh: parts.core, basis: I3, offset: [x, d, zc] },
-    { mesh: parts.arms, basis: spin, offset: [x, d, zc] },
-    { mesh: parts.lights, basis: spin, offset: [x, d, zc], bright: (ctx.time / 400) % 2 < 1.4 ? 2.2 : 0.6 },
-    { mesh: parts.red, basis: I3, offset: [x, d, zc], bright: 1.6 + 0.4 * Math.sin(ctx.time / 250) },
-    { mesh: parts.lens, basis: I3, offset: [x, d, zc], bright: 1.8 },
+    { mesh: parts.inner, basis: I3, offset: [x, d, zc], bright: 1.3 + 0.3 * Math.sin(ctx.time / 300) },
+    { mesh: parts.pods, basis: I3, offset: [x, d, zc], skin: 0.75, skinScale: 1 / 18 },
+    { mesh: parts.struts, basis: spin, offset: [x, d, zc], skin: 0.6, skinScale: 1 / 18 },
+    { mesh: parts.lights, basis: spin, offset: [x, d, zc], bright: (ctx.time / 450) % 2 < 1.3 ? 2 : 0.6 },
+    { mesh: parts.lens, basis: I3, offset: [x, d, zc], bright: 1.7 },
   ];
-  // the beam down to the pad when the player is near it
-  const p = ctx.g.player;
-  if (pad && Math.abs(p.x - pad.x) < 70 && Math.abs(p.y - pad.y) < 60) {
-    const top = zc - 41, bottom = -2 * pad.y + 8, h = top - bottom;
-    out.push({ mesh: parts.beam, basis: new Float32Array([12, 0, 0, 0, 12, 0, 0, 0, h]), offset: [x, d, bottom], additive: true, glowAmt: 0.5 + 0.25 * Math.sin(ctx.time / 90) });
-  }
   return out;
 }
 

@@ -21,7 +21,7 @@ function tracerMesh(rgb) {
 }
 
 export function placeScene(scene, depth, lane, timeMs, g, palette) {
-  const ctx = { palette, lane, time: timeMs, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e) };
+  const ctx = { palette, lane, time: timeMs, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e), padOf: (e) => depth.padOf(e) };
   const out = [];
   for (const s of scene.sprites) {
     const parts = !s.player && design(s, ctx);

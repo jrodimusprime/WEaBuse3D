@@ -215,3 +215,16 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   to the nearest palette colour via a 32x32x32 lookup (`paletteLut`, eye-weighted distance, 36 ms to
   build) and scales it up with hard edges. F4 toggles it; `?quake=0` turns it off. The walk page gets it too.
 - CLAUDE.md rule 10. Screenshots compared with it off and on.
+
+## 2026-11-05 · the exit lined up and closer to the original
+- Jared (with a screenshot): "teleporter doesnt line up or look like the original that much". The beam, the
+  machine's lens and the pad's ring were on three different axes: each was centred on its own sprite, and
+  the machine's lens is not in the middle of its sprite. Also the white column was the exit's TELE_BEAM
+  (each exit has one within 4 px of its pad), placed at its own random depth.
+- Now one axis: `exitAxis` (the pad's drawn middle) for pad, machine and beam; the machine and the beam take
+  the pad's depth (depth.js `padOf`, NEXT_LEVEL_TOP's link). Redesigned from the art: the machine as a
+  cluster of light grey pods on a ribbed hanger with red between them, thin struts (two up, five down) to
+  emitter heads with green lights, a white lens; the pad as a glossy dark disc with a grey rim and a red
+  band; the beam as an additive blue glow with a core and drifting streaks, pulsing with its fade. The
+  machine's own extra shimmer was dropped (the beam is the TELE_BEAM).
+- Test: every exit's machine, beam and pad share one axis and depth. `npm test` 57/57.

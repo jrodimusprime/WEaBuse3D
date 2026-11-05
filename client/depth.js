@@ -108,8 +108,16 @@ export class Depth {
     if (k === 'wall') return this.lane - 10;
     // the exit machine hangs over its pad: it takes the pad's place (its first link, level file)
     if (e.type === 'NEXT_LEVEL_TOP' && e.links?.[0] && e.links[0] !== e) return this.depthOf(e.links[0]);
+    // an exit's beam stands on its pad (the level puts it a few pixels from the pad)
+    if (e.type === 'TELE_BEAM') { const pad = this.padOf(e); if (pad) return this.depthOf(pad); }
     if (e.depth === undefined) e.depth = spread(e.id ?? Math.round(e.x), Math.round(e.y)) * (this.lane - 48);
     return e.depth;
+  }
+
+  // the exit pad an exit beam stands on, if any
+  padOf(e) {
+    if (e._pad !== undefined) return e._pad;
+    return (e._pad = this.g.entities.find((q) => q.type === 'NEXT_LEVEL' && Math.abs(q.x - e.x) < 20 && Math.abs(q.y - e.y) < 20) || null);
   }
 
   // half of how deep an object is (floor pads are as deep as they are wide)
