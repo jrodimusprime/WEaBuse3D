@@ -268,3 +268,22 @@ test("an enemy's shot meets the player only where it was aimed, and blasts fall 
   g.blast = null;
   g.projs.length = 0;
 });
+
+// Jared: "on this trapdoor in level 2 i got stuck in the wall and cant walk". The trap door at 2310,1199 stands
+// 3 px proud of the floor; the simulation lets the feet into its top for a few frames before lifting the player
+// onto it, and the hole's frame walls took that for being in the hole, undoing every step.
+test('level 2: the player walks onto the trap door by the wall, at any depth across the hall', async () => {
+  for (const dep of [-120, -40, 40, 120]) {
+    const g = await createGame();
+    g.audio.muted = true;
+    await g.start(levelFile(2));
+    g.god = true;
+    const d = new Depth(g, LANE); d.install();
+    for (const e of g.entities) if (d.kind(e) === 'enemy') e.dead = true;
+    const p = g.player; p.x = 2265; p.y = 1182; p.vy = 0; d.pd = dep;
+    for (let i = 0; i < 40; i++) { g.keys.clear(); d.movePlayer(0, STEP); g.update(STEP); }
+    for (let i = 0; i < 60; i++) { g.keys.clear(); g.keys.add('ArrowRight'); d.movePlayer(0, STEP); g.update(STEP); }
+    assert.ok(p.x > 2320, `at depth ${dep}: reached ${Math.round(p.x)}, the trap door is 2301-2349`);
+    d.uninstall();
+  }
+});

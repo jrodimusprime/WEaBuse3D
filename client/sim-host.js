@@ -12,13 +12,16 @@ export const STEP = 1 / 60; // game.js STEP; logic ticks at 15 Hz inside update(
 const nullGL = new Proxy({}, { get: () => () => 1 });
 const nullCanvas = { getContext: () => nullGL, addEventListener: () => {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 320, height: 200 }) };
 
-export async function createGame(hud = { textContent: '' }) {
+export async function createGame(hud = { textContent: '' }, { originalWeapons = true } = {}) {
   const g = new Game(nullCanvas, hud);
   const debug = console.debug;
   console.debug = () => {}; // the Lisp reader's notes
   try { await g.init(); } finally { console.debug = debug; }
   g.autoPause = true; // we call update()
   g.renderThrottle = Infinity; // and its own 2D render never runs
+  // the weapons as the original has them (sim game.js originalWeapons: off in WEaBuse, whose recorded
+  // runs were played with its own simplified ones; Jared: make them "align in functionality and damage")
+  g.originalWeapons = originalWeapons;
   return g;
 }
 

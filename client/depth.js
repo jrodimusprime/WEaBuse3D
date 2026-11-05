@@ -68,6 +68,7 @@ export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px 
 const REACH = 72; // how far from the back wall a wall switch can be used
 const DOOR_HALF = 48; // a doorway is 96 units across the hall
 const LIFT_HALF = 60; // a lift is as deep as it is wide: 120 units
+const HOLE_STEP = 8; // px the feet go into a hole in the floor before the player is in it
 const LADDER_HALF = 28; // the hole a ladder climbs through a floor: 56 units deep, against the back wall
 const LADDER_PULL = 600; // units a second a climber is drawn across the hall to the ladder
 const LADDER_KICK = 200; // units a second a jump off a ladder pushes the player back off it, into the hall,
@@ -284,8 +285,12 @@ export class Depth {
   zoneOf(e) { return this.zones().find((z) => z.e === e) || null; }
 
   // the zones the player's box overlaps, standing at (x, y)
+  // A hole in the floor (a trap door's) holds only a player over it by their centre, as Abuse stands them,
+  // with their feet in it deeper than a step: standing on a trap door, or stepping up onto one, is not being
+  // in its hole (Jared got stuck walking onto level 2's, which stands 3 px proud of the floor: the simulation
+  // lets the feet into its top for a few frames before lifting the player onto it, and each step was undone).
   zonesAt(x, y) {
-    return this.zones().filter((z) => x + HALF_W >= z.x0 && x - HALF_W <= z.x1 && y >= z.y0 && y - BODY_H <= z.y1);
+    return this.zones().filter((z) => (z.floor ? x >= z.x0 && x <= z.x1 && y >= z.y0 + HOLE_STEP : x + HALF_W >= z.x0 && x - HALF_W <= z.x1 && y >= z.y0) && y - BODY_H <= z.y1);
   }
 
   // the depths the player may take inside zone z: the opening, less the player's own half
@@ -295,13 +300,25 @@ export class Depth {
   // Coming in beside the opening is undone (the frame wall stops them).
   enforce() {
     const p = this.g.player;
+    // coming down onto the floor round a hole, away from its opening: the floor holds, at the hole's top
+    const L0 = this._legal;
+    if (L0 && L0.y <= p.y) {
+      for (const z of this.zones()) {
+        if (!z.floor || p.x < z.x0 || p.x > z.x1 || !(L0.y <= z.y0 + 1 && p.y > z.y0 + 1)) continue;
+        const [a, b] = this.openFor(z);
+        if (this.pd >= a - 0.01 && this.pd <= b + 0.01) continue;
+        p.y = z.y0; p.vy = 0; p.ground = true;
+        this._legal = { x: p.x, y: p.y };
+        return;
+      }
+    }
     const bad = this.zonesAt(p.x, p.y).find((z) => { const [a, b] = this.openFor(z); return this.pd < a - 0.01 || this.pd > b + 0.01; });
     if (!bad) { this._legal = { x: p.x, y: p.y }; return; }
     const L = this._legal;
     if (!L) return;
-    if (bad.floor && L.y <= bad.y0 + 1 && p.y > L.y) {
-      // dropping onto the floor around a hatch: it holds (like ground under the feet)
-      p.y = L.y; p.vy = 0; p.ground = true;
+    if (bad.floor && L.y < bad.y0 + HOLE_STEP && p.y > L.y) {
+      // dropping onto the floor around a hatch: it holds (like ground under the feet), its top at the hatch's
+      p.y = Math.min(L.y, bad.y0); p.vy = 0; p.ground = true;
       return;
     }
     if (bad.floor && L.y - BODY_H >= bad.y1 && p.y < L.y) { p.y = L.y; p.vy = 0; return; } // a head against it from below
@@ -381,7 +398,7 @@ export class Depth {
       e.depth = nd;
     }
     for (const b of g.projs) {
-      if (b.d0 === undefined || b.dead) continue;
+      if (b.d0 === undefined || b.dead || b.kind === 'beam') continue; // (a beam stops where it was traced: shotStopped)
       const sd = this.shotDepth(b);
       if (b.kind === 'bullet' && Math.abs(sd) >= this.lane - 1) { b.dead = true; continue; }
       for (const z of this.zones()) { // a shot that reaches a frame wall stops there
@@ -514,6 +531,13 @@ export class Depth {
       proto.moveX.call(this, p, dx);
       if (stood) self.stepDown(p);
     };
+    // a plasma or saber line, traced at once, stops at a side wall or a frame wall across its way
+    g.shotStopped = (b) => {
+      if (b.d0 === undefined) return false;
+      const sd = self.shotDepth(b);
+      if (Math.abs(sd) >= self.lane - 1) return true;
+      return self.zones().some((z) => b.x >= z.x0 && b.x <= z.x1 && b.y >= z.y0 && b.y <= z.y1 && (sd < z.c - z.h || sd > z.c + z.h));
+    };
     g.updatePlayer = function (dt) {
       const n = this.projs.length, climbing = this.player.climbing;
       proto.updatePlayer.call(this, dt);
@@ -538,7 +562,7 @@ export class Depth {
     if (!this.on) return;
     this.on = false;
     const g = this.g;
-    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'updatePlayer', 'tick', 'spawn']) delete g[k];
+    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'shotStopped', 'updatePlayer', 'tick', 'spawn']) delete g[k];
     g.depth = null;
   }
 }

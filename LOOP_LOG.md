@@ -433,3 +433,19 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - Level 1's 3D finish test died (the recorded piece 33 survived on 14 health in 2D and ran on past its goal).
   Jared chose a new run: tools/depth-run-search.mjs found piece 33 inputs for the 3D rules in 26 tries,
   reaching the next piece's start with 42 health; kept in tests/data/depth-runs.json. 82/82 tests.
+
+## Weapons as the original, and a trap door that held the player (2026-11-06)
+- Jared: the weapons should "work like the original game more because i think we broke the flamers etc so
+  make sure they align in functionality and damage". Against Abuse 0.8's source: WEaBuse's FIREBOMB was a
+  grenade (the original: an unseen fire running along the floor up to 20 ticks, burning 60 px for up to 40
+  every tick), PGUN/DFRIS/LSABER were one plasma bolt (the original: a 200 px line for 10, a steered frisbee
+  blowing 40/45 white, a 45 px blade for 30), the player's rockets did not lock on, grenades blew 50/40 (36/40
+  in the original), and one's own blasts hurt at half (the original excludes the creator).
+- Fixed in the simulation behind Game.originalWeapons, off by default: with it on, 19 of WEaBuse's 22
+  recorded runs stop winning (they were played with the simplified weapons). Jared chose a switch on in 3D only.
+  sim depth-hooks 825269e; tests/weapons.test.mjs checks each weapon against the source's numbers.
+- Jared: "on this trapdoor in level 2 i got stuck in the wall and cant walk". The trap door at 2310,1199 stands
+  3 px proud of the floor; the simulation lets the feet into its top for a few frames before lifting the player
+  on, and the depth layer took that for being in the hole and undid every step. A hole in the floor now holds
+  only a player over it by their centre with their feet 8 px in; coming down onto the floor round it away from
+  the opening, the floor holds at its top. Test: walks onto it at four depths. 89/89 tests.
