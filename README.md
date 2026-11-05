@@ -333,12 +333,16 @@ cloudy sky) behind its foreground, scrolled at a fraction of the camera's speed 
 `bg_scroll_rate`), so through every window and see-through grille the city strobes past as the player runs.
 In 3D the lane walls are windows wherever Abuse would show the background: cells with no foreground, and the
 see-through pixels of foreground tiles. Abuse paints its background only where its camera shows it behind a
-window (on many levels small patches shaped to the windows, the rest of the map black), so the see-through
-cells that show art are grouped into windows (`client/backdrop.js`; panes either side of a pillar are one
-window), and each window looks out on the picture Abuse shows behind it, on a far plane seen along the ray
-from the eye (see Jared rules: the city outside is far away). The view stays inside the art Abuse shows
-behind that window: mirrored at its sides, its top and bottom rows drawn on (`engine/render.js` `backdrop`;
-docs/windows.png).
+window: on many levels islands of art, the rest of the map black, so a window seen at a slant looked off the
+islands into black. Quake's sky has no holes; it is one whole picture. So the level's background is made whole
+(`client/backdrop.js` `backdropCanvas`): every pixel of Abuse's art stays where it is, and the empty tiles are
+filled by carrying the art on, along each row (each band of skyline reflected on from its ends, the two sides
+blended where they meet), then up and down each column (the sky's top row drawn on upward, the ground's bottom
+row downward). The see-through cells that show art are grouped into windows (`windowCells`; panes either side
+of a pillar are one window), each anchored on the picture Abuse shows behind it. The renderer puts the whole
+picture on a plane behind the wall, seen along the ray from the eye, with each window's view centred on its
+anchor: in front of a window you see Abuse's art, and walking past, the city slides by slowly (see Jared rules:
+the city outside is further away; `engine/render.js` `backdrop`; docs/windows.png).
 
 **Rule: things keep their own size.** Doors, lifts and trap doors no longer span the hall. Each sits in a
 doorway, shaft or hole its own size, and *frame* walls close the rest of the hall. The depth layer
@@ -647,9 +651,9 @@ apply here too and are listed in WEaBuse's README.
   (up to 90 units either side, narrowing to the player's depth within 110 px), and keeps enemies near each
   other apart across the hall, so a pack does not come in single file. Jared: "the creatures also tend to
   spawn in a straight line ... they should be spaced out more".
-- **The city outside is far away.** Abuse scrolls its background at the level's rate, often 5/8 across and
-  1:1 up and down, which in 3D put the city just behind the glass and fixed it to the wall when jumping. Each
-  window now looks out on a plane at least 10 lane depths behind the hall (Abuse's own depth, 1 / rate, where
-  that is further), anchored on the picture Abuse shows behind that window, so the city barely slides as you
-  pass. It is lit by Abuse's own lamps but not by the hall's flashes, and hazed. Jared: "the images in the
-  window appear too near ... takes away from the atmosphere".
+- **The city outside is further away.** Abuse scrolls its background at the level's rate, often 5/8 across
+  and 1:1 up and down, which in 3D put the city just behind the glass and fixed it to the wall when jumping.
+  Each window now looks out on a plane at least 4 lane depths behind the middle of the hall (Abuse's own depth,
+  1 / rate, where that is further), anchored on the picture Abuse shows behind that window, so the city slides
+  by slowly as you pass. It is lit by Abuse's own lamps but not by the hall's flashes, and hazed. Jared: "the
+  images in the window appear too near ... takes away from the atmosphere", then "may be too far".

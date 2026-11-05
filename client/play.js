@@ -25,7 +25,7 @@
 //   ?solo=1             with ?look: draw only that object, on black (for checking models)
 //   ?look=TYPE&ang=deg&dist=units&n=k   model review: the eye `dist` units from the k-th object of that
 //                       type, `ang` degrees round from straight in front, looking at it (use with ?still=0)
-import { windowCells } from './backdrop.js';
+import { windowCells, backdropCanvas } from './backdrop.js';
 import { loadBSP } from '../engine/bsp.js';
 import { Renderer } from '../engine/render.js';
 import { createGame, levelFile, aimAt, STEP } from './sim-host.js';
@@ -95,7 +95,8 @@ await g.start(levelFile(level));
 {
   const lv = g.level, back = { size: [g.bw, g.bh], tile: (n) => g.assets.backTile(n) };
   const cells = windowCells({ ...lv, rate: lv.bgRate, tile: [g.tw, g.th], back, fore: (n) => g.assets.foreTile(n), palette: g.assets.palette });
-  renderer.setBackdrop({ w: lv.bgW, h: lv.bgH, map: lv.bgmap, tile: back.tile, rate: lv.bgRate, view: [320, 200], cells });
+  const canvas = lv.bgW && lv.bgH ? backdropCanvas({ ...lv, back, palette: g.assets.palette }) : null;
+  renderer.setBackdrop({ canvas, rate: lv.bgRate, view: [320, 200], cells });
 }
 g.freshRun();
 const statbar = await createStatbar(g, document.getElementById('statbar'));

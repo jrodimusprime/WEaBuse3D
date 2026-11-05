@@ -399,3 +399,17 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - Screenshots: level 2 from 60 px apart: the wall moves ~170 px on screen, the tower behind ~20. Levels 1 and
   16 still show their cities. tests/backdrop.test.mjs (anchors on art and in their box; the pillar case).
   71/71 tests.
+
+## The whole picture (2026-11-06)
+- Jared: "the background distant tiles are still showing black gaps and may be too far ... think through how
+  quake did these distant textures and skylines and make a new combined image for it within keeping the
+  original images in there".
+- Quake's sky is one whole texture with nothing missing (and scrolls as a far layer). Abuse's background is
+  islands of art in a black map. New client/backdrop.js backdropCanvas makes the level's background whole:
+  Abuse's art pixels untouched; empty tiles filled along rows (reflected on from each band's ends, a dithered
+  48 px blend where the two sides meet; the map wraps) and then down columns (edge rows drawn on: sky up,
+  ground down; reflecting there hung the city upside down below itself). 100-160 ms a level.
+- The renderer samples that one picture (no tile atlas, no per-window box or mirroring any more); the plane is
+  at max(4, 1/rate) lane depths (was 10).
+- Screenshots: levels 1, 2, 4, 16, straight on and at slants, no black. tests: every art pixel kept, under 10%
+  black in the whole picture.

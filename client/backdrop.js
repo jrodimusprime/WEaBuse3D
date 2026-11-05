@@ -1,16 +1,25 @@
-// Where each window looks out (presentation only).
+// What the windows look out on (presentation only).
 //
-// Abuse paints its background only where its camera shows it behind a window: on many levels small patches
+// Abuse paints its background only where its camera shows it behind a window: on many levels islands of art
 // shaped to the windows, the rest of the map black. Scrolled at the level's rate (often 5/8 across and 1:1 up
-// and down) that background sits just behind the wall; in 3D it read as painted on the glass. So each window
-// is given a far backdrop of its own: the see-through cells that show art are grouped into windows (cells within REACH of each other),
-// and each window is anchored where Abuse shows it, at its centre. The renderer puts that picture on a plane far
-// behind the wall, seen along the ray from the eye, and keeps the view inside the art Abuse ever shows behind
-// that window (mirrored at its edges).
+// and down) it sits just behind the wall; in 3D it read as painted on the glass, and a window seen at a slant
+// looked off the islands into black.
 //
-// Per foreground cell, three RGBA float texels in a row (cell x * 3 + k):
+// Quake's sky has no such holes: it is one whole picture. So, two parts:
+//
+// backdropCanvas: one whole picture of the level's background, made from Abuse's own. Every pixel of its art
+//   stays where it is; only the empty tiles are filled, by carrying the art on: first along each row (each band
+//   of skyline reflected on from its ends, the two sides blended where they meet), then up and down each column
+//   (the sky's top row drawn on upwards, the ground's bottom row downwards). The map repeats, as Abuse's does, so it wraps.
+//
+// windowCells: the see-through cells that show art are grouped into windows (cells within REACH of each other,
+//   so the panes either side of a pillar are one window), and each window is anchored on the picture Abuse
+//   shows behind it. The renderer puts the canvas on a plane well behind the wall and centres each window's
+//   view on its anchor, so in front of a window you see Abuse's art, and walking past it slides by slowly.
+//
+// windowCells gives per foreground cell three RGBA float texels in a row (cell x * 3 + k):
 //   0: the window's centre in 2D pixels (x, y), and the background pixel Abuse shows there (x, y)
-//   1: the box of background pixels Abuse ever shows behind the window, out to where its art ends: x0, y0, x1, y1
+//   1: the box of background pixels Abuse ever shows behind the window: x0, y0, x1, y1
 //   2: the window's extent in 2D pixels: x0, y0, x1, y1
 const REACH = 3; // cells
 
@@ -48,19 +57,6 @@ export function windowCells({ fgW, fgH, fgmap, bgW, bgH, bgmap, rate, tile, back
     const lo = Math.max(0, Math.min(a0 - view[k], world[k] - view[k])), hi = Math.max(lo, Math.min(a1, world[k] - view[k]));
     return [r[k] * hi + a0 - hi, r[k] * lo + a1 - lo];
   };
-  // the art often goes on past what the camera shows: take the box out to where it turns black
-  const artShare = (x0, y0, x1, y1) => {
-    let n = 0, a = 0;
-    for (let y = y0; y < y1; y += 3) for (let x = x0; x < x1; x += 3) { n++; if (bgPix(x, y) > 30) a++; }
-    return n ? a / n : 0;
-  };
-  const grow = (b) => {
-    const S = 6, LIMIT = 400;
-    for (let k = 0; k < LIMIT && artShare(b[0] - S, b[1], b[0], b[3]) > 0.9; k += S) b[0] -= S;
-    for (let k = 0; k < LIMIT && artShare(b[2], b[1], b[2] + S, b[3]) > 0.9; k += S) b[2] += S;
-    for (let k = 0; k < LIMIT && artShare(b[0], b[1] - S, b[2], b[1]) > 0.9; k += S) b[1] -= S;
-    for (let k = 0; k < LIMIT && artShare(b[0], b[3], b[2], b[3] + S) > 0.9; k += S) b[3] += S;
-  };
   const out = new Float32Array(fgW * 3 * fgH * 4);
   const put = (i, ext, box) => {
     const x = i % fgW, y = Math.floor(i / fgW), o = (y * fgW * 3 + x * 3) * 4;
@@ -92,8 +88,64 @@ export function windowCells({ fgW, fgH, fgmap, bgW, bgH, bgmap, rate, tile, back
         if (win[j] && comp[j] < 0) { comp[j] = s; cells.push(j); }
       }
     }
-    grow(box);
     for (const i of cells) put(i, ext, box);
   }
   return { w: fgW * 3, h: fgH, data: out, tile: [tw, th] };
+}
+
+const FADE = 48; // px over which the two sides of a filled gap blend (dithered)
+const hash = (a, b) => { let h = Math.imul(a, 374761393) + Math.imul(b, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const mirror = (d, n) => { const m = d % (2 * n); return m < n ? m : 2 * n - 1 - m; };
+
+// Fills the empty stretches of one line (a row or a column, which wraps) from the art either side of each:
+// reflected on from it (rows: a skyline carries on), or its edge drawn on (columns: sky up, ground down).
+function fillLine(n, at, pix, has, salt, reflect) {
+  let f = -1;
+  for (let k = 0; k < n; k++) if (has[at(k)]) { f = k; break; }
+  if (f < 0) return [];
+  const runs = []; // [start, length, filled], starting at the first filled pixel, going round
+  for (let k = 0; k < n;) {
+    const full = has[at((f + k) % n)];
+    let len = 0;
+    while (k + len < n && has[at((f + k + len) % n)] === full) len++;
+    runs.push([(f + k) % n, len, full]);
+    k += len;
+  }
+  const done = [];
+  runs.forEach(([s, len, full], i) => {
+    if (full) return;
+    const [ps, pl] = runs[(i - 1 + runs.length) % runs.length], [ns, nl] = runs[(i + 1) % runs.length];
+    for (let k = 0; k < len; k++) {
+      const dl = k, dr = len - 1 - k;
+      const t = Math.max(0, Math.min(1, (dl - dr) / FADE + 0.5));
+      const src = hash(s + k, salt) < t ? (ns + (reflect ? mirror(dr, nl) : 0)) % n : (((ps + pl - 1 - (reflect ? mirror(dl, pl) : 0)) % n) + n) % n;
+      const o = at((s + k) % n);
+      pix[o] = pix[at(src)];
+      done.push(o);
+    }
+  });
+  return done;
+}
+
+export function backdropCanvas({ bgW, bgH, bgmap, back, palette }) {
+  const [bw, bh] = back.size, W = bgW * bw, H = bgH * bh;
+  const pix = new Uint8Array(W * H), has = new Uint8Array(W * H);
+  const empty = new Map(); // a tile with nothing but black in it is a hole in the art
+  for (let ty = 0; ty < bgH; ty++) for (let tx = 0; tx < bgW; tx++) {
+    const n = bgmap[ty * bgW + tx], t = back.tile(n);
+    if (!t) continue;
+    if (!empty.has(n)) empty.set(n, !t.pix.some((i) => palette[i * 4] + palette[i * 4 + 1] + palette[i * 4 + 2] > 30));
+    const art = !empty.get(n);
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+      const o = (ty * bh + y) * W + tx * bw + x;
+      pix[o] = x < t.w && y < t.h ? t.pix[y * t.w + x] : 0;
+      has[o] = art ? 1 : 0;
+    }
+  }
+  // along the rows, then up and down the columns
+  const rowsDone = [];
+  for (let y = 0; y < H; y++) rowsDone.push(fillLine(W, (x) => y * W + x, pix, has, y, true));
+  for (const row of rowsDone) for (const o of row) has[o] = 1;
+  for (let x = 0; x < W; x++) fillLine(H, (y) => y * W + x, pix, has, 7919 + x, false);
+  return { w: W, h: H, pix };
 }

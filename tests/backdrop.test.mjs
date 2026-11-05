@@ -1,10 +1,11 @@
-// Windows onto the background (client/backdrop.js): each window is anchored on the art Abuse shows behind it,
-// and panes either side of a pillar share one view.
+// Windows onto the background (client/backdrop.js): the level's background made whole (Abuse's art kept, its
+// holes filled), each window anchored on the art Abuse shows behind it, and panes either side of a pillar
+// sharing one view.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../sim/web/tools/headless.mjs';
 import { createGame, levelFile } from '../client/sim-host.js';
-import { windowCells } from '../client/backdrop.js';
+import { windowCells, backdropCanvas } from '../client/backdrop.js';
 
 const g = await createGame();
 const cellsOf = async (L) => {
@@ -40,4 +41,24 @@ test('level 2: the panes either side of a pillar are one window', async () => {
   const { lv, c } = await cellsOf(2);
   const at = (x, y) => { const o = (Math.floor(y / g.th) * lv.fgW + Math.floor(x / g.tw)) * 12; return [...c.data.slice(o + 8, o + 12)].join(); };
   assert.equal(at(240, 500), at(390, 500)); // the sky either side of the dark column by the lift
+});
+
+for (const L of [1, 2, 16]) test(`level ${L}: the whole picture keeps every pixel of Abuse's art and has no holes`, async () => {
+  await g.start(levelFile(L));
+  const lv = g.level, pal = g.assets.palette, back = { size: [g.bw, g.bh], tile: (n) => g.assets.backTile(n) };
+  const c = backdropCanvas({ ...lv, back, palette: pal });
+  assert.equal(c.w, lv.bgW * g.bw); assert.equal(c.h, lv.bgH * g.bh);
+  const lum = (i) => pal[i * 4] + pal[i * 4 + 1] + pal[i * 4 + 2];
+  let kept = 0, art = 0, dark = 0;
+  for (let ty = 0; ty < lv.bgH; ty++) for (let tx = 0; tx < lv.bgW; tx++) {
+    const t = g.assets.backTile(lv.bgmap[ty * lv.bgW + tx]);
+    const isArt = t.pix.some((i) => lum(i) > 30);
+    for (let y = 0; y < g.bh; y++) for (let x = 0; x < g.bw; x++) {
+      const v = c.pix[(ty * g.bh + y) * c.w + tx * g.bw + x];
+      if (isArt) { art++; if (v === t.pix[y * t.w + x]) kept++; }
+      if (lum(v) <= 30) dark++;
+    }
+  }
+  assert.equal(kept, art, 'every art pixel is where Abuse has it');
+  assert.ok(dark / (c.w * c.h) < 0.1, `${Math.round((100 * dark) / (c.w * c.h))}% black`);
 });
