@@ -23,3 +23,16 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
 - Evidence: `npm test` 6/6. Byte-identical rebuild. Hull 0 agrees with sim `tileSolid` at
   377,207 sample points (skipping 2 px around outline edges), at three depths. Dropping the player
   hull from the start lands at y = 92 px, the top of the 2-px-lipped platform tiles.
+
+## 2026-11-05 · M0 T9 walk physics
+- `engine/move.js`: port of SV_ClientThink/SV_AirMove/SV_UserFriction/SV_Accelerate/SV_AirAccelerate
+  (sv_user.c), SV_Physics_Client/SV_WalkMove/SV_FlyMove/ClipVelocity/SV_TryUnstick/SV_WallFriction/
+  SV_CheckStuck (sv_phys.c), PlayerJump (client.qc). Quake's cvar defaults.
+- `engine/detmath.js`: 65536-unit integer angles; the sine table is built with a Taylor series
+  (only + - * /), so it is identical in every engine. AngleVectors ported from mathlib.c.
+- Decision: the *walk* tick is 60 Hz (fixed). It is an engine test harness for first-person feel;
+  the Abuse simulation keeps its 15 Hz tick when it arrives (M5). Determinism is unaffected: the
+  tick is fixed and every op is exactly specified.
+- Evidence: `npm test` 10/10. Landing puts the feet on the platform top (Z −184). A 2-minute random
+  walk (jumps, turns, runs) never ends a tick in solid and hashes the same twice (a38b9ac for the
+  7200-tick run).
