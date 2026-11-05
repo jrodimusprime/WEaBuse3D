@@ -7,6 +7,7 @@
 // pose is in the transforms. Anything without a design returns null and is
 // drawn by the voxel placeholder (BACKLOG.md, "Models awaiting design").
 import { Mesh, rotation, spriteColours, shade } from '../engine/mesh.js';
+import { antModel } from './ant.js';
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const meshes = new Map(); // type -> built meshes
@@ -703,11 +704,110 @@ function exitMachine(s, ctx) {
   return out;
 }
 
+
+// ---- turrets (gun2.spe, spray_gun_ai) ----
+// The sprite is an armoured camouflaged sphere on pins, whose shell splits open (spray.appear) to show an
+// inner ball with a square gun port that turns through 24 aim directions (spray.aim) and closes again
+// (spray.disappear). In 3D, as Jared asked, a proper hemisphere: a dome housing on the back wall, its two
+// halves parting as it unfolds; inside, the camo ball turns its gun port to the turret's own aim angle,
+// tilted across the hall towards the player (its shots are aimed at the player's depth).
+function halfDome(R, side, rgb) {
+  const m = new Mesh(), n = 8, k = 6, ref = [side * R * 0.3, -R * 0.3, 0];
+  const pt = (i, j) => { const th = (i / k) * Math.PI / 2, ph = (side > 0 ? -Math.PI / 2 : Math.PI / 2) + (j / n) * Math.PI; return [R * Math.sin(th) * Math.cos(ph), -R * Math.cos(th), R * Math.sin(th) * Math.sin(ph)]; };
+  m.inside(ref, () => {
+    for (let i = 0; i < k; i++) for (let j = 0; j < n; j++) m.quad(pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1), rgb);
+    for (let j = 0; j < n; j++) m.tri([0, 0, 0], pt(k, j), pt(k, j + 1), rgb); // against the wall
+    for (let i = 0; i < k; i++) { m.tri([0, 0, 0], pt(i, 0), pt(i + 1, 0), rgb); m.tri([0, 0, 0], pt(i, n), pt(i + 1, n), rgb); } // the cut
+  });
+  return m.done();
+}
+function turret(s, ctx) {
+  const { e, img } = s;
+  const R = img.w - 4;
+  const parts = built(`turret:${e.type}`, () => {
+    const c = spriteColours(img, ctx.palette);
+    // the sprite's dark grey-green camouflage (its colours, pulled toward that grey-green)
+    const camo = [0, 1, 2].map((k) => 0.5 * c.main[k] * 1.6 + 0.5 * [0.3, 0.34, 0.27][k]);
+    const dark = shade(c.dark, 1.8), metal = [0.42, 0.44, 0.42];
+    const dapple = (side) => { // darker camouflage patches set into the dome
+      const m = new Mesh();
+      for (let k = 0; k < 7; k++) {
+        const th = 0.35 + ((k * 37) % 10) / 10 * 1.0, ph = (side > 0 ? -1.2 : 1.9) + ((k * 53) % 10) / 10 * 2.4;
+        const p = [R * Math.sin(th) * Math.cos(ph), -R * Math.cos(th), R * Math.sin(th) * Math.sin(ph)];
+        m.ellipsoid([p[0] * 1.01, p[1] * 1.01, p[2] * 1.01], [5 + (k % 3) * 2, 3 + (k % 2) * 2, 4 + (k % 3)], 3, 6, shade(camo, 0.6));
+      }
+      return m.done();
+    };
+    return {
+      left: halfDome(R, -1, camo), right: halfDome(R, 1, camo), dapL: dapple(-1), dapR: dapple(1),
+      mount: new Mesh().box([0, 2, 0], [R + 6, 2, R + 6], dark).torus([0, 0, 0], R + 2, 2, 20, 4, metal)
+        .cylinder([0, -R * 0.15, R - 2], 3, 10, 8, metal).cylinder([0, -R * 0.15, -R - 8], 3, 10, 8, metal).done(), // plate, ring, pins
+      ball: new Mesh().ellipsoid([0, 0, 0], [R * 0.78, R * 0.78, R * 0.78], 8, 14, shade(camo, 0.85))
+        .box([R * 0.7, 0, 0], [6, 7, 7], metal).cylinderX([R * 0.7 + 4, 0, 0], 2.6, 12, 8, dark).done(), // the ball, its port and barrel
+    };
+  });
+  const st = e.state;
+  const open = st === 'spray.aim' ? 1 : st === 'spray.appear' ? progress(e) : st === 'spray.disappear' ? 1 - progress(e) : 0;
+  const x = 2 * (s.x + img.w / 2), z = -2 * (s.y + img.h / 2), wall = ctx.lane;
+  const out = [
+    { mesh: parts.mount, basis: I3, offset: [x, wall, z] },
+    { mesh: parts.left, basis: I3, offset: [x - open * R * 0.95, wall, z], skin: 0.7, skinScale: 1 / 14 },
+    { mesh: parts.right, basis: I3, offset: [x + open * R * 0.95, wall, z], skin: 0.7, skinScale: 1 / 14 },
+    { mesh: parts.dapL, basis: I3, offset: [x - open * R * 0.95, wall, z] },
+    { mesh: parts.dapR, basis: I3, offset: [x + open * R * 0.95, wall, z] },
+  ];
+  if (open > 0.05) {
+    // the aim: the turret's angle in the plane (degrees, up is positive), tilted across the hall to the player
+    const a = ((e.a?.angle ?? 270) * Math.PI) / 180;
+    const p = ctx.g.player;
+    const dist = Math.max(40, 2 * Math.sqrt((p.x - e.x) ** 2 + (p.y - e.y) ** 2));
+    const tilt = Math.atan2(ctx.pd - (wall - R * 0.4), dist);
+    const F = [Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt)];
+    const U0 = Math.abs(F[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
+    const L = [U0[1] * F[2] - U0[2] * F[1], U0[2] * F[0] - U0[0] * F[2], U0[0] * F[1] - U0[1] * F[0]];
+    const ll = Math.sqrt(L[0] ** 2 + L[1] ** 2 + L[2] ** 2); for (let i = 0; i < 3; i++) L[i] /= ll;
+    const U = [F[1] * L[2] - F[2] * L[1], F[2] * L[0] - F[0] * L[2], F[0] * L[1] - F[1] * L[0]];
+    out.push({ mesh: parts.ball, basis: new Float32Array([...F, ...L, ...U]), offset: [x, wall - R * 0.45 * open, z], skin: 0.7, skinScale: 1 / 14 });
+  }
+  return out;
+}
+
+// ---- ant cracks (ant.lsp ANT_CRACK, crack_ai) ----
+// The frames: hairline cracks, then an ant's clawed arm bursting through, then a broken hole. On the back
+// wall: a dark hole that widens over the frames, broken slabs pushed out round it, a red glow inside once
+// it is open (the ant itself comes out of it, spawned by the game at the wall's depth).
+function crack(s, ctx) {
+  const { e, img } = s;
+  const parts = built('ANT_CRACK', () => {
+    const slabs = new Mesh();
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + 0.3, r = 14;
+      slabs.box([Math.cos(a) * r, -2, Math.sin(a) * r], [6 + (k % 3) * 2, 2.5, 4 + (k % 2) * 2], [0.2, 0.18, 0.16]);
+    }
+    return {
+      hole: new Mesh().cylinder([0, 0, 0], 1, 1, 12, [0.03, 0.02, 0.02]).done(),
+      slabs: slabs.done(),
+      glow: new Mesh().ellipsoid([0, 0, 0], [1, 1, 1], 4, 8, [0.8, 0.12, 0.08]).done(),
+    };
+  });
+  const n = e.def.states.get(e.state)?.length || 1, f = Math.min(1, (Math.floor(e.frame) % n) / Math.max(1, n - 1));
+  const x = 2 * (s.x + img.w / 2), z = -2 * (s.y + img.h / 2), wall = ctx.lane - 1;
+  const r = 6 + 22 * f;
+  const ON_WALL_R = (k) => new Float32Array([r * k, 0, 0, 0, 0, -r * k, 0, 2, 0]); // a flat disc facing out of the wall
+  const out = [
+    { mesh: parts.hole, basis: ON_WALL_R(1), offset: [x, wall, z] },
+    { mesh: parts.slabs, basis: new Float32Array([0.6 + f, 0, 0, 0, 1, 0, 0, 0, 0.6 + f]), offset: [x, wall - 3 - f * 6, z] },
+  ];
+  if (f > 0.4) out.push({ mesh: parts.glow, basis: new Float32Array([r * 0.6, 0, 0, 0, 3, 0, 0, 0, r * 0.6]), offset: [x, wall - 1, z], additive: true, glowAmt: 0.5 * f });
+  return out;
+}
+
 const BY_AI = {
   flyer_ai: drone, sdoor_ai: door, strap_door_ai: hatch, platform_ai: lift, switcher_ai: wallSwitch, switch_once_ai: wallSwitch,
   tp2_ai: teleporter, hp_up: heart, fast_ai: powerModule, fly_power_ai: powerModule, sneaky_power_ai: powerModule, health_power_ai: powerModule,
   weapon_icon_ai: crate, spring_ai: springPad, next_level_ai: exitPad, tele_beam_ai: teleBeam, tpd_ai: pod, lava_ai: lava,
   hwall_ai: blockWall, big_wall_ai: blockWall, restart_ai: saveTerminal,
+  ant_ai: antModel, spray_gun_ai: turret, crack_ai: crack,
 };
 const BY_TYPE = {
   WHO: drone, POINTER: pointer, SWITCH_BALL: switchBall, NEXT_LEVEL_TOP: exitMachine,

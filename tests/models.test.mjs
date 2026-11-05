@@ -118,3 +118,37 @@ test('every weapon in the hands is made of closed parts', async () => {
   }
   p.weapon = before;
 });
+
+test('level 1: the alien ant in every state, turrets and cracks, all closed parts', async () => {
+  await g.start(levelFile(1));
+  g.freshRun();
+  const d1 = new Depth(g, LANE); d1.install();
+  const c1 = { ...ctx, depthOf: (e) => d1.depthOf(e) ?? 0, zoneOf: (e) => d1.zoneOf(e), padOf: (e) => d1.padOf(e), pd: 0 };
+  const ant = g.entities.find((e) => e.type === 'ANT_ROOF');
+  assert.ok(designed(ant));
+  for (const state of ant.def.states.keys()) {
+    ant.setState(state);
+    for (const frame of [0, 3]) {
+      ant.frame = frame;
+      const img = g.spriteOf(ant);
+      if (!img) continue;
+      const parts = design({ e: ant, img, x: ant.x - img.xcfg, y: ant.y - img.h + 1, flip: ant.dir < 0 }, c1);
+      if (state === 'hiding') { assert.equal(parts.length, 0); continue; }
+      assert.ok(parts.length > 20, `${state}: a whole ant (${parts.length} parts)`);
+      for (const q of parts) {
+        assert.ok(q.offset.every(Number.isFinite) && [...q.basis].every(Number.isFinite), `${state}: finite pose`);
+        assert.ok(volume(q.mesh) > 0, `${state}: closed parts`);
+      }
+    }
+  }
+  for (const type of ['SPRAY_GUN', 'ANT_CRACK']) {
+    const e = g.entities.find((q) => q.type === type);
+    for (const state of e.def.states.keys()) {
+      e.setState(state); e.frame = 1;
+      const img = g.spriteOf(e);
+      const parts = design({ e, img, x: e.x - img.xcfg, y: e.y - img.h + 1 }, c1);
+      assert.ok(parts.length >= 2, `${type} ${state}`);
+      for (const q of parts) assert.ok(volume(q.mesh) > 0 && q.offset.every(Number.isFinite), `${type} ${state}: closed, finite`);
+    }
+  }
+});

@@ -228,3 +228,23 @@ Newest last. One entry per task: what changed, the evidence, notes for the next 
   band; the beam as an additive blue glow with a core and drifting streaks, pulsing with its fade. The
   machine's own extra shimmer was dropped (the beam is the TELE_BEAM).
 - Test: every exit's machine, beam and pad share one axis and depth. `npm test` 57/57.
+
+## 2026-11-05 · the alien ant, hemisphere turrets, ant cracks
+- Jared: "OK it looks awesome now... level 1 the aliens ant things need better models ... they are so key to
+  the game. the turret models also are not great as they need to be proper hemispheres".
+- Studied every state of ANT_ROOF (art/ant.spe, 20 states: hanging, fall_start, falling, stopped, running x10,
+  landing, pounce_wait, turn_around, run_jump family, fire_wait, ceil_fire, top_walk x10, flinch, blown_back_dead,
+  jump_up, hiding, weapon_fire) from a per-state sheet.
+- `client/ant.js`: an articulated model from unit bones and joints: domed head with a dropping jaw, torso,
+  abdomen, ribs, dorsal spines, a ten-segment tail with a blade (arcing back and up, whipping over at the tip,
+  as drawn), digitigrade hind legs and clawed arms solved with two-bone IK so feet stay down through the run
+  cycle (phase from the running frame). Poses for every state: ceiling states upside down from the sprite's
+  top, a curled pod when hanging, splayed when falling, stretched when leaping, reared, pale when flinching,
+  flattened when dead, an acid-green glow at the jaw when spitting. Turns toward the player across the hall.
+  Colours per tint (ant_draw) from the standing frame.
+- Turret: two half-domes (a proper hemisphere) on a wall plate with pins, grey-green camo with dark dapple,
+  parting with spray.appear / closing with spray.disappear; the inner ball's port follows `e.a.angle`
+  tilted toward the player's depth. Ant crack: a widening hole in the back wall, pushed-out slabs, red glow.
+- Fixes on the way: spriteColours on an empty frame; one ant kit per tint, not per frame; turret colours
+  pulled to the sprite's grey-green (the body lift had made them tan).
+- Tests: every ant state builds a whole, finite, closed model; turret and crack in every state. 58/58.

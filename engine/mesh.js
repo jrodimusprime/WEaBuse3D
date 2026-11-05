@@ -163,6 +163,7 @@ export function spriteColours(img, palette) {
   for (const i of img.pix) if (i) count.set(i, (count.get(i) || 0) + 1);
   const rgb = (i) => [palette[i * 3] / 255, palette[i * 3 + 1] / 255, palette[i * 3 + 2] / 255];
   const list = [...count].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([i]) => ({ i, c: rgb(i) }));
+  if (!list.length) { const g = [0.4, 0.4, 0.42]; return { body: g, main: g, second: g, dark: [0.1, 0.1, 0.1], light: [0.7, 0.7, 0.7], vivid: g, red: [0.6, 0.1, 0.1] }; }
   const lum = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
   const sat = (c) => Math.max(...c) - Math.min(...c);
   const by = (f) => list.reduce((a, b) => (f(b.c) > f(a.c) ? b : a), list[0]).c;
