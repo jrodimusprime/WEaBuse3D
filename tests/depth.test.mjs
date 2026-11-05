@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import '../sim/web/tools/headless.mjs';
 import { createGame, levelFile, aimAt, stateHash, STEP } from '../client/sim-host.js';
-import { Depth } from '../client/depth.js';
+import { Depth, PLAYER_HALF } from '../client/depth.js';
 import { LANE } from '../content/compile.mjs';
 
 const g = await createGame();
@@ -78,6 +78,42 @@ test('an ant still in its cocoon on the ceiling stays where it hangs', async () 
   assert.equal(ant.state, 'hanging');
   assert.ok(Math.abs(g.player.x - ant.x - 160) < 20, 'the player stayed beside it');
   assert.equal(ant.depth, -100, 'it does not slide across the hall towards the player');
+});
+
+test("level 2's switch beside the lift can be reached and used", async () => {
+  await g.start(levelFile(2));
+  g.freshRun();
+  const d = new Depth(g, LANE); d.install();
+  const sw = g.entities.find((e) => e.ai === 'switch_once_ai' && e.x === 1993 && e.y === 557);
+  let fy = sw.y; while (!g.solidAt(sw.x, fy + 1)) fy++;
+  put(sw.x, fy); d.pd = d.openFor(d.zonesAt(sw.x, fy)[0])[0] + 1; // in front of it, where the shaft lets them be
+  steps(2);
+  steps(60, () => d.movePlayer(1, 1 / 60)); // walking towards the back wall, as far as the frame walls let them
+  assert.ok(d.pd >= LANE - PLAYER_HALF - 72, `within reach of the back wall: ${d.pd}`);
+  const before = sw.aistate;
+  steps(20, () => g.keys.add('ArrowDown'));
+  g.keys.clear(); steps(2);
+  assert.equal(g.player.x, sw.x, 'the lift shaft beside it did not push the player off');
+  assert.notEqual(sw.aistate, before, 'switched');
+});
+
+test('on every level, nothing used on the back wall is shut off from it by a doorway or shaft', async () => {
+  const need = LANE - PLAYER_HALF - 72; // the reach a wall switch asks for
+  const blocked = [];
+  for (let L = 0; L < 22; L++) {
+    await g.start(levelFile(L));
+    g.freshRun();
+    const d = new Depth(g, LANE); d.install();
+    for (const e of g.entities) {
+      if (d.kind(e) !== 'wall' || !(/switch/.test(e.ai || '') || e.ai === 'restart_ai')) continue;
+      let fy = e.y; while (!g.solidAt(e.x, fy + 1) && fy < e.y + 300) fy++;
+      for (let x = e.x - 12; x <= e.x + 12; x += 4) {
+        if (d.zonesAt(x, fy).some((z) => d.openFor(z)[1] < need)) { blocked.push(`level ${L} ${e.type} at ${e.x},${e.y}`); break; }
+      }
+    }
+    d.uninstall();
+  }
+  assert.deepEqual(blocked, []);
 });
 
 // an ant running at the player on level 1's floor (it starts in its cocoon; this puts it down running)

@@ -329,3 +329,13 @@ only, approved), and noted that on level 1 the creatures come "in a straight lin
   apart to 44 units. Level 1's five ants over the bridge: before, all at depth 0; now from about -60 to +66.
 - Tests: the wall run (leap, cling at LANE-18, 16+ px up, spring, lands within 40 px of the player, repeats exactly);
   the pack spreads over 60 units. 61/61. Checked by screenshot on both walls.
+
+## Level 2: the switch beside the lift could not be reached
+Jared: "theres a bug in that room where i cant walk to the switch". Level 2's SWITCH_ONCE at (1993, 557) stands on a
+ledge beside a lift. The lift's zone (its shaft, from the deck's own width, 1995..2054) began 2 px from the switch, and
+its opening sat at a random depth (-32 +- 60), so in front of the switch the frame walls kept the player at least 60
+units short of the reach a wall switch asks for; the only spot outside the zone was a 3 px sliver against the wall.
+Fix (client/depth.js zones): a doorway or shaft beside something used on the back wall (a switch, a save terminal)
+opens flush against the back wall, and a group of touching zones takes that opening. New tests: walking in to the
+level 2 switch and using it, and on all 22 levels no switch or terminal is shut off from the back wall by a zone (both
+fail without the fix). 63/63. Checked by screenshot from in front of the switch.

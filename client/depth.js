@@ -234,17 +234,26 @@ export class Depth {
         out.push({ e, kind: k, x0, x1, y0, y1, h, c: spread(e.id ?? 0, 11) * (this.lane - h - 24) });
       }
     }
+    // A doorway or shaft beside something used on the back wall (a switch, a save terminal) opens against
+    // the back wall, or the frame walls would keep the player from reaching it (level 2's switch beside a lift).
+    const used = g.entities.filter((q) => this.kind(q) === 'wall' && (/switch/.test(q.ai || '') || q.ai === 'restart_ai'));
+    for (const z of out) {
+      if (used.some((q) => q.x >= z.x0 - 24 && q.x <= z.x1 + 24 && q.y >= z.y0 - 16 && q.y <= z.y1 + 16)) { z.back = true; z.c = this.lane - z.h; } // flush with it: no frame in front of the switch
+    }
     // Doorways and shafts that touch (a double door, a door beside a shaft) share one opening,
-    // or no depth would get through both: each group takes the opening of its first member.
+    // or no depth would get through both: each group takes the opening of its first member, or of one
+    // that opens against the back wall.
     const near = (a, b) => a.x0 - 40 <= b.x1 && b.x0 - 40 <= a.x1 && a.y0 - 40 <= b.y1 && b.y0 - 40 <= a.y1;
+    const group = out.map((_, i) => i);
     for (let i = 0; i < out.length; i++) {
-      for (let j = 0; j < i; j++) {
-        if (!near(out[i], out[j])) continue;
-        const h = Math.min(out[i].h, out[j].h);
-        out[i].c = out[j].c;
-        out[i].c = Math.max(-this.lane + h + 24, Math.min(this.lane - h - 24, out[i].c));
-        break;
-      }
+      for (let j = 0; j < i; j++) if (near(out[i], out[j])) { group[i] = group[j]; break; }
+    }
+    for (let i = 0; i < out.length; i++) {
+      const members = out.filter((_, k) => group[k] === i);
+      if (members.length < 2) continue;
+      const h = Math.min(...members.map((z) => z.h)), back = members.some((z) => z.back);
+      const c = back ? this.lane - h : members[0].c;
+      for (const z of members) z.c = Math.max(-this.lane + h + 24, Math.min(this.lane - h - (back ? 0 : 24), c));
     }
     this._zones = out;
     return out;
