@@ -57,7 +57,7 @@ test('a dead ant lies on the floor in its dead pose, over a stain', async () => 
   const { corpse, parts, midHigh } = await killAndLook(1, (e) => e.ai === 'ant_ai' && e.state !== 'hanging' && e.state !== 'hiding');
   sound(parts);
   const floorZ = -2 * corpse.floor, body = heights(parts.filter((q) => q.basis[0] <= 5)); // (not the stain)
-  assert.ok(Math.min(...body) > floorZ - 6 && Math.min(...body) < floorZ, `a little into the floor (${Math.round(Math.min(...body) - floorZ)})`);
+  assert.ok(Math.min(...body) > floorZ - 14 && Math.min(...body) < floorZ - 6, `sunk into the floor (${Math.round(Math.min(...body) - floorZ)})`);
   const mid = mean(body) - floorZ;
   assert.ok(mid < 0.75 * midHigh, `lying down: on average ${Math.round(mid)} up, ${Math.round(midHigh)} standing`);
   assert.ok(parts.some((q) => q.offset[2] < floorZ + 1 && q.basis[0] > 5), 'a stain under it');

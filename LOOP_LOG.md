@@ -537,3 +537,7 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - Mobile (user agent or a coarse pointer only): the splash for ever, "Mobile is not supported", no level;
   the title fits a phone held upright (camera closer, the whole title centred). Ant corpses 4 units into the
   floor. 101/101 tests.
+
+## Dead ants lower (2026-11-06)
+- Jared: "make the dead ants sit lower in the ground". A dead creature now slumps to 0.6 of its height (its
+  raised tail was what stood up) and lies 10 units into the floor (was 4). Screenshot; 101/101 tests.
