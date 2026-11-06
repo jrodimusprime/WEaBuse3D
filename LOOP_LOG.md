@@ -500,3 +500,6 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   inert hook: WEaBuse's 22 runs still win) with a dead zone of 0.05. Test: at 45 degrees, 71% of the run.
 - Level 4's search had run on code from before mines were put at their own spot across the hall; it is being
   run again. The finish test covers 0-3 until it has.
+- Level 4 again: every piece survived but the last did not take the exit (the search only looked for deaths).
+  Piece 79 re-found in 25 tries (exit with 58 health); the search now also takes the last piece when the run
+  does not reach the exit. Levels 0-4 all finish under the 3D rules: 96/96 tests.

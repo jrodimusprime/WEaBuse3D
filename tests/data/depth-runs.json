@@ -21,6 +21,11 @@
    "acts": "CCFFFFFCCCCCOOOOOOOCCCCDFFFFFFBBBCCIIIIICCCCDDDCCCCCCFFGGGGGGXXXXXXXXBBBBBCCDDOOOOOOAA",
    "steps": 344,
    "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (0 tries); reaches the next piece's start with 78 health"
+  },
+  "79": {
+   "acts": "AAMMMMMMMMMMMMMMMML]DMMJGCTHEDNDJNNVHVUPQFJHEGWXDHBDP^BPKOAWMNPCBTDRGPHNWBDDDDDDDDDDAABBAAQWDX",
+   "steps": 376,
+   "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (25 tries); reaches the next piece's start with 58 health"
   }
  }
 }

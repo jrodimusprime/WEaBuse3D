@@ -3,7 +3,8 @@
 //
 //   node tools/depth-run-search.mjs LEVEL [--piece K] [--minutes M] [--seed S]
 //
-// Without --piece it plays the level's pieces in turn and works on the first that dies. A piece is done when
+// Without --piece it plays the level's pieces in turn and works on the first that dies (or, if none does, on
+// the last, when it does not take the level's exit). A piece is done when
 // the player, alive, stands where the next piece starts (or takes the level's exit, for the last piece).
 // The search is a hill climb from the recorded inputs: it rewrites a stretch of them at random and keeps the
 // change when the piece gets no worse (dies later, ends nearer the goal, with more health). Deterministic for
@@ -35,7 +36,8 @@ if (K === null) {
     await playPiece(g, d, L, pieces[k], levelFile);
     if (g.player.dead) K = k;
   }
-  if (K === null) { console.log(`level ${L}: every piece survives the 3D rules`); process.exit(0); }
+  if (K === null && exit !== L + 1) K = pieces.length - 1; // all survive, but the last does not take the exit
+  if (K === null) { console.log(`level ${L}: every piece survives the 3D rules and the last takes the exit`); process.exit(0); }
 }
 K = Number(K);
 const piece = pieces[K], last = K === pieces.length - 1;
