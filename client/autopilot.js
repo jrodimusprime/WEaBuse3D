@@ -1,11 +1,11 @@
-// Plays a recorded run under the 3D rules: used by the page's "Watch levels 0-4 in 3D" (play.js) and by the
+// Plays a recorded run under the 3D rules: used by the page's "Watch all levels in 3D" (play.js) and by the
 // tests and the search (tools/depth-harness.mjs), so all three play a run alike.
 //
 // WEaBuse's recorded runs (sim/web/data/ppo-demo.json) are 2D: they say only what to press along the plane.
 // With the depth layer on, an autopilot walks across the hall to whatever the run is about to use (a switch on
 // the wall, a pad, an item) and lines up with each doorway, shaft and ladder hole it passes. A piece whose 2D
 // inputs do not survive the 3D rules has inputs found for them by the search (tools/depth-run-search.mjs), kept
-// in tests/data/depth-runs.json by level and by the piece's place among that level's pieces.
+// in tests/data/depth-runs/NN.json by level and by the piece's place among that level's pieces.
 
 // The pieces of level L as the 3D rules play them: [{seed, acts (decoded), steps, own}]
 export function piecesFor(demo, own, L, decodeActs) {

@@ -5,7 +5,7 @@
 // use (a switch on the wall, a pad, an item) and lines up with each doorway, shaft and ladder hole it passes.
 //
 // A piece whose 2D inputs no longer survive under the 3D rules can have inputs of its own found for the 3D
-// rules (tools/depth-run-search.mjs); they are kept in tests/data/depth-runs.json, by level and by the
+// rules (tools/depth-run-search.mjs); they are kept in tests/data/depth-runs/NN.json, by level and by the
 // piece's place among that level's pieces, and used instead.
 import { readFile } from 'node:fs/promises';
 import { STEP } from '../client/sim-host.js';
@@ -13,9 +13,11 @@ import { piecesFor, autopilotStep as pilot } from '../client/autopilot.js';
 
 export const ppo = await import('../sim/web/src/ppo.js');
 export const demo = JSON.parse(await readFile(new URL('../sim/web/data/ppo-demo.json', import.meta.url), 'utf8'));
-const OWN = new URL('../tests/data/depth-runs.json', import.meta.url);
-export const ownRuns = JSON.parse(await readFile(OWN, 'utf8').catch(() => '{}'));
-export const OWN_FILE = OWN;
+// one file a level (tests/data/depth-runs/NN.json: {piece: {acts, steps, note}}), so searches of different
+// levels can run at once without writing over each other
+export const ownFile = (L) => new URL(`../tests/data/depth-runs/${String(L).padStart(2, '0')}.json`, import.meta.url);
+export const ownRuns = {};
+for (let L = 0; L < 22; L++) ownRuns[L] = JSON.parse(await readFile(ownFile(L), 'utf8').catch(() => '{}'));
 
 export const piecesOf = (L) => piecesFor(demo, ownRuns, L, ppo.decodeActs);
 export const autopilotStep = (g, d, act, face) => pilot(g, d, act, face, ppo.applyAction, STEP);

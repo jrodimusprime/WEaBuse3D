@@ -257,15 +257,15 @@ function feedInput() {
 }
 
 // ---- the recorded run (Watch), in 2D's rules or in 3D's ----
-// In 3D (?watch3d=1, the "Watch levels 0-4 in 3D" button): the depth layer stays on and the run is played as
+// In 3D (?watch3d=1, the "Watch all levels in 3D" button): the depth layer stays on and the run is played as
 // the tests and the search play it (client/autopilot.js), with the pieces the search found for the 3D rules
-// where the 2D ones do not survive them (tests/data/depth-runs.json); at each exit it goes on to the next
+// where the 2D ones do not survive them (tests/data/depth-runs/NN.json); at each exit it goes on to the next
 // level, up to WATCH3D_LAST.
-const WATCH3D_LAST = 4;
+const WATCH3D_LAST = 21; // every level, to the boss
 let watch = null;
 async function startWatch(three = false) {
   const [ppo, demo, own] = await Promise.all([import('../sim/web/src/ppo.js'), fetch('../sim/web/data/ppo-demo.json').then((r) => r.json()),
-    three ? fetch('../tests/data/depth-runs.json').then((r) => r.json()).catch(() => ({})) : null]);
+    three ? fetch(`../tests/data/depth-runs/${String(level).padStart(2, '0')}.json`).then((r) => r.json()).then((p) => ({ [level]: p })).catch(() => ({})) : null]);
   const pieces = three ? piecesFor(demo, own, level, ppo.decodeActs) : demo.pieces.filter((p) => p.levelIdx === level);
   if (!pieces.length) { setMsg('No recorded run for this level.'); return; }
   watch = { ppo, pieces, three, k: -1, i: 0, n: 0, acts: null, face: 1, act: 0, loading: false };
@@ -307,7 +307,7 @@ function watchStep() {
   pitch += (-(Math.abs(up) > 90 ? Math.sign(up) * (180 - Math.abs(up)) : up) - pitch) * 0.12;
 }
 
-// The 3D pilot's view (Watch levels 0-4 in 3D): like a player's, it looks at the foe it is fighting (turning to
+// The 3D pilot's view (Watch all levels in 3D): like a player's, it looks at the foe it is fighting (turning to
 // it across the hall and up or down: client/autopilot.js pilotTarget, where its shots go too), else the way it
 // runs, along the hall and across it; on a ladder it faces the ladder and looks up or down the way it climbs.
 function pilotView(face) {

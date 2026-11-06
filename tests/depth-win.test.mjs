@@ -1,4 +1,4 @@
-// Levels 0 to 4 can be finished under the 3D rules: the recorded 2D run, replayed
+// Every level can be finished under the 3D rules: the recorded 2D run, replayed
 // with the depth layer on and an autopilot that walks across the hall to
 // whatever the run is about to use (a switch on the wall, a pad, an item) and
 // lines up with each doorway, lift shaft and ladder hole it passes, still reaches the exit
@@ -12,11 +12,12 @@ import { Depth } from '../client/depth.js';
 import { LANE } from '../content/compile.mjs';
 import { piecesOf, playPiece } from '../tools/depth-harness.mjs';
 
-for (const L of [0, 1, 2, 3, 4]) test(`level ${L} is finished under the 3D rules`, async () => {
+for (const L of [0, 1, 2, 3, 4, 6, 8, 9, 13, 21]) test(`level ${L} is finished under the 3D rules`, async () => {
   const g = await createGame();
   g.audio.muted = true;
   let exit = null;
   g.nextLevel = (n) => { exit = n; g.transitioning = true; };
+  g.onEndGame = () => { exit = L + 1; g.transitioning = true; }; // (the last level ends the game)
   const d = new Depth(g, LANE);
   for (const piece of piecesOf(L)) {
     exit = null;

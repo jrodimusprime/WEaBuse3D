@@ -1,5 +1,5 @@
 // Finds inputs for one piece of a recorded run that survive the 3D rules, and keeps them in
-// tests/data/depth-runs.json (tools/depth-harness.mjs plays them in place of the 2D ones).
+// tests/data/depth-runs/NN.json (tools/depth-harness.mjs plays them in place of the 2D ones).
 //
 //   node tools/depth-run-search.mjs LEVEL [--piece K] [--minutes M] [--seed S]
 //
@@ -14,7 +14,7 @@ import '../sim/web/tools/headless.mjs';
 import { createGame, levelFile } from '../client/sim-host.js';
 import { Depth } from '../client/depth.js';
 import { LANE } from '../content/compile.mjs';
-import { ppo, piecesOf, playPiece, OWN_FILE } from './depth-harness.mjs';
+import { ppo, piecesOf, playPiece, ownFile } from './depth-harness.mjs';
 
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : dflt; };
 const L = Number(process.argv[2]);
@@ -26,6 +26,7 @@ const g = await createGame();
 g.audio.muted = true;
 let exit = null;
 g.nextLevel = (n) => { exit = n; g.transitioning = true; };
+g.onEndGame = () => { exit = L + 1; g.transitioning = true; }; // (the last level ends the game: its exit)
 const d = new Depth(g, LANE);
 const pieces = piecesOf(L);
 
@@ -88,8 +89,8 @@ while (Date.now() - t0 < MINUTES * 60e3 && !(cur.reached !== null && cur.hp >= 4
 }
 if (cur.reached === null) { console.log(`no inputs found that reach it (${tries} tries)`); process.exit(1); }
 const acts = best.slice(0, Math.ceil((cur.reached + 1) / 4));
-const own = JSON.parse(await readFile(OWN_FILE, 'utf8').catch(() => '{}'));
-(own[L] ??= {})[K] = { acts: String.fromCharCode(...acts.map((v) => v + 65)), steps: cur.reached + 1, note: `found for the 3D rules by tools/depth-run-search.mjs --seed ${arg('seed', 1)} (${tries} tries); reaches the next piece's start with ${cur.hp} health` };
-await writeFile(OWN_FILE, JSON.stringify(own, null, 1) + '\n');
+const own = JSON.parse(await readFile(ownFile(L), 'utf8').catch(() => '{}'));
+own[K] = { acts: String.fromCharCode(...acts.map((v) => v + 65)), steps: cur.reached + 1, note: `found for the 3D rules by tools/depth-run-search.mjs --seed ${arg('seed', 1)} (${tries} tries); reaches the next piece's start with ${cur.hp} health` };
+await writeFile(ownFile(L), JSON.stringify(own, null, 1) + '\n');
 console.log(`kept: level ${L} piece ${K}, ${acts.length} decisions, ${cur.hp} health at the goal (${tries} tries)`);
 process.exit(0);
