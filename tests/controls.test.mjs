@@ -84,3 +84,28 @@ for (const [what, x, y, dir, n] of [['up the slope at the start', 200, 100, -1, 
     assert.equal(air, 0, `${air} frames in the air`);
   });
 }
+
+// Jared: "the forward button now doesnt quite go forward anymore when facing on an angle". Quake moves the
+// player where they face; Abuse's run along the hall is all or nothing. Facing 45 degrees across the hall the
+// run is capped at the forward share of its speed (depth.js alongWish), so the player goes the way they face.
+test('facing at an angle, the run along the hall goes at the forward share of its speed', async () => {
+  await g.start(levelFile(2));
+  const { Depth } = await import('../client/depth.js'), { LANE } = await import('../content/compile.mjs');
+  const d = new Depth(g, LANE); d.install();
+  const p = g.player; p.x = 1180; p.y = 1300; p.vy = 0;
+  for (let i = 0; i < 30; i++) { g.keys.clear(); g.update(STEP); }
+  const run = (w) => {
+    const x0 = p.x;
+    d.alongWish = w;
+    for (let i = 0; i < 60; i++) { g.keys.clear(); g.keys.add('ArrowRight'); g.update(STEP); }
+    for (let i = 0; i < 30; i++) { g.keys.clear(); g.update(STEP); }
+    return p.x - x0;
+  };
+  const full = run(1);
+  p.x = 1180; p.vx = 0;
+  for (let i = 0; i < 10; i++) { g.keys.clear(); g.update(STEP); }
+  const slant = run(Math.SQRT1_2);
+  d.uninstall();
+  assert.ok(full > 100, `ran ${Math.round(full)} px`);
+  assert.ok(Math.abs(slant / full - Math.SQRT1_2) < 0.08, `at 45 degrees ${Math.round(slant)} of ${Math.round(full)} px`);
+});

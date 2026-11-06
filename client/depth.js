@@ -540,6 +540,9 @@ export class Depth {
     };
     g.updatePlayer = function (dt) {
       const n = this.projs.length, climbing = this.player.climbing;
+      // Quake moves the player where they face: along the hall at the forward share of their speed, as across
+      // it (movePlayer). Abuse's run is all or nothing; the simulation caps it at that share (sim runShare).
+      this.runShare = self.alongWish ?? 1;
       proto.updatePlayer.call(this, dt);
       if (climbing && !this.player.climbing && this.player.vy < 0) self.offLadder = LADDER_OFF; // jumped off: pushed back into the hall
       self.adopt(n, 'player'); self.enforce();
@@ -562,7 +565,7 @@ export class Depth {
     if (!this.on) return;
     this.on = false;
     const g = this.g;
-    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'shotStopped', 'updatePlayer', 'tick', 'spawn']) delete g[k];
+    for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'shotStopped', 'updatePlayer', 'tick', 'spawn', 'runShare']) delete g[k];
     g.depth = null;
   }
 }

@@ -199,8 +199,10 @@ function feedInput() {
   const climb = climbIntent(g, fwd, pitch, depth.offLadder > 0); // controls.js
   if (climb > 0) g.keys.add('ArrowUp');
   if (climb < 0) g.keys.add('ArrowDown');
-  if (!climb && along > 0.25) g.keys.add('ArrowRight');
-  if (!climb && along < -0.25) g.keys.add('ArrowLeft');
+  // along the hall at the forward share of the speed, as across it (depth.js alongWish caps Abuse's run)
+  depth.alongWish = Math.min(1, Math.abs(along));
+  if (!climb && along > 0.05) g.keys.add('ArrowRight');
+  if (!climb && along < -0.05) g.keys.add('ArrowLeft');
   if (held.has('Space')) g.keys.add('Space'); // Space jumps, off a ladder too (Jared: "you should be able to jump off a ladder")
   if (held.has('KeyE')) g.keys.add('ArrowDown'); // use: switches, lifts, doors; down a ladder
   if (held.has('KeyF') || held.has('ControlLeft')) g.keys.add('KeyF'); // fire from the keyboard
@@ -229,6 +231,7 @@ async function startWatch(three = false) {
   if (!pieces.length) { setMsg('No recorded run for this level.'); return; }
   watch = { ppo, pieces, three, k: -1, i: 0, n: 0, acts: null, face: 1, act: 0, loading: false };
   g.demo = true; // the game ignores the keyboard while a recorded run plays
+  depth.alongWish = 1; // (the run's own keys, at full speed)
   if (!three) depth.uninstall(); // the run was found under the 2D rules, so it plays under them
   depth.pd = 0;
   await nextPiece();

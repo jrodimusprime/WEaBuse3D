@@ -492,3 +492,11 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - client/autopilot.js: the autopilot and piece choice, shared by tests/search and the page. The page's new
   button "Watch levels 0-4 in 3D" (?watch3d=1) plays the runs under the 3D rules in first person, on from
   one level to the next to level 4.
+
+## Forward at an angle (2026-11-06)
+- Jared: "the forward button now doesnt quite go forward anymore when facing on an angle". Across the hall the
+  move was the forward share of the speed, along it Abuse's all-or-nothing run (and nothing under a quarter),
+  so the player did not go the way they faced. Now the run is capped at the forward share (sim runShare, an
+  inert hook: WEaBuse's 22 runs still win) with a dead zone of 0.05. Test: at 45 degrees, 71% of the run.
+- Level 4's search had run on code from before mines were put at their own spot across the hall; it is being
+  run again. The finish test covers 0-3 until it has.

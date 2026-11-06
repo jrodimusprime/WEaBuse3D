@@ -1,4 +1,4 @@
-// Levels 0 to 3 can be finished (4 when the search has found its pieces: tools/depth-run-search.mjs) under the 3D rules: the recorded 2D run, replayed
+// Levels 0 to 3 can be finished (4 when the search has found its pieces again: tools/depth-run-search.mjs) under the 3D rules: the recorded 2D run, replayed
 // with the depth layer on and an autopilot that walks across the hall to
 // whatever the run is about to use (a switch on the wall, a pad, an item) and
 // lines up with each doorway, lift shaft and ladder hole it passes, still reaches the exit
