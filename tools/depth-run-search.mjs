@@ -7,7 +7,8 @@
 // the last, when it does not take the level's exit). A piece is done when
 // the player, alive, stands where the next piece starts (or takes the level's exit, for the last piece).
 // The search is a hill climb from the recorded inputs: it rewrites a stretch of them at random and keeps the
-// change when the piece gets no worse (dies later, ends nearer the goal, with more health). Deterministic for
+// change when the piece gets no worse (dies later, ends nearer the goal, with more health). Besides Abuse's keys,
+// a stretch can hold one side of the hall (client/autopilot.js ACTS), out of a fight's way. Deterministic for
 // a given --seed.
 import { readFile, writeFile } from 'node:fs/promises';
 import '../sim/web/tools/headless.mjs';
@@ -15,6 +16,7 @@ import { createGame, levelFile } from '../client/sim-host.js';
 import { Depth } from '../client/depth.js';
 import { LANE } from '../content/compile.mjs';
 import { ppo, piecesOf, playPiece, ownFile } from './depth-harness.mjs';
+import { ACTS } from '../client/autopilot.js';
 
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : dflt; };
 const L = Number(process.argv[2]);
@@ -74,11 +76,12 @@ while (Date.now() - t0 < MINUTES * 60e3 && !(cur.reached !== null && cur.hp >= 4
   tries++;
   const a = best.slice();
   const n = a.length, len = 1 + Math.floor(rnd() * 24), at = Math.floor(rnd() * n);
-  const kind = rnd();
+  const kind = rnd(), side = Math.floor(rnd() * 3);
   for (let i = at; i < Math.min(n, at + len); i++) {
-    if (kind < 0.4) a[i] = Math.floor(rnd() * 24); // anything
-    else if (kind < 0.7) a[i] = a[at]; // hold one action
-    else a[i] = a[i] ^ 12; // the same, firing or not
+    if (kind < 0.3) a[i] = Math.floor(rnd() * 24); // anything (the autopilot's depth)
+    else if (kind < 0.55) a[i] = a[at]; // hold one action
+    else if (kind < 0.8) { const k = a[i] % ACTS; a[i] = a[i] - k + (k < 24 ? (k + 12) % 24 : k); } // the same, firing or not
+    else a[i] = a[i] % ACTS + ACTS * side; // the same keys, a side of the hall held (or let go) across the stretch
   }
   if (rnd() < 0.15) a.push(...Array.from({ length: 1 + Math.floor(rnd() * 20) }, () => a[n - 1])); // a little longer
   const s = await score(a);

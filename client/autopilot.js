@@ -32,10 +32,18 @@ export function pilotTarget(g, d, face) {
   return best;
 }
 
+// An action of a piece is Abuse's (ppo.js actParts: move, jump, down, fire; the kept runs use 0-31) plus ACTS
+// times a side of the hall to hold: 0 leaves the depth to the autopilot, 1 holds the near side and 2 the far side
+// (a 3D player steps out of a fight's way across the hall; tools/depth-run-search.mjs finds where). WEaBuse's
+// recorded runs use 0 only. (ACTS is a multiple of 3, so act % 3 is still the way the action moves.)
+export const ACTS = 48;
+const SIDE = [null, -1, 1];
+
 // One step of a piece: the autopilot across the hall, aiming its shots across the hall at the foe it is
 // fighting (a 3D player aims at what they shoot), then the recorded keys, then the game.
 export function autopilotStep(g, d, act, face, applyAction, step) {
-  const p = g.player, lane = d.lane;
+  const p = g.player, lane = d.lane, side = SIDE[Math.floor(act / ACTS)] ?? null;
+  act %= ACTS;
   const foe = pilotTarget(g, d, face);
   if (foe) {
     const fd = d.depthOf(foe) ?? d.pd, along = Math.max(1, Math.hypot(foe.x - p.x, foe.y - 15 - (p.y - 25)));
@@ -53,6 +61,7 @@ export function autopilotStep(g, d, act, face, applyAction, step) {
     if (p.x + 60 < z.x0 || p.x - 60 > z.x1 || p.y + 40 < z.y0 || p.y - 70 > z.y1) continue;
     target = z.c;
   }
+  if (side !== null) target = side * (lane - 20); // (the frame walls still hold the player at a doorway's opening)
   d.movePlayer(target === null ? 0 : Math.max(-1, Math.min(1, (target - d.pd) / 20)), step);
   applyAction(g, act, face);
   g.update(step);
