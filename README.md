@@ -368,6 +368,13 @@ burns lights the room. The gun in the hands is held like a Quake view model, all
 canted so the gloved hands show: three-jointed fingers round the grip and the barrel, knuckle armour, armoured
 forearms; the guns have bevelled bodies, round barrels, sights, ports and vents (`client/viewmodel.js`).
 
+**Points and spans** (CLAUDE.md, 3D conversion rule 4). Only what blocks or sweeps an area spans the hall:
+rollers and boulders, laser and lightning gates, force fields, pushers, lava, hidden walls, steps, blocks, the
+cleaner. Everything else is a point at its own depth, at most 32 units either side of it: teleporter pads and
+pods, the exit pad, jump pads, mines, bombs, items, switches, enemies; a round pad bigger than that is an oval.
+Jared: "standing platform teleporters arent point in space but take the whole horizontal".
+`tests/depth.test.mjs` checks every object of every level against the rule.
+
 **The splash screen.** While the first level loads (once a browser session; a click or a key skips it), Abuse's
 title picture in 3D (`client/splash.js`): the ABUSE letters solid, each pixel of the title a block of its own
 colour, with "3D" after them in the same stone and fire; the cop and his disc a relief behind; the camera
@@ -720,6 +727,10 @@ apply here too and are listed in WEaBuse's README.
   fire bomb runs along the floor burning, plasma and the saber are lines traced at once, the frisbee steers to
   the aim, rockets lock on to what they can see, and one's own blasts spare one. Jared: "make sure they align in
   functionality and damage" (`tests/weapons.test.mjs`).
+- **Jump pads sit on the floor.** Abuse hangs some jump pads in the air, to be met in a jump; in 3D a pad in
+  the air read as broken, so one within 120 px above a floor or step is set down on it (both the pad and where
+  it throws the player from), and put back when the depth layer comes off. Jared: "the jump pad on the stairs
+  ... closer to the stairs".
 - **Track guns fire three times as often.** Across the hall most of a turret's shots go wide, so the track guns
   (not the spray guns, which already sweep a shot every tick or two) fire three times as often as in Abuse.
   Jared: "the turent lasers arent as dangerous as they shoot through the whole room ... speed them up".

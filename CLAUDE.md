@@ -46,6 +46,12 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
    work.
 4. **Place things where they would be in a 3D level:** buttons on walls, pads on floors, items on the ground
    where you can walk over them, enemies free to move across the hall.
+   **Points and spans.** Only what blocks or sweeps an area spans the whole hall: rollers and boulders, laser
+   and lightning gates, force fields, pushers' arrows (the areas that push the player along), lava, hidden walls,
+   steps and blocks, the cleaner (depth kind 'full'). Everything else is a *point* in the hall, at its own depth
+   and at most POINT_HALF (32 units) either side of it, drawn that size: teleporter pads and pods, the exit pad,
+   jump pads, mines and bombs, items, switches, enemies. A round thing larger than that is drawn as an oval.
+   Pads sit on the floor (a jump pad hanging in the air is set down on the floor or step below it).
 5. **Move like a 3D shooter.** On a ladder, walking forward while looking up climbs and looking down
    descends; Space jumps off it. A ladder through a floor climbs through a hole of its own against the back
    wall. On slopes the player stays on the ground, as in Quake. Use is "walk up to it and press E".

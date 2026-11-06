@@ -308,3 +308,29 @@ test('a track gun fires three times as often in 3D as in the plane', async () =>
   assert.ok(flat >= 3, `${flat} shots in the plane`);
   assert.equal(deep, flat * 3);
 });
+
+// Points and spans (CLAUDE.md 3D conversion rule 4): only what blocks or sweeps an area spans the hall; the
+// rest are points, at most POINT_HALF either side of their depth (Jared: "standing platform teleporters arent
+// point in space but take the whole horizontal").
+test('on every level, only rollers, gates, fields, pushers, lava, walls, steps, blocks and the cleaner span the hall', async () => {
+  const { POINT_HALF } = await import('../client/depth.js');
+  const { isHiddenInPlay } = await import('../sim/web/src/behaviors.js');
+  const SPANS = new Set(['big_wall_ai', 'hwall_ai', 'block_ai', 'bolder_ai', 'ff_ai', 'lava_ai', 'lightin_ai', 'pusher_ai', 'rob1_ai', 'step_ai',
+    'boss_ai', 'end_game_ai']); // (the boss fills its arena; the end of the game is unseen)
+  const g = await createGame();
+  g.audio.muted = true;
+  const wrong = new Set();
+  for (let L = 0; L < 22; L++) {
+    await g.start(levelFile(L));
+    const d = new Depth(g, LANE); d.install();
+    for (const e of g.entities) {
+      if (isHiddenInPlay(e.def)) continue;
+      const k = d.kind(e);
+      if (k === 'full' && !SPANS.has(e.ai)) wrong.add(`${e.type} spans the hall`);
+      if (k !== 'full' && SPANS.has(e.ai)) wrong.add(`${e.type} should span the hall`);
+      if (k === 'floor' || k === 'item') { const h = d.halfDepth(e); if (h > POINT_HALF) wrong.add(`${e.type} reaches ${h} either side`); }
+    }
+    d.uninstall();
+  }
+  assert.deepEqual([...wrong], []);
+});
