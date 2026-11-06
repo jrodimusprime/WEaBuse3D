@@ -1,0 +1,7 @@
+{
+ "9": {
+  "acts": "XAAANNNNNMMMMMMCCCCCCCCCCCDLBOAWMNPCBTDRGPHNWMMQWDXDJCJHPMJSGCGDHVGGGGGGGGGGGGGG",
+  "steps": 320,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (41 tries); reaches the next piece's start with 57 health"
+ }
+}

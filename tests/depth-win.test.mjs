@@ -12,7 +12,7 @@ import { Depth } from '../client/depth.js';
 import { LANE } from '../content/compile.mjs';
 import { piecesOf, playPiece } from '../tools/depth-harness.mjs';
 
-for (const L of [0, 1, 2, 3, 4, 6, 8, 9, 13, 21]) test(`level ${L} is finished under the 3D rules`, async () => {
+for (const L of [0, 1, 2, 3, 4, 6, 8, 9, 12, 13, 14, 15, 17, 18, 19, 20, 21]) test(`level ${L} is finished under the 3D rules`, async () => {
   const g = await createGame();
   g.audio.muted = true;
   let exit = null;

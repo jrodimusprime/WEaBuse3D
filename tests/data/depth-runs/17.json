@@ -1,0 +1,17 @@
+{
+ "7": {
+  "acts": "SSSSSSMMMAA^RMMAAYUUUUUUUUUUUUUUUUUUUUUUUUUFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+  "steps": 324,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (1285 tries); reaches the next piece's start with 46 health"
+ },
+ "26": {
+  "acts": "MMMMMMMMMMMMMMMMAAAAAAGGGGGGGGGGGCCCCVVVAAAAAAAAAACAAAAAAAAAAAAAOPPRRRRROOOOOOOOOOOJJHHIIIIAAABCCAAAABBBBBBBDDDDAAAAAAAA",
+  "steps": 480,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (1 tries); reaches the next piece's start with 100 health"
+ },
+ "30": {
+  "acts": "AAGOL]DDKBPFBBZ`LZAG]ECMWMNPCBCQJAMNQULSBJ",
+  "steps": 168,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (34 tries); reaches the next piece's start with 100 health"
+ }
+}

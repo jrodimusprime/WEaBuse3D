@@ -119,6 +119,13 @@ export class Depth {
     this.on = false;
   }
 
+  // Forgets the player's place and motion across the hall, for a run that starts afresh from a saved state (each
+  // piece of a recorded run): it starts in the middle of the hall, as a level does, whatever ran before it.
+  reset() {
+    this.pd = 0; this.pv = 0; this.shotRatio = 0; this.cur = null; this.lastShot = null;
+    this._legal = null; this.offLadder = 0;
+  }
+
   // ---- what and where things are ----
 
   kind(e) {

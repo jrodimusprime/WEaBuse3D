@@ -4,3 +4,4 @@ node_modules/
 id1/
 test-results/
 .DS_Store
+train-out/

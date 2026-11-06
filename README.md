@@ -487,18 +487,22 @@ All test tools drive the **real** game code, headless in Node or in real browser
 Golden images and winning runs, like WEaBuse's won list, are **only replaced on purpose**,
 in a commit that says why. A test is never edited to make a change pass.
 
-Levels 0 to 4 are finished under the 3D rules by those runs (`tests/depth-win.test.mjs`), and the page plays
-them: **Watch levels 0–4 in 3D** plays each level's run in first person under the 3D rules, exactly as the tests
-and the search play it (`client/autopilot.js`), and goes on from one level to the next. It plays them as a 3D player would: it aims
-its shots across the hall at the foe it is fighting, and its view turns to that foe (up and down too), else the
-way it runs, along and across the hall; on a ladder it faces the ladder and looks up or down. (The routes are
-still WEaBuse's 2D ones; a 3D search of every level is to come.)
+Seventeen of the 22 levels are finished under the 3D rules by those runs (`tests/depth-win.test.mjs`: 0-4, 6, 8,
+9, 12-15 and 17-21; levels 5, 7, 10, 11 and 16 each have a piece no search has yet found inputs for). The page
+plays them: **Watch all levels in 3D** plays each level's run in first person under the 3D rules, exactly as the
+tests and the search play it (`client/autopilot.js`), and goes on from one level to the next. It plays them as a
+3D player would: it aims its shots across the hall at the foe it is fighting, and its view turns to that foe (up
+and down too), else the way it runs, along and across the hall; on a ladder it faces the ladder and looks up or
+down.
 
 The 3D finish tests replay WEaBuse's recorded 2D runs under the 3D rules (`tools/depth-harness.mjs`). Where a
-piece of a run no longer survives a change to the 3D rules, `tools/depth-run-search.mjs` finds inputs for that
-piece that do, reaching where the next piece starts, and keeps them in `tests/data/depth-runs.json` (WEaBuse's
-own recording is not touched). Level 1's piece 33 has them since the Quake step-down: the recorded inputs ran on
-past the next piece's start into enemy fire with 19 health; the new ones stop there with 42.
+piece of a run no longer survives the 3D rules, `tools/depth-run-search.mjs` finds inputs for that piece that do,
+reaching where the next piece starts, and keeps them in `tests/data/depth-runs/NN.json`, one file a level
+(WEaBuse's own recording is not touched); `tools/depth-search-all.mjs` runs it for many levels, three at a time,
+logging to `train-out/depth-search/`. Each piece starts from its saved state with the player in the middle of the
+hall and nothing remembered from the piece before (`Depth.reset`), so a piece plays the same in the search, the
+tests and the page. Level 1's piece 33 has inputs of its own since the Quake step-down: the recorded inputs ran
+on past the next piece's start into enemy fire with 19 health; the new ones stop there with 42.
 
 ---
 

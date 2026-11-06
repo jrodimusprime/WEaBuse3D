@@ -26,7 +26,7 @@ export const autopilotStep = (g, d, act, face) => pilot(g, d, act, face, ppo.app
 export async function playPiece(g, d, L, piece, levelFile, { onStep } = {}) {
   d.uninstall();
   await ppo.startRun(g, levelFile(L), piece.seed); // (checkpoints were recorded under the 2D rules)
-  d.install();
+  d.install(); d.reset(); // (the same start whatever ran before it)
   let face = 1, act = 0, i = 0;
   for (; i < piece.steps && !g.transitioning && !g.player.dead; i++) {
     if (i % 4 === 0) { act = piece.acts[i / 4]; const mv = (act % 3) - 1; if (mv !== 0) face = mv; }

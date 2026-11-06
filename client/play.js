@@ -303,7 +303,7 @@ async function nextPiece() {
   w.loading = true;
   if (w.three) depth.uninstall(); // (each piece starts from its saved state, as the tests play it)
   await w.ppo.startRun(g, levelFile(level), piece.seed || null);
-  if (w.three) depth.install();
+  if (w.three) { depth.install(); depth.reset(); }
   w.acts = w.three ? piece.acts : w.ppo.decodeActs(piece.acts);
   w.n = Math.min(piece.steps, w.acts.length * 4);
   w.i = 0;
@@ -380,7 +380,7 @@ document.getElementById('restart').addEventListener('click', async (e) => {
   watch = null; g.demo = false; finished = null; setMsg('');
   await g.start(levelFile(level));
   g.freshRun();
-  depth.install(); depth.pd = 0; depth.pv = 0;
+  depth.install(); depth.reset();
 });
 // the level is ready: the level-complete screen, if it shows, gives way to it (and a reload opens on the title)
 levelReady();

@@ -1,0 +1,12 @@
+{
+ "36": {
+  "acts": "AAAAAAAAAAAAAAAAKOTTEPBNLHXPLAPASXEPVOOJONSUJSROOOOOOOOOOPD]",
+  "steps": 238,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (31 tries); reaches the next piece's start with 51 health"
+ },
+ "43": {
+  "acts": "EJMOCCCDDDDDDGGGGGPPPPPPPPPPPPGGCOFMMMMMMMMMMMMMMMMWXDHBCCCCCCOCPDRNDGBOUAAAAMMAAAPMMMMMMMMMMHVOMMMDOOOOOOOAAAAAAAAAAMAMMMMMMZ",
+  "steps": 504,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (144 tries); reaches the next piece's start with 45 health"
+ }
+}
