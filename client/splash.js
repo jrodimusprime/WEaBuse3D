@@ -79,13 +79,13 @@ function build(im, pal) {
     const near = 4 + (l / n / 765) * 26;
     picture.box([X(x + 0.5), 70 - near / 2, Z(y + 0.5)], [2, near / 2, 2], [r / n, g / n, b / n]);
   }
-  return { letters: letters.done(), picture: picture.done(), width: X(x) - X(LETTERS.x0) };
+  return { letters: letters.done(), picture: picture.done(), width: X(x) - X(LETTERS.x0), shift: -(X(LETTERS.x0) + X(x)) / 2 }; // (shift: the whole title, "3D" too, in the middle)
 }
 
 const ANGLE = (d) => (d * Math.PI) / 180;
 
 // Runs the splash until `ready` has resolved and at least MIN_MS have passed (or a click or a key).
-export function splash(renderer, g, canvas, ready) {
+export function splash(renderer, g, canvas, ready, { forever = false } = {}) {
   const im = g.assets.sprite('art/title.spe', 'title_screen');
   if (!im) return ready;
   const M = build(im, renderer.palette);
@@ -102,7 +102,7 @@ export function splash(renderer, g, canvas, ready) {
     let last = t0;
     const frame = (now) => {
       const t = (now - t0) / 1000;
-      if ((loaded && (skip || now - t0 > MIN_MS)) || now - t0 > MAX_MS) {
+      if (!forever && ((loaded && (skip || now - t0 > MIN_MS)) || now - t0 > MAX_MS)) {
         removeEventListener('keydown', stop); canvas.removeEventListener('mousedown', stop);
         resolve();
         return;
@@ -110,7 +110,8 @@ export function splash(renderer, g, canvas, ready) {
       const w = Math.floor(canvas.clientWidth * devicePixelRatio), h = Math.floor(canvas.clientHeight * devicePixelRatio);
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
       // the camera drifts round and in
-      const yawOff = 14 * Math.sin(t * 0.55), dist = 640 - 60 * Math.min(1, t / 4), lift = -10 + 14 * Math.sin(t * 0.4);
+      // (closer on a narrow screen, a phone's held upright, so the title fills its width)
+      const yawOff = 14 * Math.sin(t * 0.55), dist = (640 - 60 * Math.min(1, t / 4)) * Math.min(1, Math.max(0.42, w / h)), lift = -10 + 14 * Math.sin(t * 0.4);
       const eye = [Math.sin(ANGLE(yawOff)) * dist, -Math.cos(ANGLE(yawOff)) * dist, lift];
       const yaw = 90 + yawOff, pitch = (Math.atan2(lift + 20, dist) * 180) / Math.PI;
       const fade = Math.min(1, t / 0.8);
@@ -123,8 +124,8 @@ export function splash(renderer, g, canvas, ready) {
       renderer.frame({ eye, angles: [pitch, yaw, 0] }, w, h, {
         mode: 'abuse', world: false, fovY: (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI,
         sprites: [
-          { mesh: M.picture, basis: I3, offset: [0, 0, 0], bright: 0.95 * fade },
-          { mesh: M.letters, basis: I3, offset: [0, 0, 0], bright: 1.15 * fade, skin: 0.5, skinKind: 0, skinScale: 1 / 6 },
+          { mesh: M.picture, basis: I3, offset: [M.shift, 0, 0], bright: 0.95 * fade },
+          { mesh: M.letters, basis: I3, offset: [M.shift, 0, 0], bright: 1.15 * fade, skin: 0.5, skinKind: 0, skinScale: 1 / 6 },
         ],
         glows: [{ pos: [0, 30, -120], size: 200, rgb: [1, 0.45, 0.12], intensity: 0.22 * flick * fade }, ...parts.glows],
         smoke: parts.smoke,

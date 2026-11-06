@@ -16,9 +16,31 @@ export function piecesFor(demo, own, L, decodeActs) {
   });
 }
 
-// One step of a piece: the autopilot across the hall, then the recorded keys, then the game.
+// The enemy the pilot is fighting: the nearest in front of the player (the way the run faces), within reach,
+// that the depth layer counts as a foe (walking, flying or hanging), or null.
+const FOES = new Set(['enemy', 'hang']);
+export function pilotTarget(g, d, face) {
+  const p = g.player;
+  let best = null, bd = 300;
+  for (const e of g.entities) {
+    if (e.dead || e.hidden || !e.shootable || !(FOES.has(d.kind(e)) || e.ai === 'spray_gun_ai')) continue;
+    const dx = (e.x - p.x) * face;
+    if (dx < -10 || Math.abs(e.y - p.y) > 160) continue;
+    const dist = Math.hypot(e.x - p.x, e.y - p.y);
+    if (dist < bd) { bd = dist; best = e; }
+  }
+  return best;
+}
+
+// One step of a piece: the autopilot across the hall, aiming its shots across the hall at the foe it is
+// fighting (a 3D player aims at what they shoot), then the recorded keys, then the game.
 export function autopilotStep(g, d, act, face, applyAction, step) {
   const p = g.player, lane = d.lane;
+  const foe = pilotTarget(g, d, face);
+  if (foe) {
+    const fd = d.depthOf(foe) ?? d.pd, along = Math.max(1, Math.hypot(foe.x - p.x, foe.y - 15 - (p.y - 25)));
+    d.shotRatio = Math.max(-12, Math.min(12, (fd - d.pd) / along));
+  } else d.shotRatio = 0;
   let target = null, best = 70;
   for (const e of g.entities) {
     const k = e.dead ? null : d.kind(e);

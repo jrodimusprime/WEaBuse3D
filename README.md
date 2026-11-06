@@ -375,6 +375,9 @@ pods, the exit pad, jump pads, mines, bombs, items, switches, enemies; a round p
 Jared: "standing platform teleporters arent point in space but take the whole horizontal".
 `tests/depth.test.mjs` checks every object of every level against the rule.
 
+**Mobile.** On a phone or a tablet the page shows the splash with "Mobile is not supported" and loads no level:
+the game is played with a keyboard and a mouse.
+
 **The splash screen.** While the first level loads (once a browser session; a click or a key skips it), Abuse's
 title picture in 3D (`client/splash.js`): the ABUSE letters solid, each pixel of the title a block of its own
 colour, with "3D" after them in the same stone and fire; the cop and his disc a relief behind; the camera
@@ -466,7 +469,10 @@ in a commit that says why. A test is never edited to make a change pass.
 
 Levels 0 to 4 are finished under the 3D rules by those runs (`tests/depth-win.test.mjs`), and the page plays
 them: **Watch levels 0–4 in 3D** plays each level's run in first person under the 3D rules, exactly as the tests
-and the search play it (`client/autopilot.js`), and goes on from one level to the next.
+and the search play it (`client/autopilot.js`), and goes on from one level to the next. It plays them as a 3D player would: it aims
+its shots across the hall at the foe it is fighting, and its view turns to that foe (up and down too), else the
+way it runs, along and across the hall; on a ladder it faces the ladder and looks up or down. (The routes are
+still WEaBuse's 2D ones; a 3D search of every level is to come.)
 
 The 3D finish tests replay WEaBuse's recorded 2D runs under the 3D rules (`tools/depth-harness.mjs`). Where a
 piece of a run no longer survives a change to the 3D rules, `tools/depth-run-search.mjs` finds inputs for that

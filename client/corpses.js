@@ -16,6 +16,7 @@ import { Mesh } from '../engine/mesh.js';
 
 const MAX = 48;
 const SETTLE = 0.55; // s
+const SINK = 4; // units a dead creature lies sunk into the floor
 const CREATURES = new Set(['ant_ai']);
 const HANGING = new Set(['track_ai']);
 const ON_WALL = new Set(['spray_gun_ai']);
@@ -96,7 +97,7 @@ export class Corpses {
         const id = e.id ?? 0, R = rot(0, 0, (hash(id, 3) - 0.5) * 1.2 * fall);
         const mid = [0, 1, 2].map((k) => parts.reduce((s2, q) => s2 + q.offset[k], 0) / parts.length);
         const turned = parts.map((q) => ({ ...q, basis: mul3(R, q.basis || I3), offset: apply(R, q.offset.map((x, k) => x - mid[k])).map((x, k) => x + mid[k]) }));
-        const lift = -2 * body.y + 1 - lowest(turned); // its lowest point on the floor
+        const lift = -2 * body.y - SINK - lowest(turned); // its lowest point a little into the floor (Jared: "drop them into the ground slightly")
         for (const q of turned) out.push({ ...q, offset: [q.offset[0], q.offset[1], q.offset[2] + lift], bright: (q.bright ?? 1) * 0.8 });
         const r = 14 * Math.min(1, t * 2);
         out.push({ mesh: stain(), basis: new Float32Array([r, 0, 0, 0, r * 0.8, 0, 0, 0, 1]), offset: [2 * c.x, c.depth, -2 * c.floor + 0.3] });

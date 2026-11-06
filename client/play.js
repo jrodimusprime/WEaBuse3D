@@ -45,7 +45,7 @@ import { Corpses } from './corpses.js';
 import { splash } from './splash.js';
 import { sayHints } from './hints.js';
 import { JumpAssist, climbIntent } from './controls.js';
-import { piecesFor, autopilotStep } from './autopilot.js';
+import { piecesFor, autopilotStep, pilotTarget } from './autopilot.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -102,6 +102,15 @@ g.nextLevel = (n) => {
   else if (watch.three && n <= WATCH3D_LAST) setTimeout(() => { location.search = `?level=${n}&watch3d=1`; }, 1500); // on to the next level, in 3D
 };
 g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
+// On a phone or a tablet: the splash, saying it is not supported, and no level (it needs a keyboard and a mouse)
+const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
+if (mobile && !params.has('desktop')) {
+  setMsg('<b>Mobile is not supported</b><br><br>WEaBuse3D is played with a keyboard and a mouse.<br>Open it on a computer.');
+  msgEl.style.top = '76%'; // (below the title)
+  document.getElementById('panel')?.setAttribute('hidden', ''); document.getElementById('cross')?.setAttribute('hidden', '');
+  lockEl.hidden = true;
+  await splash(renderer, g, canvas, new Promise(() => {}), { forever: true });
+}
 // the splash (client/splash.js) while the level loads: once a session, not for review or watch links
 const plain = [...params.keys()].every((k) => k === 'level' || k === 'quake');
 let firstVisit = true;
@@ -289,6 +298,7 @@ function watchStep() {
   if (w.three) autopilotStep(g, depth, w.act, w.face, w.ppo.applyAction, STEP);
   else { w.ppo.applyAction(g, w.act, w.face); g.update(STEP); }
   w.i++;
+  if (w.three) { pilotView(w.face); return; }
   // the view turns to where the cop faces and looks where he aims
   const want = g.player.dir > 0 ? 0 : 180;
   const d = ((want - yaw) % 360 + 540) % 360 - 180;
@@ -296,6 +306,29 @@ function watchStep() {
   const a = g.player.aimAngle ?? 0; // degrees, up is positive (lisp_atan2)
   const up = a > 180 ? a - 360 : a;
   pitch += (-(Math.abs(up) > 90 ? Math.sign(up) * (180 - Math.abs(up)) : up) - pitch) * 0.12;
+}
+
+// The 3D pilot's view (Watch levels 0-4 in 3D): like a player's, it looks at the foe it is fighting (turning to
+// it across the hall and up or down: client/autopilot.js pilotTarget, where its shots go too), else the way it
+// runs, along the hall and across it; on a ladder it faces the ladder and looks up or down the way it climbs.
+function pilotView(face) {
+  const p = g.player, turn = (want, rate) => { const dd = ((want - yaw) % 360 + 540) % 360 - 180; yaw += dd * rate; };
+  const foe = pilotTarget(g, depth, face);
+  let wantPitch = 0;
+  if (p.climbing) {
+    turn(90, 0.1); // the ladder is on the back wall
+    wantPitch = p.vy < -1 || g.keys.has('ArrowUp') ? -40 : g.keys.has('ArrowDown') ? 40 : -15;
+  } else if (foe) {
+    const fx = 2 * (foe.x - p.x), fy = (depth.depthOf(foe) ?? depth.pd) - depth.pd, fz = -2 * (foe.y - 15 - (p.y - EYE));
+    turn((Math.atan2(fy, fx) * 180) / Math.PI, 0.14);
+    wantPitch = (-Math.atan2(fz, Math.hypot(fx, fy)) * 180) / Math.PI;
+  } else {
+    const vx = 2 * (p.vx || 0), vy = depth.pv || 0;
+    const want = Math.hypot(vx, vy) > 40 ? (Math.atan2(vy, vx) * 180) / Math.PI : face > 0 ? 0 : 180;
+    turn(want, 0.08);
+    wantPitch = p.ground ? 4 : p.vy < 0 ? -10 : 8; // a look down the way, up while jumping, down while falling
+  }
+  pitch += (Math.max(-60, Math.min(60, wantPitch)) - pitch) * 0.12;
 }
 
 const stop = (e) => e.currentTarget.blur(); // (or Space, the jump, would press the button again)

@@ -526,3 +526,14 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   shown in this game's (press E: switches, platforms, saving, starting, teleporting; walk forward looking up:
   ladders; 1 to 7 or the wheel: weapons) and spoken in those words by the browser's voice (low, slow; Abuse's
   recordings cannot say them; muted with the sound). The rest keep Abuse's voice. Screenshots on level 0.
+
+## The 3D pilot, mobile, ant corpses lower (2026-11-06)
+- Jared: demos "more 3d appropriate" (3D pilot now, re-learn later); "on mobile it should say mobile not
+  supported as a splash"; "the ants dead bodies are a bit high up".
+- client/autopilot.js pilotTarget: the nearest foe ahead; the pilot aims its shots across the hall at it
+  (shotRatio, shared with tests and search). Levels 0-3 still finish; level 4's pieces 26, 70, 72 re-found
+  under it. play.js pilotView: the watch's view turns to that foe (yaw and pitch in 3D), else the way it runs
+  (along and across), on a ladder to the ladder, looking up or down. Screenshots on levels 1-3.
+- Mobile (user agent or a coarse pointer only): the splash for ever, "Mobile is not supported", no level;
+  the title fits a phone held upright (camera closer, the whole title centred). Ant corpses 4 units into the
+  floor. 101/101 tests.
