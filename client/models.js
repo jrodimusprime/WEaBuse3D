@@ -9,9 +9,13 @@
 import { Mesh, rotation, spriteColours, shade } from '../engine/mesh.js';
 import { antModel } from './ant.js';
 import { MACHINES } from './machines.js';
+import { POINT_HALF } from './depth.js';
 import { HAZARDS } from './hazards.js';
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+// a round thing of radius R kept to a point's depth across the hall (depth.js POINT_HALF): an oval, its full
+// size along the hall
+const OVAL = (R) => { const k = Math.min(1, POINT_HALF / R); return new Float32Array([1, 0, 0, 0, k, 0, 0, 0, 1]); };
 const meshes = new Map(); // type -> built meshes
 const built = (key, make) => { if (!meshes.has(key)) meshes.set(key, make()); return meshes.get(key); };
 
@@ -403,10 +407,10 @@ function exitPad(s, ctx) {
   });
   const x = exitAxis(ctx.g, s.e), d = ctx.depthOf(s.e), floor = -2 * (s.y + s.img.h);
   return [
-    { mesh: parts.base, basis: I3, offset: [x, d, floor], skin: 0.5, skinScale: 1 / 24 },
-    { mesh: parts.rim, basis: I3, offset: [x, d, floor] },
-    { mesh: parts.band, basis: I3, offset: [x, d, floor], bright: 1.3 },
-    { mesh: parts.plate, basis: I3, offset: [x, d, floor] },
+    { mesh: parts.base, basis: OVAL(s.img.w - 4), offset: [x, d, floor], skin: 0.5, skinScale: 1 / 24 },
+    { mesh: parts.rim, basis: OVAL(s.img.w - 4), offset: [x, d, floor] },
+    { mesh: parts.band, basis: OVAL(s.img.w - 4), offset: [x, d, floor], bright: 1.3 },
+    { mesh: parts.plate, basis: OVAL(s.img.w - 4), offset: [x, d, floor] },
   ];
 }
 
@@ -450,9 +454,9 @@ function pod(s, ctx) {
   const x = 2 * (s.x + s.img.w / 2), d = ctx.depthOf(s.e), floor = -2 * (s.y + s.img.h);
   const n = s.e.frames?.().length || 5, open = Math.min(1, (s.e.frame || 0) / Math.max(1, n - 1));
   return [
-    { mesh: parts.base, basis: I3, offset: [x, d, floor] },
-    { mesh: parts.inside, basis: I3, offset: [x, d, floor], bright: 1 + open },
-    { mesh: parts.dome, basis: I3, offset: [x, d, floor + 12 + open * 70] },
+    { mesh: parts.base, basis: OVAL(s.img.w - 4), offset: [x, d, floor] },
+    { mesh: parts.inside, basis: OVAL(s.img.w - 4), offset: [x, d, floor], bright: 1 + open },
+    { mesh: parts.dome, basis: OVAL(s.img.w - 4), offset: [x, d, floor + 12 + open * 70] },
   ];
 }
 

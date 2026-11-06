@@ -55,7 +55,8 @@ const KIND_BY_AI = {
   sdoor_ai: 'door', platform_ai: 'lift', strap_door_ai: 'hatch',
   hp_up: 'item', weapon_icon_ai: 'item', fast_ai: 'item', fly_power_ai: 'item', sneaky_power_ai: 'item', health_power_ai: 'item',
   switcher_ai: 'wall', switch_once_ai: 'wall', spray_gun_ai: 'wall', crack_ai: 'wall',
-  tp2_ai: 'floor', spring_ai: 'floor', mine_ai: 'floor', air_mine_ai: 'floor', // (a mine at its own spot across the hall, as a pad)
+  tp2_ai: 'floor', spring_ai: 'floor', mine_ai: 'floor', air_mine_ai: 'floor', bomb_ai: 'floor', // (mines and bombs at their own spot, as pads)
+  switch_delay_ai: 'wall',
 };
 const STEER = { flyer_ai: 8, ant_ai: 4, jug_ai: 3 }; // how fast enemies cross the hall, units per tick (15 a second)
 // the ants' wall run, in ticks (15 a second) and pixels: the leap onto the wall, the longest cling, the
@@ -68,6 +69,13 @@ export const EYE = 25; // the cop's eyes, in pixels above his feet (he is 29 px 
 const REACH = 72; // how far from the back wall a wall switch can be used
 const DOOR_HALF = 48; // a doorway is 96 units across the hall
 const LIFT_HALF = 60; // a lift is as deep as it is wide: 120 units
+// Points and spans (a rule, CLAUDE.md 3D conversion rule 3): what blocks or sweeps an area spans the hall (rollers,
+// laser and lightning gates, force fields, pushers' arrows, lava, hidden walls, steps, blocks, the cleaner:
+// kind 'full'); everything else is a point in it, at its own depth, at most POINT_HALF either side of it
+// (teleporter pads and pods, the exit pad, jump pads, mines and bombs, items, enemies). Jared: "standing
+// platform teleporters arent point in space but take the whole horizontal".
+export const POINT_HALF = 32;
+const SPRING_DROP = 120; // px
 const HOLE_STEP = 8; // px the feet go into a hole in the floor before the player is in it
 const LADDER_HALF = 28; // the hole a ladder climbs through a floor: 56 units deep, against the back wall
 const LADDER_PULL = 600; // units a second a climber is drawn across the hall to the ladder
@@ -144,7 +152,7 @@ export class Depth {
   halfDepth(e) {
     const k = this.kind(e);
     if (FITTED.has(k)) return this.zoneOf(e)?.h ?? DOOR_HALF;
-    if (k === 'floor') return 2 * ((this.g.spriteOf(e)?.w || 20) / 2);
+    if (k === 'floor') return Math.min(POINT_HALF, this.g.spriteOf(e)?.w || 20); // a point: as deep as it is wide, at most POINT_HALF
     if (k === 'item') return 14;
     if (k === 'hang') return 30;
     if (e.ai === 'jug_ai') return 34; // a bulky walker
@@ -504,6 +512,15 @@ export class Depth {
   install() {
     if (this.on) return;
     this.on = true;
+    // A jump pad hanging in the air (Abuse has some, to be met in a jump) is set down on the floor or step below
+    // it, within SPRING_DROP px, so it is a pad you step on (a Jared rule: "the jump pad on the stairs ... closer
+    // to the stairs"); put back when the layer comes off.
+    for (const e of this.g.entities) {
+      if (e.ai !== 'spring_ai' || e._y2d !== undefined) continue;
+      let fy = Math.floor(e.y);
+      while (fy < e.y + SPRING_DROP && !this.g.tileSolid(Math.floor(e.x), fy)) fy++;
+      if (fy < e.y + SPRING_DROP && fy > e.y) { e._y2d = e.y; e.y = fy; e.py = fy; }
+    }
     wrapBehaviors();
     const g = this.g, self = this, proto = Object.getPrototypeOf(g);
     g.depth = this;
@@ -564,6 +581,7 @@ export class Depth {
   uninstall() {
     if (!this.on) return;
     this.on = false;
+    for (const e of this.g.entities) if (e._y2d !== undefined) { e.y = e.py = e._y2d; delete e._y2d; } // (the jump pads back where Abuse has them)
     const g = this.g;
     for (const k of ['apart', 'touchesPlayer', 'pressed', 'hurtPlayer', 'pushPlayer', 'moveX', 'shotStopped', 'updatePlayer', 'tick', 'spawn', 'runShare']) delete g[k];
     g.depth = null;
