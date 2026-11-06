@@ -393,6 +393,14 @@ title picture in 3D (`client/splash.js`): the ABUSE letters solid, each pixel of
 colour, with "3D" after them in the same stone and fire; the cop and his disc a relief behind; the camera
 drifting, firelight flickering on the letters, embers rising. `?splash=1` shows it.
 
+**Between the levels, and the end.** As in Abuse 0.8 (`client/cutscenes.js`, after ant.cpp `show_stats` and
+endgame.cpp `show_end`), drawn on its 320 x 200 screen in its own palette: at an exit the view fades out and the
+original's level-complete screen shows (art/frame.spe `end_level_screen`, the cop in his ring of fire, and the grey
+"Level Completed! : N" box), held while the next level loads, which then follows (`?done=N` on its address shows
+the screen for N). At the boss level's exit, the ending: endgame.spe's `end.pcx` fades in and the closing story
+scrolls up over it; a key or a click then goes back to the start. The 3D watch goes the same way, level to level,
+to the ending. `?ending` shows the ending at once.
+
 **The dead stay where they fall**, as in Quake. Abuse takes a dead enemy out of the game at once; in 3D a corpse
 stays for the rest of the level (presentation only, `client/corpses.js`): a creature falls to the floor and lies
 in its dead pose (the ant belly down, legs splayed) over a dark stain; a machine (the WHO flyer, the jugger, the
@@ -750,3 +758,6 @@ apply here too and are listed in WEaBuse's README.
 - **Track guns fire three times as often.** Across the hall most of a turret's shots go wide, so the track guns
   (not the spray guns, which already sweep a shot every tick or two) fire three times as often as in Abuse.
   Jared: "the turent lasers arent as dangerous as they shoot through the whole room ... speed them up".
+- **J: the jetpack, a hack.** J puts the jetpack (Abuse's fly power, flown on the right mouse button) in hand,
+  wherever one is, and J again puts it down; not while a recorded run plays. Abuse has no such key. Jared:
+  "J jetpack (hack)".

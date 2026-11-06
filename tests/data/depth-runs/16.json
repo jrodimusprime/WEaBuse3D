@@ -3,5 +3,10 @@
   "acts": "P",
   "steps": 1,
   "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (0 tries); reaches the next piece's start with 95 health"
+ },
+ "3": {
+  "acts": "RAGNPJCDDPPPPVMJLTVGNS",
+  "steps": 86,
+  "note": "found for the 3D rules by tools/depth-run-search.mjs --seed 1 (19184 tries); reaches the next piece's start with 31 health"
  }
 }

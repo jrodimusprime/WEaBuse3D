@@ -43,6 +43,7 @@ import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
 import { Corpses } from './corpses.js';
 import { splash } from './splash.js';
+import { leaveLevel, levelComplete, ending } from './cutscenes.js';
 import { sayHints } from './hints.js';
 import { JumpAssist, climbIntent } from './controls.js';
 import { piecesFor, autopilotStep, pilotTarget } from './autopilot.js';
@@ -55,6 +56,11 @@ const helpEl = document.getElementById('help');
 const msgEl = document.getElementById('msg');
 const lockEl = document.getElementById('lock');
 const setMsg = (html) => { msgEl.innerHTML = html; msgEl.hidden = !html; };
+// Come from the level before (?done=N, client/cutscenes.js): the original's level-complete screen for N, from the
+// first moment, while this level loads
+let levelReady;
+const levelLoaded = new Promise((r) => { levelReady = r; });
+const between = params.has('done') ? levelComplete(Number(params.get('done')), levelLoaded) : null;
 
 const gl = canvas.getContext('webgl2', { antialias: true });
 if (!gl) { setMsg('This browser has no WebGL2.'); throw new Error('no webgl2'); }
@@ -95,13 +101,27 @@ levelSelect.addEventListener('change', () => { levelSelect.blur(); location.sear
 
 const g = await createGame(hudEl);
 sayHints(g); // the hints in this game's controls, on screen and spoken (client/hints.js)
-let finished = null;
+let finished = null, moving = false;
+// At an exit, as the original: the view fades out, the level-complete screen, the next level (client/cutscenes.js;
+// the next page shows the screen while it loads). The 3D watch goes on the same way, to WATCH3D_LAST; a 2D
+// recorded run stops at its exit, with a message.
 g.nextLevel = (n) => {
+  if (finished !== null) return;
   finished = n; g.transitioning = true;
   if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } // (a watched run passes nothing)
-  else if (watch.three && n <= WATCH3D_LAST) setTimeout(() => { location.search = `?level=${n}&watch3d=1`; }, 1500); // on to the next level, in 3D
+  if (watch && !(watch.three && n <= WATCH3D_LAST)) return;
+  moving = true;
+  document.exitPointerLock?.();
+  leaveLevel().then(() => { location.search = `?level=${n}${watch ? '&watch3d=1' : ''}&done=${level}`; });
 };
-g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
+// The game won (the boss level's exit): the original's ending, then back to the start, the title first
+g.onEndGame = () => {
+  if (finished !== null) return;
+  finished = 'end'; moving = true;
+  if (!watch) { passed.add(level); savePassed(passed); fillLevels(); }
+  document.exitPointerLock?.();
+  ending().then(() => { location.search = '?level=0'; });
+};
 // On a phone or a tablet: the splash, saying it is not supported, and no level (it needs a keyboard and a mouse)
 const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
 if (mobile && !params.has('desktop')) {
@@ -343,6 +363,12 @@ let startMuted = false;
 try { startMuted = localStorage.getItem(MUTE_KEY) === '1'; } catch { /* private mode */ }
 setMuted(startMuted);
 muteBtn.addEventListener('click', (e) => { stop(e); setMuted(!g.audio.userMuted); });
+// J: the jetpack, a hack (Jared: "J jetpack (hack)"): the FLY power in hand, flown on the right button as the
+// one found on level 16 is; J again puts it down. Not while a recorded run plays (it would change the run).
+addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyJ' || e.repeat || watch || g.player.dead) return;
+  g.player.power = g.player.power === 'FLY' ? null : 'FLY';
+});
 // god mode (the G key does the same): WEaBuse's setGod, and the button shows which it is
 const godBtn = document.getElementById('god');
 g.onGod = (on) => { godBtn.textContent = on ? 'God mode: on' : 'God mode: off'; };
@@ -356,8 +382,16 @@ document.getElementById('restart').addEventListener('click', async (e) => {
   g.freshRun();
   depth.install(); depth.pd = 0; depth.pv = 0;
 });
+// the level is ready: the level-complete screen, if it shows, gives way to it (and a reload opens on the title)
+levelReady();
+if (between) {
+  await between;
+  params.delete('done');
+  history.replaceState(null, '', `?${params}`);
+}
 if (params.has('watch')) startWatch();
 if (params.has('watch3d')) startWatch(true);
+if (params.has('ending')) g.onEndGame(); // review: the ending at once
 
 // ---- the loop: fixed simulation steps, drawing every frame ----
 let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;
@@ -377,7 +411,7 @@ function frame(now) {
     if (holdFire) g.mouseDown = true;
     g.update(STEP);
   }
-  if (finished !== null && !msgEl.innerHTML) {
+  if (finished !== null && !moving && !msgEl.innerHTML) {
     document.exitPointerLock?.();
     const next = typeof finished === 'number' ? finished : null;
     setMsg(`<b>${name} complete</b><br><br><a href="?level=${level}">Play again</a>${next !== null ? ` · <a href="?level=${next}">Level ${next}</a>` : ''}`);
