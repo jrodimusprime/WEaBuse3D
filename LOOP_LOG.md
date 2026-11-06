@@ -544,3 +544,15 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - Jared: "they're too low now ... any time i refresh the splash screen should show also". Dead creatures now
   slump to 0.75 of their height and lie 5 units into the floor; the splash shows every time the page opens
   (not for review or watch links).
+
+## Voice-overs in Abuse's manner (2026-11-06)
+- Jared: "the atmosphere of the initial voiceover has been lost, can you generate the audio in the same fashion?"
+  (the browser's speech had replaced Abuse's voice for the "press E" hints).
+- Measured Abuse's clips: 11025 Hz 8-bit mono, one note (about 235 Hz, dipping at phrase ends), 25-54% below
+  300 Hz, 14-30% at 1-2.5 kHz, RMS ~0.2 with peaks at full scale, envelopes repeating at 70 ms, tails 0.2-1 s.
+- tools/make-voices.mjs: eSpeak NG en-us+f3 (-p 75, SSML range x-low: about 240 Hz, flat), halved to 11025,
+  band-limited, toned to theirs, echo 70 ms + small Schroeder room, soft-clipped to their loudness, 8-bit.
+  First made with macOS's Kathy (closer to a human voice), but Apple's licence forbids publishing what its
+  voices say; Jared chose eSpeak NG. web/voice/*.wav play through the game's audio like Abuse's.
+- Installing espeak-ng with Homebrew autoremoved Node.js (installed only as a dependency); reinstalled
+  (v26.13.0) as a requested formula. 101/101 tests.

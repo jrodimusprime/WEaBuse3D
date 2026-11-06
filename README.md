@@ -120,6 +120,7 @@ Every gameplay change cites the Abuse source (`cop.cpp player_move`), as in WEaB
 | Abuse data `data/*` (art, levels, Lisp) | Public domain | Free to use, convert, redistribute. |
 | Abuse `data/sfx/*`, `data/music/*` (Bobby Prince) | Redistribution permission granted to Debian | **Open question.** WEaBuse already ships them. Check before shipping, and keep them replaceable. |
 | Quake's 256-colour palette (`web/palettes/quake.lmp`), from LibreQuake | BSD 3-clause | Notice in `licenses/`. Taken from LibreQuake's free data, not from id's. |
+| The 3D hints' voice-overs (`web/voice`), made by `tools/make-voices.mjs` with eSpeak NG | eSpeak NG is GPLv3; what it says is not covered | Free to publish. (Not the macOS voices: Apple's licence forbids publishing what they say.) |
 | **Quake game data** (`pak0.pak`, `pak1.pak`, id's models, textures, sounds, maps) | **Proprietary** | **Never used, never committed, never downloaded by any script.** CI fails if a `.pak` file or a known id asset hash appears anywhere in the tree. |
 
 We use Quake's engine and none of its content or look. The game should look and sound like
@@ -374,6 +375,14 @@ cleaner. Everything else is a point at its own depth, at most 32 units either si
 pods, the exit pad, jump pads, mines, bombs, items, switches, enemies; a round pad bigger than that is an oval.
 Jared: "standing platform teleporters arent point in space but take the whole horizontal".
 `tests/depth.test.mjs` checks every object of every level against the rule.
+
+**Hints in this game's controls.** Abuse's hints name its keys ("press down"); in 3D each such hint reads in this
+game's controls (press E; walk forward looking up for ladders; 1 to 7 or the wheel for weapons), on screen and in
+its voice-over (`client/hints.js`). Abuse's recordings cannot say the new words, so `tools/make-voices.mjs` makes
+voice-overs in their manner, measured against them: eSpeak NG held on one note (Abuse's voice keeps to about
+235 Hz), 11025 Hz 8-bit mono, their tone (weight below 300 Hz, a bright middle), an echo at 70 ms and a short
+room, squeezed as loud as theirs. They play through the game's own audio, as Abuse's do. The other hints keep
+Abuse's voice.
 
 **Mobile.** On a phone or a tablet the page shows the splash with "Mobile is not supported" and loads no level:
 the game is played with a keyboard and a mouse.

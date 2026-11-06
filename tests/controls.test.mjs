@@ -122,6 +122,13 @@ test('every hint that names one of Abuse\'s keys is said in this game\'s control
   }
   await g.start(levelFile(0));
   sayHints(g);
+  const played = [];
+  g.audio.play = (name) => played.push(name);
   g.showHelp('Press down to activate platform', 'platfo_1');
   assert.equal(g.helpText, 'Press E to activate the platform');
+  assert.deepEqual(played, ['../../../../web/voice/platform_e'], 'its own voice-over, through the game\'s audio');
+  // every 3D line has its voice-over (tools/make-voices.mjs)
+  const { VOICES_3D } = await import('../client/hints.js');
+  const { access } = await import('node:fs/promises');
+  for (const said of Object.values(HINTS_3D)) await access(new URL(`../web/voice/${VOICES_3D[said]}.wav`, import.meta.url));
 });
