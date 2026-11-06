@@ -512,3 +512,10 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   resting on its lowest vertex (resting by part origins left them floating), smoke and sparks for 5 s; turrets
   hang on, drooping, one part fallen. 48 at most, per level. ?kill=TYPE review (fast-forwards 4 s: headless
   Chrome gets only ~2.5 s of frames). Tests by vertex: on the floor, lower than standing. 99/99 tests.
+
+## Splash screen, walk mode off the page (2026-11-06)
+- Jared: "add a splash screen like the 2d version had ... but 3d render it and add 3D after the word abuse";
+  "walk mode on screen isnt needed". client/splash.js: the title picture's letters as blocks (14 units deep),
+  "3D" drawn from strokes in the E's own stone and fire, the cop a relief behind, drifting camera, firelight,
+  embers; once a session while the level loads (at least 3.2 s). The Walk mode link is gone (walk.html stays
+  for the walk test).

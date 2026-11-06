@@ -7,7 +7,7 @@ The game uses Abuse's own art, sounds and maps, which Crack dot Com released int
 The game must be **deterministic**: the same inputs always give the same game, tick for
 tick, in every browser and in Node.
 
-**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D, first person, like Quake) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
+**Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D, first person, like Quake)
 
 **The conversion's philosophy, techniques and decisions** (keeping Abuse's game while giving it Quake's feel:
 the layers, determinism and playthrough search, the 3D conversion rules, the look, the Jared rules, the page's
@@ -367,6 +367,11 @@ smoke for each explosion, tongues of fire where a fire bomb burns, sparks and du
 burns lights the room. The gun in the hands is held like a Quake view model, all of it in front of the eye,
 canted so the gloved hands show: three-jointed fingers round the grip and the barrel, knuckle armour, armoured
 forearms; the guns have bevelled bodies, round barrels, sights, ports and vents (`client/viewmodel.js`).
+
+**The splash screen.** While the first level loads (once a browser session; a click or a key skips it), Abuse's
+title picture in 3D (`client/splash.js`): the ABUSE letters solid, each pixel of the title a block of its own
+colour, with "3D" after them in the same stone and fire; the cop and his disc a relief behind; the camera
+drifting, firelight flickering on the letters, embers rising. `?splash=1` shows it.
 
 **The dead stay where they fall**, as in Quake. Abuse takes a dead enemy out of the game at once; in 3D a corpse
 stays for the rest of the level (presentation only, `client/corpses.js`): a creature falls to the floor and lies

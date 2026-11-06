@@ -19,6 +19,7 @@
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
 //   ?kill=TYPE          review: kill the nearest one of that type shortly after play starts (its corpse)
+//   ?splash=1           show the splash screen (it shows once a session, on a plain link)
 //   ?weapon=NAME        review: all weapons, this one in hand (MGUN PGUN GRENADE ROCKET FIREBOMB DFRIS LSABER)
 //   ?fire=1             review: hold the trigger while ?still steps run
 //   ?effect=TYPE&frame=N&fxd=px  review: an effect (EXPLODE1...) frozen at a frame, fxd px ahead
@@ -41,6 +42,7 @@ import { atmosphere } from './atmosphere.js';
 import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
 import { Corpses } from './corpses.js';
+import { splash } from './splash.js';
 import { JumpAssist, climbIntent } from './controls.js';
 import { piecesFor, autopilotStep } from './autopilot.js';
 
@@ -98,7 +100,20 @@ g.nextLevel = (n) => {
   else if (watch.three && n <= WATCH3D_LAST) setTimeout(() => { location.search = `?level=${n}&watch3d=1`; }, 1500); // on to the next level, in 3D
 };
 g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
-await g.start(levelFile(level));
+// the splash (client/splash.js) while the level loads: once a session, not for review or watch links
+const plain = [...params.keys()].every((k) => k === 'level' || k === 'quake');
+let firstVisit = true;
+try { firstVisit = !sessionStorage.getItem('weabuse3d-splash'); sessionStorage.setItem('weabuse3d-splash', '1'); } catch { /* private mode: shown each time */ }
+if (plain && firstVisit || params.has('splash')) {
+  setMsg('');
+  lockEl.hidden = true;
+  const cross = document.getElementById('cross'); if (cross) cross.hidden = true;
+  const loading = g.start(levelFile(level));
+  await splash(renderer, g, canvas, loading);
+  await loading;
+  lockEl.hidden = document.pointerLockElement === canvas;
+  if (cross) cross.hidden = false;
+} else await g.start(levelFile(level));
 // the level's background, seen out of the windows (Abuse's parallax layer, at its own scroll rate)
 {
   const lv = g.level, back = { size: [g.bw, g.bh], tile: (n) => g.assets.backTile(n) };
