@@ -5,7 +5,7 @@
 // "3D" after them in the same stone and fire (their colours taken from the letters' own rows); the cop and his
 // disc a relief behind, nearer where the picture is brighter. A slow drift of the camera, firelight flickering
 // on the letters, a cold light on the cop, embers rising; Quake's palette and resolution over it all.
-// Shown once a session, at least MIN_MS and until the level is loaded; a click or a key skips it.
+// Shown each time the page opens, at least MIN_MS and until the level is loaded; a click or a key skips it.
 import { Mesh } from '../engine/mesh.js';
 import { ShotFx } from './particles.js';
 

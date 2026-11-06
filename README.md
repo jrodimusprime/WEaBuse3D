@@ -378,7 +378,7 @@ Jared: "standing platform teleporters arent point in space but take the whole ho
 **Mobile.** On a phone or a tablet the page shows the splash with "Mobile is not supported" and loads no level:
 the game is played with a keyboard and a mouse.
 
-**The splash screen.** While the first level loads (once a browser session; a click or a key skips it), Abuse's
+**The splash screen.** Each time the page opens, while the level loads (a click or a key skips it), Abuse's
 title picture in 3D (`client/splash.js`): the ABUSE letters solid, each pixel of the title a block of its own
 colour, with "3D" after them in the same stone and fire; the cop and his disc a relief behind; the camera
 drifting, firelight flickering on the letters, embers rising. `?splash=1` shows it.

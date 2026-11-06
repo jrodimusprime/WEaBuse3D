@@ -111,11 +111,10 @@ if (mobile && !params.has('desktop')) {
   lockEl.hidden = true;
   await splash(renderer, g, canvas, new Promise(() => {}), { forever: true });
 }
-// the splash (client/splash.js) while the level loads: once a session, not for review or watch links
+// the splash (client/splash.js) while the level loads: every time the page is opened (Jared: "any time i
+// refresh the splash screen should show"), but not for review or watch links
 const plain = [...params.keys()].every((k) => k === 'level' || k === 'quake');
-let firstVisit = true;
-try { firstVisit = !sessionStorage.getItem('weabuse3d-splash'); sessionStorage.setItem('weabuse3d-splash', '1'); } catch { /* private mode: shown each time */ }
-if (plain && firstVisit || params.has('splash')) {
+if (plain || params.has('splash')) {
   setMsg('');
   lockEl.hidden = true;
   const cross = document.getElementById('cross'); if (cross) cross.hidden = true;

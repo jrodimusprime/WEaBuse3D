@@ -16,8 +16,8 @@ import { Mesh } from '../engine/mesh.js';
 
 const MAX = 48;
 const SETTLE = 0.55; // s
-const SLUMP = 0.6; // a dead creature lies at this share of its height
-const SINK = 10; // units a dead creature lies sunk into the floor (Jared: "sit lower in the ground")
+const SLUMP = 0.75; // a dead creature lies at this share of its height
+const SINK = 5; // units a dead creature lies sunk into the floor (Jared: "sit lower in the ground", then "too low now")
 const CREATURES = new Set(['ant_ai']);
 const HANGING = new Set(['track_ai']);
 const ON_WALL = new Set(['spray_gun_ai']);

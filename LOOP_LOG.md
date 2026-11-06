@@ -541,3 +541,6 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 ## Dead ants lower (2026-11-06)
 - Jared: "make the dead ants sit lower in the ground". A dead creature now slumps to 0.6 of its height (its
   raised tail was what stood up) and lies 10 units into the floor (was 4). Screenshot; 101/101 tests.
+- Jared: "they're too low now ... any time i refresh the splash screen should show also". Dead creatures now
+  slump to 0.75 of their height and lie 5 units into the floor; the splash shows every time the page opens
+  (not for review or watch links).
