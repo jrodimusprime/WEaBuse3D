@@ -109,3 +109,19 @@ test('facing at an angle, the run along the hall goes at the forward share of it
   assert.ok(full > 100, `ran ${Math.round(full)} px`);
   assert.ok(Math.abs(slant / full - Math.SQRT1_2) < 0.08, `at 45 degrees ${Math.round(slant)} of ${Math.round(full)} px`);
 });
+
+// Jared: "it says press down to active platform on screen and with voice over. can you make it say press E".
+test('every hint that names one of Abuse\'s keys is said in this game\'s controls', async () => {
+  const { HINTS_3D, sayHints } = await import('../client/hints.js');
+  const src = await (await import('node:fs/promises')).readFile(new URL('../sim/web/src/behaviors.js', import.meta.url), 'utf8');
+  const hints = [...src.slice(src.indexOf('const HINTS = ['), src.indexOf('];', src.indexOf('const HINTS = ['))).matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(hints.length >= 12);
+  for (const h of hints) {
+    const shown = HINTS_3D[h] ?? h;
+    assert.ok(!/\bdown key\b|press down|up key|CTRL|INS/i.test(shown), `"${shown}"`);
+  }
+  await g.start(levelFile(0));
+  sayHints(g);
+  g.showHelp('Press down to activate platform', 'platfo_1');
+  assert.equal(g.helpText, 'Press E to activate the platform');
+});

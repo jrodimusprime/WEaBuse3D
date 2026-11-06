@@ -519,3 +519,10 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   "3D" drawn from strokes in the E's own stone and fire, the cop a relief behind, drifting camera, firelight,
   embers; once a session while the level loads (at least 3.2 s). The Walk mode link is gone (walk.html stays
   for the walk test).
+
+## Hints in this game's controls (2026-11-06)
+- Jared: level 0 "says press down to active platform on screen and with voice over. can you make it say press
+  E", and the same for "activate objects" and "teleport". client/hints.js: every hint naming Abuse's keys is
+  shown in this game's (press E: switches, platforms, saving, starting, teleporting; walk forward looking up:
+  ladders; 1 to 7 or the wheel: weapons) and spoken in those words by the browser's voice (low, slow; Abuse's
+  recordings cannot say them; muted with the sound). The rest keep Abuse's voice. Screenshots on level 0.

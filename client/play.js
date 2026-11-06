@@ -43,6 +43,7 @@ import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
 import { Corpses } from './corpses.js';
 import { splash } from './splash.js';
+import { sayHints } from './hints.js';
 import { JumpAssist, climbIntent } from './controls.js';
 import { piecesFor, autopilotStep } from './autopilot.js';
 
@@ -93,6 +94,7 @@ fillLevels();
 levelSelect.addEventListener('change', () => { levelSelect.blur(); location.search = `?level=${levelSelect.value}`; });
 
 const g = await createGame(hudEl);
+sayHints(g); // the hints in this game's controls, on screen and spoken (client/hints.js)
 let finished = null;
 g.nextLevel = (n) => {
   finished = n; g.transitioning = true;
