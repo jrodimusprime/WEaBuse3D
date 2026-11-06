@@ -22,6 +22,9 @@ export async function createGame(hud = { textContent: '' }, { originalWeapons = 
   // the weapons as the original has them (sim game.js originalWeapons: off in WEaBuse, whose recorded
   // runs were played with its own simplified ones; Jared: make them "align in functionality and damage")
   g.originalWeapons = originalWeapons;
+  // lifts wait for their rider (sim game.js liftHold: a rider is drawn across the deck to where the shaft lets them
+  // through, and a lift does not rise through a player half on it; Jared: "dont let it go up if you block it")
+  g.liftWaits = true;
   return g;
 }
 

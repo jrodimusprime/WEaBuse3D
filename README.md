@@ -761,3 +761,10 @@ apply here too and are listed in WEaBuse's README.
 - **J: the jetpack, a hack.** J puts the jetpack (Abuse's fly power, flown on the right mouse button) in hand,
   wherever one is, and J again puts it down; not while a recorded run plays. Abuse has no such key. Jared:
   "J jetpack (hack)".
+- **Lifts wait for their rider.** Abuse carries whoever stands with their middle over a lift's deck, and lets the
+  deck rise through anyone half on it. A shaft is often narrower than the deck (level 14's first lift: a 60 px
+  deck in a 30 px shaft), so a rider near its edge was left behind or knocked off. Here (sim `liftHold`, on in 3D,
+  off in WEaBuse) a rider the lift cannot take through the shaft is drawn across the deck, 3 px a tick, to where
+  it can, the lift waiting meanwhile; and a lift does not rise through a player half on it, but waits. Jared:
+  "you get knocked off if you dont stand on it perfectly when it goes up so maybe dont let it go up if you block
+  it instead".
