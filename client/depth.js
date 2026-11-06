@@ -55,7 +55,7 @@ const KIND_BY_AI = {
   sdoor_ai: 'door', platform_ai: 'lift', strap_door_ai: 'hatch',
   hp_up: 'item', weapon_icon_ai: 'item', fast_ai: 'item', fly_power_ai: 'item', sneaky_power_ai: 'item', health_power_ai: 'item',
   switcher_ai: 'wall', switch_once_ai: 'wall', spray_gun_ai: 'wall', crack_ai: 'wall',
-  tp2_ai: 'floor', spring_ai: 'floor',
+  tp2_ai: 'floor', spring_ai: 'floor', mine_ai: 'floor', air_mine_ai: 'floor', // (a mine at its own spot across the hall, as a pad)
 };
 const STEER = { flyer_ai: 8, ant_ai: 4, jug_ai: 3 }; // how fast enemies cross the hall, units per tick (15 a second)
 // the ants' wall run, in ticks (15 a second) and pixels: the leap onto the wall, the longest cling, the

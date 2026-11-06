@@ -14,6 +14,7 @@
 // URL options (screenshots and tests):
 //   ?level=0            which level (web/maps/levelNN.bsp must exist)
 //   ?watch=1            play the recorded winning run of the level
+//   ?watch3d=1          play it under the 3D rules (client/autopilot.js), and the next levels, to WATCH3D_LAST
 //   ?still=N            step N simulation steps with no input, then hold
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
@@ -39,6 +40,7 @@ import { atmosphere } from './atmosphere.js';
 import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
 import { JumpAssist, climbIntent } from './controls.js';
+import { piecesFor, autopilotStep } from './autopilot.js';
 
 const params = new URLSearchParams(location.search);
 const level = Number(params.get('level') || 0);
@@ -75,11 +77,9 @@ const savePassed = (set) => { try { localStorage.setItem(PROGRESS_KEY, JSON.stri
 const passed = loadPassed();
 const levelSelect = document.getElementById('levels');
 function fillLevels() {
-  // every level passed, the one being played, and the next one after the furthest passed
-  const open = new Set([0, level, ...passed]);
-  for (const n of passed) if (n + 1 < LEVELS) open.add(n + 1);
+  // every level (Jared: "show all levels in the dropdown"), a tick by each one passed
   levelSelect.innerHTML = '';
-  for (const n of [...open].sort((a, b) => a - b)) {
+  for (let n = 0; n < LEVELS; n++) {
     const o = document.createElement('option');
     o.value = n; o.textContent = `${n}${passed.has(n) ? ' ✓' : ''}`; o.selected = n === level;
     levelSelect.append(o);
@@ -90,7 +90,11 @@ levelSelect.addEventListener('change', () => { levelSelect.blur(); location.sear
 
 const g = await createGame(hudEl);
 let finished = null;
-g.nextLevel = (n) => { finished = n; g.transitioning = true; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } }; // (a watched run passes nothing)
+g.nextLevel = (n) => {
+  finished = n; g.transitioning = true;
+  if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } // (a watched run passes nothing)
+  else if (watch.three && n <= WATCH3D_LAST) setTimeout(() => { location.search = `?level=${n}&watch3d=1`; }, 1500); // on to the next level, in 3D
+};
 g.onEndGame = () => { finished = 'end'; if (!watch) { passed.add(level); savePassed(passed); fillLevels(); } };
 await g.start(levelFile(level));
 // the level's background, seen out of the windows (Abuse's parallax layer, at its own scroll rate)
@@ -211,15 +215,21 @@ function feedInput() {
   aimAt(g, Math.round(p.x + 200 * ax), Math.round(p.y - EYE - 200 * az));
 }
 
-// ---- the recorded run (Watch) ----
+// ---- the recorded run (Watch), in 2D's rules or in 3D's ----
+// In 3D (?watch3d=1, the "Watch levels 0-4 in 3D" button): the depth layer stays on and the run is played as
+// the tests and the search play it (client/autopilot.js), with the pieces the search found for the 3D rules
+// where the 2D ones do not survive them (tests/data/depth-runs.json); at each exit it goes on to the next
+// level, up to WATCH3D_LAST.
+const WATCH3D_LAST = 4;
 let watch = null;
-async function startWatch() {
-  const [ppo, demo] = await Promise.all([import('../sim/web/src/ppo.js'), fetch('../sim/web/data/ppo-demo.json').then((r) => r.json())]);
-  const pieces = demo.pieces.filter((p) => p.levelIdx === level);
+async function startWatch(three = false) {
+  const [ppo, demo, own] = await Promise.all([import('../sim/web/src/ppo.js'), fetch('../sim/web/data/ppo-demo.json').then((r) => r.json()),
+    three ? fetch('../tests/data/depth-runs.json').then((r) => r.json()).catch(() => ({})) : null]);
+  const pieces = three ? piecesFor(demo, own, level, ppo.decodeActs) : demo.pieces.filter((p) => p.levelIdx === level);
   if (!pieces.length) { setMsg('No recorded run for this level.'); return; }
-  watch = { ppo, pieces, k: -1, i: 0, n: 0, acts: null, face: 1, act: 0, loading: false };
+  watch = { ppo, pieces, three, k: -1, i: 0, n: 0, acts: null, face: 1, act: 0, loading: false };
   g.demo = true; // the game ignores the keyboard while a recorded run plays
-  depth.uninstall(); // the run was found under the 2D rules, so it plays under them
+  if (!three) depth.uninstall(); // the run was found under the 2D rules, so it plays under them
   depth.pd = 0;
   await nextPiece();
 }
@@ -229,8 +239,10 @@ async function nextPiece() {
   if (w.k >= w.pieces.length) { watch = null; g.demo = false; depth.install(); return; }
   const piece = w.pieces[w.k];
   w.loading = true;
+  if (w.three) depth.uninstall(); // (each piece starts from its saved state, as the tests play it)
   await w.ppo.startRun(g, levelFile(level), piece.seed || null);
-  w.acts = w.ppo.decodeActs(piece.acts);
+  if (w.three) depth.install();
+  w.acts = w.three ? piece.acts : w.ppo.decodeActs(piece.acts);
   w.n = Math.min(piece.steps, w.acts.length * 4);
   w.i = 0;
   w.loading = false;
@@ -240,8 +252,8 @@ function watchStep() {
   if (w.loading) return;
   if (w.i >= w.n) { nextPiece(); return; }
   if (w.i % 4 === 0) { w.act = w.acts[w.i / 4]; const mv = (w.act % 3) - 1; if (mv !== 0) w.face = mv; }
-  w.ppo.applyAction(g, w.act, w.face);
-  g.update(STEP);
+  if (w.three) autopilotStep(g, depth, w.act, w.face, w.ppo.applyAction, STEP);
+  else { w.ppo.applyAction(g, w.act, w.face); g.update(STEP); }
   w.i++;
   // the view turns to where the cop faces and looks where he aims
   const want = g.player.dir > 0 ? 0 : 180;
@@ -270,6 +282,7 @@ const godBtn = document.getElementById('god');
 g.onGod = (on) => { godBtn.textContent = on ? 'God mode: on' : 'God mode: off'; };
 godBtn.addEventListener('click', (e) => { stop(e); g.setGod(!g.god); });
 document.getElementById('watch').addEventListener('click', (e) => { stop(e); finished = null; setMsg(''); startWatch(); });
+document.getElementById('watch3d').addEventListener('click', (e) => { stop(e); location.search = '?level=0&watch3d=1'; });
 document.getElementById('restart').addEventListener('click', async (e) => {
   stop(e);
   watch = null; g.demo = false; finished = null; setMsg('');
@@ -278,6 +291,7 @@ document.getElementById('restart').addEventListener('click', async (e) => {
   depth.install(); depth.pd = 0; depth.pv = 0;
 });
 if (params.has('watch')) startWatch();
+if (params.has('watch3d')) startWatch(true);
 
 // ---- the loop: fixed simulation steps, drawing every frame ----
 let acc = 0, last = performance.now(), stillSteps = params.has('still') ? Number(params.get('still')) : -1;

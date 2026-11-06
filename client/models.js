@@ -9,6 +9,7 @@
 import { Mesh, rotation, spriteColours, shade } from '../engine/mesh.js';
 import { antModel } from './ant.js';
 import { MACHINES } from './machines.js';
+import { HAZARDS } from './hazards.js';
 
 const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const meshes = new Map(); // type -> built meshes
@@ -825,6 +826,7 @@ const BY_AI = {
   hwall_ai: blockWall, big_wall_ai: blockWall, restart_ai: saveTerminal,
   ant_ai: antModel, spray_gun_ai: turret, crack_ai: crack,
   ...MACHINES, // level 2's machines and the jugger (client/machines.js)
+  ...HAZARDS, // level 4's mines and lightning (client/hazards.js)
 };
 const BY_TYPE = {
   WHO: drone, POINTER: pointer, SWITCH_BALL: switchBall, NEXT_LEVEL_TOP: exitMachine,

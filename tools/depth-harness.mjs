@@ -9,7 +9,7 @@
 // piece's place among that level's pieces, and used instead.
 import { readFile } from 'node:fs/promises';
 import { STEP } from '../client/sim-host.js';
-import { LANE } from '../content/compile.mjs';
+import { piecesFor, autopilotStep as pilot } from '../client/autopilot.js';
 
 export const ppo = await import('../sim/web/src/ppo.js');
 export const demo = JSON.parse(await readFile(new URL('../sim/web/data/ppo-demo.json', import.meta.url), 'utf8'));
@@ -17,34 +17,8 @@ const OWN = new URL('../tests/data/depth-runs.json', import.meta.url);
 export const ownRuns = JSON.parse(await readFile(OWN, 'utf8').catch(() => '{}'));
 export const OWN_FILE = OWN;
 
-// The pieces of level L as the 3D rules play them: [{seed, acts (decoded), steps, own}]
-export function piecesOf(L) {
-  return demo.pieces.filter((p) => p.levelIdx === L).map((p, k) => {
-    const o = ownRuns[L]?.[k];
-    const acts = ppo.decodeActs(o ? o.acts : p.acts);
-    return { seed: p.seed || null, acts, steps: Math.min(o ? o.steps : p.steps, acts.length * 4), own: !!o };
-  });
-}
-
-// One step of a piece: the autopilot across the hall, then the recorded keys.
-export function autopilotStep(g, d, act, face) {
-  const p = g.player;
-  let target = null, best = 70;
-  for (const e of g.entities) {
-    const k = e.dead ? null : d.kind(e);
-    if (k !== 'wall' && k !== 'floor' && k !== 'item') continue;
-    const dist = Math.abs(e.x - p.x) + Math.abs(e.y - p.y);
-    if (dist < best) { best = dist; target = k === 'wall' ? LANE - 30 : d.depthOf(e); }
-  }
-  // line up with a doorway or a shaft ahead (the frame walls let the player through only there)
-  for (const z of d.zones()) {
-    if (p.x + 60 < z.x0 || p.x - 60 > z.x1 || p.y + 40 < z.y0 || p.y - 70 > z.y1) continue;
-    target = z.c;
-  }
-  d.movePlayer(target === null ? 0 : Math.max(-1, Math.min(1, (target - d.pd) / 20)), STEP);
-  ppo.applyAction(g, act, face);
-  g.update(STEP);
-}
+export const piecesOf = (L) => piecesFor(demo, ownRuns, L, ppo.decodeActs);
+export const autopilotStep = (g, d, act, face) => pilot(g, d, act, face, ppo.applyAction, STEP);
 
 // Plays one piece from its saved state; stops early on death or an exit. Returns the step it stopped at.
 export async function playPiece(g, d, L, piece, levelFile, { onStep } = {}) {

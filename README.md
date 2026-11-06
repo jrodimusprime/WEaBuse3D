@@ -309,6 +309,9 @@ state:
 | Block (`block_ai`) | breakable ribbed blocks | ribbed steel blocks across the hall that burst apart, tumbling and shedding rust, when shot through |
 | Indicator (`indicator_ai`) | a red or green lamp | a lamp in a housing on the back wall, red, then the Quake palette's pale green; it lights the wall |
 | Boulder (`bolder_ai`) | a spiked iron ball that rolls and bounces | a spiked iron roller as wide as the hall (it hits the player anywhere across it): banded, spikes in staggered rows, turning as it rolls |
+| Floor mine (`mine_ai`, level 4) | a small bronze dish; touched, a flash and spreading rings | a bronze dish and dome with studs, a plunger and a blinking red light, at its own spot across the hall; blowing up, a shock ring over the floor |
+| Air mine (`air_mine_ai`) | a dark ball with a red eye that blinks | a dark iron sphere with contact horns and a band, bobbing, its red eye blinking |
+| Lightning (`lightin_ai`) | a floor plate with bolts arcing up from it | a grated plate across the hall with yellow corner lamps; firing, white-blue bolts crackle up across the hall and flicker on the room |
 | Turret (`spray_gun_ai`) | an armoured camo sphere whose shell splits to show a gun ball that turns through 24 aims | a hemisphere on the wall whose halves part; inside, the ball's gun port follows the turret's aim, tilted across the hall at the player |
 | Trap door (`strap_door_ai`) | a floor hatch with hazard chevrons that slides into its housing | a hatch its own size in a hole its own size, sliding under the floor; the floor around it holds |
 
@@ -435,6 +438,10 @@ All test tools drive the **real** game code, headless in Node or in real browser
 
 Golden images and winning runs, like WEaBuse's won list, are **only replaced on purpose**,
 in a commit that says why. A test is never edited to make a change pass.
+
+Levels 0 to 4 are finished under the 3D rules by those runs (`tests/depth-win.test.mjs`), and the page plays
+them: **Watch levels 0–4 in 3D** plays each level's run in first person under the 3D rules, exactly as the tests
+and the search play it (`client/autopilot.js`), and goes on from one level to the next.
 
 The 3D finish tests replay WEaBuse's recorded 2D runs under the 3D rules (`tools/depth-harness.mjs`). Where a
 piece of a run no longer survives a change to the 3D rules, `tools/depth-run-search.mjs` finds inputs for that

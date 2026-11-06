@@ -480,3 +480,15 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   another ladder goes on up above (level 2's stacked pairs climb straight through, 91-94 frames); on the top,
   forward walks on. Also the ladder's foot has Abuse's 3 px of grace (level 2's ladder at 539 could not be
   started from the floor, 3 px below its bottom). Test: on top, holding, no hops. 91/91 tests.
+
+## Levels 3 and 4, and watching levels 0-4 in 3D (2026-11-06)
+- Jared: "now work in level 3 and 4", then "use the game search to play all levels in 3d mode from level 00 to
+  level 04 and also have a button to play it onscreen".
+- Level 3: everything it shows already had a design; its recorded run finishes under the 3D rules.
+- Level 4: designs for CONC (floor mine), CONC_AIR (air mine), LIGHTIN (lightning barrier) in client/hazards.js,
+  looked at from their frames; mines are 'floor' kind (at a spot across the hall, as pads); lightning spans
+  the hall and flickers a cold light. Its run died in piece 26 (enemy shots and a grenade, with the original
+  weapons and faster track guns): tools/depth-run-search.mjs found new inputs piece by piece.
+- client/autopilot.js: the autopilot and piece choice, shared by tests/search and the page. The page's new
+  button "Watch levels 0-4 in 3D" (?watch3d=1) plays the runs under the 3D rules in first person, on from
+  one level to the next to level 4.

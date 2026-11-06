@@ -61,6 +61,8 @@ export function atmosphere(g, depth, scene, { lane, time, eye, muzzle }) {
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 140, rgb: [1, 0.55, 0.2], intensity: 0.6 });
     } else if (e.ai === 'track_ai' && s.additive) { // the tracking gun firing
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 220, rgb: [1, 0.8, 0.4], intensity: 1.4 });
+    } else if (s.lightning) { // a lightning barrier crackling: a cold flicker over the hall
+      if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 260, rgb: [0.7, 0.8, 1], intensity: 1.1 + 0.5 * Math.sin(time / 23) });
     } else if (s.eggGlow) { // a cocoon's ember, faint
       if (!dyn.some((d) => d.src === e)) dyn.push({ src: e, pos: s.offset, radius: 70, rgb: [1, 0.3, 0.1], intensity: 0.15 + 0.1 * Math.sin(time / 640) });
     } else if (e.ai === 'next_level_ai') {
