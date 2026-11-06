@@ -22,7 +22,7 @@ import { metalSkin, organicSkin, muscleSkin, DETAIL_SIZE } from './detail.js';
 const BLOCK = 1024; // lightmap atlas size, in luxels
 const MAX_LIGHTS = 256;
 const MAX_DYN = 16;
-const BACKDROP_FAR = 4; // the city outside the windows is at least this many lane half-depths behind the middle of the hall
+const BACKDROP_FAR = 12; // the city outside the windows is this many lane half-depths behind the middle of the hall
 
 // Abuse's light at level pixel p (lighting.js LightMap.update), 0-63.
 const ABUSE_LIGHT = `
@@ -91,22 +91,33 @@ uniform vec4 bgCell; // foreground tile width, height; the map's width, height (
 uniform vec2 bgView; // the 2D view's size
 ${ABUSE_LIGHT}
 // What the background shows through point P of a lane wall (client/backdrop.js). The level's background, made
-// whole (Abuse's art, its holes filled by carrying the art on, like a Quake sky with nothing missing), on a
-// plane behind the wall (bgRate.xy lane depths from the middle of the hall), seen along the ray from the eye.
-// Each window's view is centred on the picture Abuse shows behind it: from the middle, in front of a window, it
-// is Abuse's picture; walking past, it slides by slowly, as a city far off does.
-vec3 backdrop(vec3 P) {
+// whole (Abuse's art, its holes filled by carrying the art on, like a Quake sky with nothing missing), on one
+// plane far behind the wall (bgRate.x lane depths from the middle of the hall), where the ray from the eye
+// through P meets it: true perspective, so going up to a window shows more of the city, hardly nearer (Jared:
+// "do some maths instead on the outside ... instead of the zoom hack"). The picture is scaled on the plane by
+// its distance, so from the middle of the hall a pixel of it is as big as Abuse's. Each window's view is centred
+// on the picture Abuse shows behind it: from the middle, in front of a window, it is Abuse's picture; walking
+// past, it slides by slowly, as a city far off does. It repeats, as Abuse's map does, and fades into the haze
+// with the length of the ray and beyond the stretch Abuse ever shows behind that window (.a: how much).
+vec4 backdrop(vec3 P) {
   vec2 p = vec2(P.x, -P.z) * 0.5;
   ivec2 c = clamp(ivec2(floor(p / bgCell.xy)), ivec2(0), ivec2(bgCell.zw) - 1);
-  vec4 anchor = texelFetch(bgCells, ivec2(c.x * 3, c.y), 0), ext = texelFetch(bgCells, ivec2(c.x * 3 + 2, c.y), 0);
-  // the eye, as far as the window goes (further along the hall the view stops sliding), and not closer to the
-  // wall than half the lane (close to, a window would show half the city)
+  vec4 anchor = texelFetch(bgCells, ivec2(c.x * 3, c.y), 0), box = texelFetch(bgCells, ivec2(c.x * 3 + 1, c.y), 0), ext = texelFetch(bgCells, ivec2(c.x * 3 + 2, c.y), 0);
+  // the eye, as far as the window goes (further along the hall the view stops sliding)
   vec2 e = clamp(vec2(eyePos.x, -eyePos.z) * 0.5, ext.xy - 0.5 * bgView, ext.zw + 0.5 * bgView);
-  float lane = bgRate.z, d = max(float(win) * (float(win) * lane - eyePos.y), 0.5 * lane);
-  vec2 t = (d + (bgRate.xy - 1.0) * lane) / d;
+  float lane = bgRate.z, far = bgRate.x;
+  float d = max(float(win) * (float(win) * lane - eyePos.y), 1.0); // the eye to the wall, across the hall
+  float t = (d + (far - 1.0) * lane) / d; // ... and to the plane, along the same ray
   vec2 q = e + (p - e) * t;
-  vec2 px = anchor.zw + (q - anchor.xy) / bgRate.xy;
-  return texelFetch(bgCanvas, ivec2(mod(floor(px), bgSize)), 0).rgb; // it repeats, as Abuse's map does
+  vec2 px = anchor.zw + (q - anchor.xy) / far;
+  vec3 rgb = texelFetch(bgCanvas, ivec2(mod(floor(px), bgSize)), 0).rgb;
+  // haze: with the ray's length past the plane's own distance (a slant view looks far off), and outside the
+  // stretch of picture Abuse shows behind the window (where the repeats would show)
+  float len = length(P - eyePos) * t; // the eye to the plane, along the ray
+  float slant = smoothstep(1.0, 3.0, len / ((far - 1.0) * lane + d));
+  vec2 out2 = max(max(box.xy - px, px - box.zw), 0.0);
+  float beyond = smoothstep(0.0, 120.0, max(out2.x, out2.y));
+  return vec4(rgb, max(slant, beyond) * 0.85);
 }
 out vec4 color;
 void main() {
@@ -114,9 +125,10 @@ void main() {
   vec3 albedo = texel.rgb;
   if (win != 0 && bgOn == 1 && (bgFace == 1 || texel.a < 0.5)) {
     // far outside: lit as Abuse lights its background (its own lamps), not by the hall's flashes, and hazed
-    vec3 c = backdrop(vPos);
+    vec4 b = backdrop(vPos);
+    vec3 c = b.rgb;
     if (mode == 1) c = abuseLit(c, vec2(vPos.x / 2.0, -vPos.z / 2.0)); else c *= 0.85;
-    c = mix(c * brightness, haze.rgb, 0.22);
+    c = mix(c * brightness, haze.rgb, max(0.22, b.a));
     c.r = min(1.0, c.r + red);
     color = vec4(c, 1.0);
     return;
@@ -455,10 +467,11 @@ export class Renderer {
     const canvas = make(() => gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba));
     const cl = bg.cells || { w: 3, h: 1, data: new Float32Array(12), tile: [1, 1] };
     const cells = make(() => gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, cl.w, cl.h, 0, gl.RGBA, gl.FLOAT, cl.data));
-    // how far behind the hall the city is, in lane depths: Abuse's own depth (1 / rate), and never nearer than
-    // BACKDROP_FAR (at Abuse's 5/8, and 1:1 up and down, it sat just behind the glass)
-    const rx = bg.rate.xmul / (bg.rate.xdiv || 1), ry = bg.rate.ymul / (bg.rate.ydiv || 1), far = (r) => Math.max(BACKDROP_FAR, 1 / Math.max(0.01, r));
-    return { canvas, cells, size: [w, h], rate: [far(rx), far(ry), this.lane, 0], cell: [cl.tile[0], cl.tile[1], cl.w / 3, cl.h], view: bg.view };
+    // how far behind the hall the city is, in lane depths: one plane, at Abuse's own depth (1 / rate, the further
+    // of across and up) and never nearer than BACKDROP_FAR (at Abuse's 5/8, and 1:1 up and down, it sat just
+    // behind the glass, and seemed to rush at the player coming up to a window)
+    const rx = bg.rate.xmul / (bg.rate.xdiv || 1), ry = bg.rate.ymul / (bg.rate.ydiv || 1), far = Math.max(BACKDROP_FAR, 1 / Math.max(0.01, rx), 1 / Math.max(0.01, ry));
+    return { canvas, cells, size: [w, h], rate: [far, far, this.lane, 0], cell: [cl.tile[0], cl.tile[1], cl.w / 3, cl.h], view: bg.view };
   }
 
 

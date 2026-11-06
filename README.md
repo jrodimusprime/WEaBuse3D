@@ -741,10 +741,16 @@ apply here too and are listed in WEaBuse's README.
   spawn in a straight line ... they should be spaced out more".
 - **The city outside is further away.** Abuse scrolls its background at the level's rate, often 5/8 across
   and 1:1 up and down, which in 3D put the city just behind the glass and fixed it to the wall when jumping.
-  Each window now looks out on a plane at least 4 lane depths behind the middle of the hall (Abuse's own depth,
+  Each window now looks out on one plane 12 lane depths behind the middle of the hall (Abuse's own depth,
   1 / rate, where that is further), anchored on the picture Abuse shows behind that window, so the city slides
-  by slowly as you pass. It is lit by Abuse's own lamps but not by the hall's flashes, and hazed. Jared: "the
-  images in the window appear too near ... takes away from the atmosphere", then "may be too far".
+  by slowly as you pass. It is seen in true perspective, the ray from the eye through the glass to the plane, and
+  the picture is scaled by its distance so a pixel of it looks from the middle of the hall as big as Abuse's:
+  going up to a window shows more of the city, hardly nearer (at most a tenth), where it used to zoom in. The
+  picture repeats, as Abuse's map does, and fades into the haze with the length of the ray (a slant look is a
+  far one) and beyond the stretch Abuse ever shows behind that window. It is lit by Abuse's own lamps but not by
+  the hall's flashes, and hazed. Jared: "the images in the window appear too near ... takes away from the
+  atmosphere", then "may be too far", then "do some maths instead on the outside and get the patterns to wrap or
+  fade off in the distance instead of the zoom hack".
 - **The weapons are the original's.** WEaBuse simplified them (the fire bomb a grenade, plasma, frisbee and saber
   one plasma bolt, the player's rockets not locking on, one's own blasts hurting). In 3D they work as Abuse 0.8's
   source has them (sim `Game.originalWeapons`, on here, off in WEaBuse, whose recorded runs used its own): the
