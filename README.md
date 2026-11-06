@@ -9,6 +9,12 @@ tick, in every browser and in Node.
 
 **Play:** https://jrodimusprime.github.io/WEaBuse3D/ (level 0 in 3D, first person, like Quake) · [walk mode](https://jrodimusprime.github.io/WEaBuse3D/web/walk.html)
 
+**The conversion's philosophy, techniques and decisions** (keeping Abuse's game while giving it Quake's feel:
+the layers, determinism and playthrough search, the 3D conversion rules, the look, the Jared rules, the page's
+controls, and every decision made, with why) are in
+[conv_tractics](https://github.com/jrodimusprime/conv_tractics) (private). A decision about the conversion is
+added to its Decisions table when it is made.
+
 > **Status: M2 (depth mode: 3D gameplay) is built and waiting for a human to finish level 0 in 3D.** WEaBuse's simulation runs the
 > game, the Quake-style engine draws it, and every object (the cop, the WHO flyers, lifts, doors,
 > pickups) is a 3D voxel model made from Abuse's own sprites.

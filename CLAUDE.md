@@ -18,6 +18,7 @@ Cite the source file and symbol you port in every commit (`gl_rsurf.c R_Recursiv
 - **Visual changes are verified by screenshot.** Use headless Chrome over CDP, full page, and look at the result.
 - **Key bindings** never overlap game controls (arrows/WASD, Space/Up, Down/E, 1-7/wheel, mouse buttons, L, G). Use F-keys or the console.
 - **Departures from Abuse** need the human's approval. Approved ones are listed under "Jared rules" in README.md.
+- **Decisions are recorded** in the private repo conv_tractics (https://github.com/jrodimusprime/conv_tractics, cloned at ../conv_tractics): add each decision about the conversion (a rule, a departure, a choice the human made, a change of approach) to its Decisions table, with the date and why, and push it.
 - **Machine limits.** About 9 GB of RAM, so run at most 3 heavy processes at once (search, browsers, map builds).
 
 ## Each loop iteration
