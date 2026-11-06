@@ -130,5 +130,5 @@ test('every hint that names one of Abuse\'s keys is said in this game\'s control
   // every 3D line has its voice-over (tools/make-voices.mjs)
   const { VOICES_3D } = await import('../client/hints.js');
   const { access } = await import('node:fs/promises');
-  for (const said of Object.values(HINTS_3D)) await access(new URL(`../web/voice/${VOICES_3D[said]}.wav`, import.meta.url));
+  for (const h of hints) { const said = HINTS_3D[h] ?? h; assert.ok(VOICES_3D[said], `"${said}" has its voice-over`); await access(new URL(`../web/voice/${VOICES_3D[said]}.wav`, import.meta.url)); } // every hint, in the one voice
 });

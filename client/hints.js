@@ -3,7 +3,7 @@
 // HINTS) name Abuse's keys; here each one that names a key reads as this game's controls, on screen, and is
 // spoken in those words in the manner of Abuse's own voice-overs (tools/make-voices.mjs; Abuse's recordings
 // cannot say them. Jared: "the atmosphere of the initial voiceover has been lost, can you generate the audio in
-// the same fashion?"). Hints that hold as they are keep Abuse's own voice.
+// the same fashion?"). The hints whose words hold are said in that voice too, so all sound alike.
 export const HINTS_3D = {
   'Press the down key to activate objects. This is a switch.': 'Press E to activate objects. This is a switch.',
   'This console saves the state of the game, press down': 'This console saves the state of the game, press E',
@@ -23,6 +23,13 @@ export const VOICES_3D = {
   'Walk forward looking up to climb ladders': 'ladder_e',
   'Press E to start!': 'start_e',
   'Press E to teleport': 'teleport_e',
+  // the hints whose words hold: said in the same voice as the rest (Jared: "make all human audio captions sound
+  // the same on level 00")
+  'Aim gun with mouse, fire with left mouse button': 'aim_e',
+  'Collect ammo to increase firing speed': 'ammo_e',
+  'Hold down the right mouse button to use special powers': 'power_e',
+  'Shoot hidden walls to destroy them': 'walls_e',
+  'Shoot switch ball to activate': 'ball_e',
 };
 // (the game's audio fetches sfx/<name>.wav from the simulation's data: this reaches web/voice instead)
 const CLIP = (name) => `../../../../web/voice/${name}`;
@@ -32,8 +39,8 @@ const CLIP = (name) => `../../../../web/voice/${name}`;
 export function sayHints(g) {
   const show = g.showHelp.bind(g);
   g.showHelp = (text, voice) => {
-    const said = HINTS_3D[text];
-    if (!said) return show(text, voice);
+    const said = HINTS_3D[text] ?? text;
+    if (!VOICES_3D[said]) return show(text, voice);
     show(said, null);
     if (voice && g.helpVoice !== voice) { g.helpVoice = voice; g.audio.play(CLIP(VOICES_3D[said]), null); }
   };

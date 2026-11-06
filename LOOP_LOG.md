@@ -556,3 +556,6 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
   voices say; Jared chose eSpeak NG. web/voice/*.wav play through the game's audio like Abuse's.
 - Installing espeak-ng with Homebrew autoremoved Node.js (installed only as a dependency); reinstalled
   (v26.13.0) as a requested formula. 101/101 tests.
+- Jared: "the voiceover is perfect, now make all human audio captions sound the same on level 00". The five
+  hints whose words hold (aim, ammo, powers, hidden walls, switch ball) now have voice-overs in the same voice
+  (web/voice/{aim,ammo,power,walls,ball}_e.wav); every hint plays its own. Test: every hint has its clip.

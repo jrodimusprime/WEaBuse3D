@@ -24,6 +24,13 @@ export const LINES = {
   ladder_e: 'Walk forward, looking up, to climb ladders.',
   start_e: 'Press E to start!',
   teleport_e: 'Press E to teleport.',
+  // and the hints whose words hold as they are, so that every hint is said in the one voice (Jared: "make all
+  // human audio captions sound the same on level 00")
+  aim_e: 'Aim gun with mouse, fire with left mouse button.',
+  ammo_e: 'Collect ammo to increase firing speed.',
+  power_e: 'Hold down the right mouse button to use special powers.',
+  walls_e: 'Shoot hidden walls to destroy them.',
+  ball_e: 'Shoot switch ball to activate.',
 };
 
 function readWav(path) {

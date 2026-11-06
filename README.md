@@ -381,8 +381,9 @@ game's controls (press E; walk forward looking up for ladders; 1 to 7 or the whe
 its voice-over (`client/hints.js`). Abuse's recordings cannot say the new words, so `tools/make-voices.mjs` makes
 voice-overs in their manner, measured against them: eSpeak NG held on one note (Abuse's voice keeps to about
 235 Hz), 11025 Hz 8-bit mono, their tone (weight below 300 Hz, a bright middle), an echo at 70 ms and a short
-room, squeezed as loud as theirs. They play through the game's own audio, as Abuse's do. The other hints keep
-Abuse's voice.
+room, squeezed as loud as theirs. They play through the game's own audio, as Abuse's do. The hints whose words
+hold as they are are said in the same voice, so every hint sounds alike (Jared: "make all human audio captions
+sound the same").
 
 **Mobile.** On a phone or a tablet the page shows the splash with "Mobile is not supported" and loads no level:
 the game is played with a keyboard and a mouse.
