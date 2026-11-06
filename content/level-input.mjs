@@ -115,11 +115,14 @@ export function levelShapes(lv, assets, tw, th, ladderCells = new Set()) {
 }
 
 // The floors a ladder passes through (sim game.js: a LADDER and its first link are its corners).
-export function levelLadderHoles(lv, assets, tw, th) {
-  const ladders = lv.objects.filter((o) => o.type === 'LADDER' && o.links?.length).map((o) => {
+export function levelLadders(lv) {
+  return lv.objects.filter((o) => o.type === 'LADDER' && o.links?.length).map((o) => {
     const b = lv.objects[o.links[0]];
     return { x0: o.x, y0: o.y, x1: b.x, y1: b.y };
   });
+}
+export function levelLadderHoles(lv, assets, tw, th) {
+  const ladders = levelLadders(lv);
   return ladderHoles({ ladders, fgW: lv.fgW, fgH: lv.fgH, fgmap: lv.fgmap, tw, th, solid: (n) => !!assets.foreTile(n)?.mask?.some((v) => v === 1) });
 }
 
@@ -140,6 +143,7 @@ export async function loadLevelInput(file) {
     width: lv.fgW * tw, height: lv.fgH * th,
     shapes: levelShapes(lv, assets, tw, th, new Set(holes.flatMap((h) => h.cells))),
     holes,
+    ladders: levelLadders(lv),
     start: start ? { x: start.x, y: start.y } : { x: 100, y: 100 },
   };
 }

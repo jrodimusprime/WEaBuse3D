@@ -200,15 +200,21 @@ export function compileLevel(input) {
     if (!drawn.has(n)) { const im = assets.foreTile(n); drawn.set(n, !!im && im.pix.some((v) => v)); }
     return drawn.get(n);
   };
+  // A ladder is on the back wall only, where the climber is held to it (client/ladders.js): the front wall
+  // shows the background there, as in an empty cell (Jared: "the double sided ladders thing is also a bit weird").
+  // (Its columns as ladderHoles takes them: a tile whose middle the ladder covers, give or take 5 px.)
+  const onLadder = (c) => (input.ladders || []).some((l) => {
+    const tx = Math.floor(c[0] / tw), mid = tx * tw + tw / 2;
+    return mid >= l.x0 - 5 && mid <= l.x1 + 5 && c[1] >= l.y0 - th && c[1] <= l.y1;
+  });
   for (const leaf of emptyLeaves) {
     for (const piece of gridPieces(leaf.region, [[tw, th], [cellW, cellH]])) {
       const c = B.centroid(piece.pts);
       const fgTile = fgTileAt(lv, tw, th, c);
-      const ti = fgDrawn(fgTile)
-        ? texinfo.get(tex.fg(fgTile), 'decor')
-        : texinfo.get(tex.bg(bgTileAt(lv, Math.floor(c[0] / cellW), Math.floor(c[1] / cellH))), 'bgwall', rx, ry);
+      const bg = () => texinfo.get(tex.bg(bgTileAt(lv, Math.floor(c[0] / cellW), Math.floor(c[1] / cellH))), 'bgwall', rx, ry);
+      const ti = fgDrawn(fgTile) ? texinfo.get(tex.fg(fgTile), 'decor') : bg();
       addFace(backNode, leaf, { plane: planes.depth(LANE), side: 1, pts3: piece.pts.map((p) => Q(p, LANE)), texinfo: ti });
-      addFace(frontNode, leaf, { plane: planes.depth(-LANE), side: 0, pts3: piece.pts.map((p) => Q(p, -LANE)), texinfo: ti });
+      addFace(frontNode, leaf, { plane: planes.depth(-LANE), side: 0, pts3: piece.pts.map((p) => Q(p, -LANE)), texinfo: fgDrawn(fgTile) && onLadder(c) ? bg() : ti });
     }
   }
   for (const f of faces) orientFace(f, planes.list[f.plane]);

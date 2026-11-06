@@ -415,7 +415,9 @@ open (`client/ladders.js`; the compiler and the depth layer share it), and the d
 close it again but for a hole the ladder's size against the back wall, where the ladder is painted. A climber
 is drawn across the hall to the ladder, and a trap door, door or lift that a ladder runs through opens against
 the back wall too. Space jumps off a ladder, pushing the player back into the hall (`tests/ladders.test.mjs`
-climbs every ladder in the game, up and down, from the front of the hall).
+climbs every ladder in the game, up and down, from the front of the hall). A ladder is painted on the back wall
+only: Abuse's ladder tiles used to be drawn on the front wall too, a second ladder that could not be climbed; the
+front wall shows the background there, as round it (Jared: "the double sided ladders thing is also a bit weird").
 
 **Moving like Quake on slopes.** Quake keeps a walker on the ground: after a move along the floor it steps
 down onto ground up to a stair's height below (QuakeWorld's PM_GroundMove; 18 units, 9 px here), and the
