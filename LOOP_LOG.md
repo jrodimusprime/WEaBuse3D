@@ -503,3 +503,12 @@ foreground, fixed to the wall (no parallax), and see-through foreground pixels d
 - Level 4 again: every piece survived but the last did not take the exit (the search only looked for deaths).
   Piece 79 re-found in 25 tries (exit with 58 health); the search now also takes the last piece when the run
   does not reach the exit. Levels 0-4 all finish under the 3D rules: 96/96 tests.
+
+## The dead stay where they fall (2026-11-06)
+- Jared: "when a creature dies it should have a dead body pose or broken parts for robots... similar to quake
+  dead bodies". client/corpses.js (presentation only): the ant in its dead pose on the floor over a stain (its
+  model's own 'dead' pose: Abuse's ant has no frames for it, so the corpse asked for 'stopped' at first and
+  stood up); machines a wreck of their own parts toppled along the hall, lights out, some thrown clear, each
+  resting on its lowest vertex (resting by part origins left them floating), smoke and sparks for 5 s; turrets
+  hang on, drooping, one part fallen. 48 at most, per level. ?kill=TYPE review (fast-forwards 4 s: headless
+  Chrome gets only ~2.5 s of frames). Tests by vertex: on the floor, lower than standing. 99/99 tests.

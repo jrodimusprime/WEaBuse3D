@@ -368,6 +368,13 @@ burns lights the room. The gun in the hands is held like a Quake view model, all
 canted so the gloved hands show: three-jointed fingers round the grip and the barrel, knuckle armour, armoured
 forearms; the guns have bevelled bodies, round barrels, sights, ports and vents (`client/viewmodel.js`).
 
+**The dead stay where they fall**, as in Quake. Abuse takes a dead enemy out of the game at once; in 3D a corpse
+stays for the rest of the level (presentation only, `client/corpses.js`): a creature falls to the floor and lies
+in its dead pose (the ant belly down, legs splayed) over a dark stain; a machine (the WHO flyer, the jugger, the
+cleaner) is a wreck of its own model's parts, toppled on the floor with its lights out and some parts thrown
+clear, smoking and sparking for a few seconds; a turret hangs on, broken, one piece fallen below.
+Review: `?look=TYPE&n=k&kill=TYPE&solo=1`.
+
 **Ladders through floors.** In Abuse a ladder often runs up through a solid floor tile, and the climber
 passes through it. In 3D that floor is a slab across the hall, so the climber went up into solid floor and
 could end up inside walls. Now, like a Quake ladder shaft, the map leaves the floor a ladder passes through

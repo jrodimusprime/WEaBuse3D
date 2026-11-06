@@ -21,7 +21,7 @@ function tracerMesh(rgb) {
   return tracers.get(k);
 }
 
-export function placeScene(scene, depth, lane, timeMs, g, palette) {
+export function placeScene(scene, depth, lane, timeMs, g, palette, corpses = null) {
   const ctx = { palette, lane, time: timeMs, g, depthOf: (e) => depth.depthOf(e) ?? 0, zoneOf: (e) => depth.zoneOf(e), padOf: (e) => depth.padOf(e), pd: depth.pd, antVariant: placeScene.antVariant };
   const out = [];
   for (const s of scene.sprites) {
@@ -44,6 +44,7 @@ export function placeScene(scene, depth, lane, timeMs, g, palette) {
     out.push(s);
   }
   for (const p of antHusks(ctx)) out.push(p); // the torn cocoons hatched ants leave on the ceiling
+  if (corpses) for (const p of corpses.parts(g, ctx, design, timeMs)) out.push({ ...p, player: false }); // the dead (client/corpses.js)
   // bullets: one glowing tracer each, along its path since the last tick, through 3D
   const tracers = new Set();
   for (const b of scene.boxes) if (b.shot?.kind === 'bullet') tracers.add(b.shot);

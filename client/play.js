@@ -18,6 +18,7 @@
 //   ?still=N            step N simulation steps with no input, then hold
 //   ?yaw=deg&pitch=deg  the view
 //   ?at=x,y             put the player here
+//   ?kill=TYPE          review: kill the nearest one of that type shortly after play starts (its corpse)
 //   ?weapon=NAME        review: all weapons, this one in hand (MGUN PGUN GRENADE ROCKET FIREBOMB DFRIS LSABER)
 //   ?fire=1             review: hold the trigger while ?still steps run
 //   ?effect=TYPE&frame=N&fxd=px  review: an effect (EXPLODE1...) frozen at a frame, fxd px ahead
@@ -39,6 +40,7 @@ import { viewModel, VIEW_SCALE, VIEW_HOLD } from './viewmodel.js';
 import { atmosphere } from './atmosphere.js';
 import { ShotFx } from './particles.js';
 import { shotParts } from './shots.js';
+import { Corpses } from './corpses.js';
 import { JumpAssist, climbIntent } from './controls.js';
 import { piecesFor, autopilotStep } from './autopilot.js';
 
@@ -157,6 +159,18 @@ if (params.has('look')) {
 const held = new Set();
 const jumpAssist = new JumpAssist();
 const shotFx = new ShotFx();
+const corpses = new Corpses();
+if (params.has('kill')) { // review: kill one of a type and run the game 4 s on at once, to see its corpse (client/corpses.js)
+  const type = params.get('kill'), p = g.player;
+  // (with ?look of the same type, the one looked at: ?look=TYPE&n=k&kill=TYPE&solo=1 shows its corpse alone)
+  const near = params.get('look') === type ? g.entities.filter((q) => q.type === type)[Number(params.get('n') || 0)]
+    : g.entities.filter((e) => e.type === type && !e.dead).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+  if (near) {
+    corpses.update(g, depth, performance.now() - 5000);
+    near.hp = 0;
+    for (let i = 0; i < 240; i++) { g.keys.clear(); depth.movePlayer(0, STEP); g.update(STEP); corpses.update(g, depth, performance.now() - 5000); }
+  }
+}
 addEventListener('keydown', (e) => {
   held.add(e.code);
   if (e.code === 'F2') { renderer.brightness = renderer.brightness >= 2 ? 1 : renderer.brightness + 0.5; e.preventDefault(); }
@@ -325,7 +339,8 @@ function frame(now) {
   const eye = lookEye || [2 * ex, prev.d + (depth.pd - prev.d) * a, -2 * (ey - EYE)];
   const fovY = (2 * Math.atan(Math.tan(Math.PI / 4) / (w / h)) * 180) / Math.PI; // fov 90, CalcFov
   renderer.setAbuseLights(g.level.lights, params.has('amb') ? Number(params.get('amb')) : g.ambient, g.lightsOn); // ?amb=N: review lighting
-  const scene = placeScene(collectScene(g), depth, LANE, now, g, palette);
+  corpses.update(g, depth, now);
+  const scene = placeScene(collectScene(g), depth, LANE, now, g, palette, corpses);
   const fired = g.player.justFired;
   g.player.justFired = false; // game.js render clears it after drawing the flash
   // the weapon in the hands, placed in front of the eye along the view (forward, left, up)
@@ -352,6 +367,7 @@ function frame(now) {
     return [2 * x, d, -2 * y];
   };
   for (const q of shotParts(g, shotAt, now)) scene.sprites.push(q);
+  corpses.emit(shotFx, now);
   shotFx.update(g, shotAt, (e) => depth.depthOf(e) ?? depth.pd, Math.max(0, (now - (shotFx.lastT ?? now)) / 1000));
   shotFx.lastT = now;
   const fx = shotFx.draws();
